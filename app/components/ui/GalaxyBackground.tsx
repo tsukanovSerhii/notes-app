@@ -40,11 +40,11 @@ export default function GalaxyBackground() {
       const w = canvas.width;
       const h = canvas.height;
 
-      // ~400 small stars
-      stars = Array.from({ length: 400 }, () => ({
+      // ~350 small, dim stars
+      stars = Array.from({ length: 350 }, () => ({
         x: Math.random() * w,
         y: Math.random() * h,
-        radius: Math.random() * 1.2 + 0.3,
+        radius: Math.random() * 1.1 + 0.3,
         phase: Math.random() * Math.PI * 2,
         speed: Math.random() * 0.8 + 0.3,
       }));
@@ -56,7 +56,7 @@ export default function GalaxyBackground() {
         y: Math.random(),
         radius: Math.random() * 0.3 + 0.25,
         color: NEBULA_COLORS[i % NEBULA_COLORS.length],
-        opacity: Math.random() * 0.12 + 0.1, // 0.10–0.22 (panels dim it further)
+        opacity: Math.random() * 0.06 + 0.06, // 0.06–0.12, soft and calm
       }));
     };
 
@@ -90,7 +90,7 @@ export default function GalaxyBackground() {
         const twinkle = 0.5 + 0.5 * Math.sin(t * s.speed + s.phase);
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.2 + twinkle * 0.7})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + twinkle * 0.35})`;
         ctx.fill();
       }
 

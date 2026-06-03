@@ -40,7 +40,7 @@ export default function Home() {
   return (
     <div className="relative z-2 flex h-screen flex-col">
       {/* Navbar */}
-      <header className="flex shrink-0 items-center justify-between border-b border-border bg-bg-surface/70 px-5 py-3 backdrop-blur-xl">
+      <header className="flex shrink-0 items-center justify-between border-b border-border bg-bg-surface/45 px-5 py-3">
         <div className="flex items-center gap-2">
           <span className="text-lg font-semibold tracking-tight text-text-primary">
             Note<span className="text-accent">Void</span>
@@ -52,7 +52,7 @@ export default function Home() {
       {/* Body: three columns */}
       <main className="flex min-h-0 flex-1">
         {/* Sidebar */}
-        <div className="bg-bg-surface/55 backdrop-blur-xl">
+        <div className="bg-bg-surface/35">
           <Sidebar
             notes={filteredNotes}
             activeId={activeNote?.id ?? null}
@@ -67,7 +67,7 @@ export default function Home() {
         {activeNote ? (
           <>
             {/* Editor column */}
-            <section className="flex min-w-0 flex-1 flex-col border-r border-border bg-bg-surface/55 backdrop-blur-xl">
+            <section className="flex min-w-0 flex-1 flex-col border-r border-border bg-bg-surface/35">
               <input
                 type="text"
                 value={activeNote.title}
@@ -89,12 +89,12 @@ export default function Home() {
             </section>
 
             {/* Preview column */}
-            <section className="min-w-0 flex-1 bg-bg-surface/55 backdrop-blur-xl">
+            <section className="min-w-0 flex-1 bg-bg-surface/35">
               <Preview content={activeNote.content} />
             </section>
           </>
         ) : (
-          <section className="flex flex-1 items-center justify-center bg-bg-surface/55 backdrop-blur-xl">
+          <section className="flex flex-1 items-center justify-center bg-bg-surface/35">
             <div className="text-center">
               <p className="text-text-muted">
                 {hydrated

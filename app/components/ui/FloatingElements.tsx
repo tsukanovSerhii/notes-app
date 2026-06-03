@@ -30,7 +30,7 @@ export default function FloatingElements() {
         shape: i % SHAPE_COUNT,
         duration: Math.random() * 14 + 14, // 14–28s
         delay: Math.random() * 25, // 0–25s
-        opacity: Math.random() * 0.12 + 0.08, // 0.08–0.2
+        opacity: Math.random() * 0.08 + 0.06, // 0.06–0.14, subtle
         scale: Math.random() * 0.6 + 0.6, // 0.6–1.2
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
       }))
