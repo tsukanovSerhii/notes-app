@@ -1,12 +1,5 @@
 "use client";
 
-// Button — shared button with a clear visual hierarchy:
-//   primary   → solid accent fill, for the main action on a surface
-//   secondary → outlined, for supporting actions
-//   ghost     → minimal, for low-emphasis / icon actions
-//
-// Built on cn() (clsx) so callers can layer extra classes cleanly.
-
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/app/lib/cn";
 

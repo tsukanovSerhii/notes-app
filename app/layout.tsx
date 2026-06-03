@@ -1,6 +1,3 @@
-// Root layout — loads fonts, applies global styles, and mounts the
-// galaxy + floating-element background behind every page.
-
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";

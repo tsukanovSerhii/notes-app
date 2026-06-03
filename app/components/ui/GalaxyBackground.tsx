@@ -1,22 +1,19 @@
 "use client";
 
-// GalaxyBackground — a full-viewport canvas that renders twinkling stars
-// and soft nebula blobs behind the whole app.
-
 import { useEffect, useRef } from "react";
 
 interface Star {
   x: number;
   y: number;
   radius: number;
-  phase: number; // unique starting point for the twinkle
-  speed: number; // how fast it twinkles
+  phase: number;
+  speed: number;
 }
 
 interface Nebula {
-  x: number; // 0..1 relative position
+  x: number;
   y: number;
-  radius: number; // 0..1 relative to min(w,h)
+  radius: number;
   color: string;
   opacity: number;
 }
@@ -40,7 +37,6 @@ export default function GalaxyBackground() {
       const w = canvas.width;
       const h = canvas.height;
 
-      // ~350 small, dim stars
       stars = Array.from({ length: 350 }, () => ({
         x: Math.random() * w,
         y: Math.random() * h,
@@ -49,14 +45,13 @@ export default function GalaxyBackground() {
         speed: Math.random() * 0.8 + 0.3,
       }));
 
-      // 4–5 soft nebula blobs
       const count = 4 + Math.floor(Math.random() * 2);
       nebulae = Array.from({ length: count }, (_, i) => ({
         x: Math.random(),
         y: Math.random(),
         radius: Math.random() * 0.3 + 0.25,
         color: NEBULA_COLORS[i % NEBULA_COLORS.length],
-        opacity: Math.random() * 0.06 + 0.06, // 0.06–0.12, soft and calm
+        opacity: Math.random() * 0.06 + 0.06,
       }));
     };
 
@@ -71,7 +66,6 @@ export default function GalaxyBackground() {
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
 
-      // Nebula blobs (radial gradients)
       const minDim = Math.min(w, h);
       for (const n of nebulae) {
         const cx = n.x * w;
@@ -84,7 +78,6 @@ export default function GalaxyBackground() {
         ctx.fillRect(0, 0, w, h);
       }
 
-      // Twinkling stars
       const t = time / 1000;
       for (const s of stars) {
         const twinkle = 0.5 + 0.5 * Math.sin(t * s.speed + s.phase);
@@ -117,7 +110,6 @@ export default function GalaxyBackground() {
   );
 }
 
-// Convert "#rrggbb" + alpha into an rgba() string.
 function hexToRgba(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);

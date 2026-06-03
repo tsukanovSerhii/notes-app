@@ -1,26 +1,22 @@
 "use client";
 
-// FloatingElements — 24 decorative SVG shapes that slowly drift upward
-// across the screen, sitting just above the galaxy background.
-
 import { useEffect, useState } from "react";
 
 const COLORS = ["#818cf8", "#67e8f9", "#a78bfa"];
-const SHAPE_COUNT = 8; // number of distinct shapes we cycle through
+const SHAPE_COUNT = 8;
 
 interface FloatItem {
-  left: number; // vw
-  shape: number; // index into renderShape
-  duration: number; // seconds
-  delay: number; // seconds
+  left: number;
+  shape: number;
+  duration: number;
+  delay: number;
   opacity: number;
   scale: number;
   color: string;
 }
 
 export default function FloatingElements() {
-  // Generated on the client only. Math.random() would mismatch between the
-  // server-rendered HTML and the client, so we start empty and fill on mount.
+
   const [items, setItems] = useState<FloatItem[]>([]);
 
   useEffect(() => {
@@ -28,10 +24,10 @@ export default function FloatingElements() {
       Array.from({ length: 24 }, (_, i) => ({
         left: Math.random() * 100,
         shape: i % SHAPE_COUNT,
-        duration: Math.random() * 14 + 14, // 14–28s
-        delay: Math.random() * 25, // 0–25s
-        opacity: Math.random() * 0.08 + 0.06, // 0.06–0.14, subtle
-        scale: Math.random() * 0.6 + 0.6, // 0.6–1.2
+        duration: Math.random() * 14 + 14,
+        delay: Math.random() * 25,
+        opacity: Math.random() * 0.08 + 0.06,
+        scale: Math.random() * 0.6 + 0.6,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
       }))
     );
@@ -39,7 +35,6 @@ export default function FloatingElements() {
 
   return (
     <>
-      {/* Keyframes for the upward float (scoped, injected once). */}
       <style>{`
         @keyframes float-up {
           0%   { transform: translateY(0) rotate(0deg); }
@@ -68,12 +63,11 @@ export default function FloatingElements() {
   );
 }
 
-// Returns one of 8 decorative SVG shapes by index.
 function renderShape(index: number, color: string) {
   const stroke = { stroke: color, strokeWidth: 1.5, fill: "none" };
 
   switch (index) {
-    case 0: // Markdown badge
+    case 0:
       return (
         <svg width="44" height="28" viewBox="0 0 44 28">
           <rect x="1" y="1" width="42" height="26" rx="5" {...stroke} />
@@ -89,7 +83,7 @@ function renderShape(index: number, color: string) {
           </text>
         </svg>
       );
-    case 1: // Code tag </>
+    case 1:
       return (
         <svg width="40" height="24" viewBox="0 0 40 24">
           <text
@@ -104,7 +98,7 @@ function renderShape(index: number, color: string) {
           </text>
         </svg>
       );
-    case 2: // Hash symbol
+    case 2:
       return (
         <svg width="28" height="28" viewBox="0 0 28 28">
           <text
@@ -119,7 +113,7 @@ function renderShape(index: number, color: string) {
           </text>
         </svg>
       );
-    case 3: // Diamond (rotated square)
+    case 3:
       return (
         <svg width="28" height="28" viewBox="0 0 28 28">
           <rect
@@ -132,14 +126,14 @@ function renderShape(index: number, color: string) {
           />
         </svg>
       );
-    case 4: // Concentric circle ring
+    case 4:
       return (
         <svg width="30" height="30" viewBox="0 0 30 30">
           <circle cx="15" cy="15" r="12" {...stroke} />
           <circle cx="15" cy="15" r="6" {...stroke} />
         </svg>
       );
-    case 5: // Curly brace
+    case 5:
       return (
         <svg width="24" height="32" viewBox="0 0 24 32">
           <text
@@ -154,7 +148,7 @@ function renderShape(index: number, color: string) {
           </text>
         </svg>
       );
-    case 6: // 5-point star polygon
+    case 6:
       return (
         <svg width="30" height="30" viewBox="0 0 30 30">
           <polygon
@@ -163,7 +157,7 @@ function renderShape(index: number, color: string) {
           />
         </svg>
       );
-    default: // PDF mini icon
+    default:
       return (
         <svg width="26" height="32" viewBox="0 0 26 32">
           <path d="M3 1 H17 L23 7 V31 H3 Z" {...stroke} />

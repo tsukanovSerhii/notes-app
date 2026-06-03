@@ -1,8 +1,5 @@
 "use client";
 
-// Main app shell — navbar + three-column layout (Sidebar | Editor | Preview)
-// sitting above the galaxy background with blurred glass panels.
-
 import { useNotes } from "@/app/hooks/useNotes";
 import Sidebar from "@/app/components/sidebar/Sidebar";
 import Editor from "@/app/components/editor/Editor";
@@ -24,8 +21,6 @@ export default function Home() {
     hydrated,
   } = useNotes();
 
-  // Insert a template into the active note. If the title is still the default
-  // "Untitled", adopt the template's title too.
   const applyTemplate = (template: NoteTemplate) => {
     if (!activeNote) return;
     const content = activeNote.content
@@ -40,7 +35,6 @@ export default function Home() {
 
   return (
     <div className="relative z-2 flex h-screen flex-col">
-      {/* Navbar */}
       <header className="flex shrink-0 items-center justify-between border-b border-border bg-bg-surface/45 px-5 py-3">
         <div className="flex items-center gap-2">
           <span className="text-lg font-semibold tracking-tight text-text-primary">
@@ -54,9 +48,7 @@ export default function Home() {
         />
       </header>
 
-      {/* Body: three columns */}
       <main className="flex min-h-0 flex-1">
-        {/* Sidebar */}
         <div className="bg-bg-surface/35">
           <Sidebar
             notes={filteredNotes}
@@ -71,7 +63,6 @@ export default function Home() {
 
         {activeNote ? (
           <>
-            {/* Editor column */}
             <section className="flex min-w-0 flex-1 flex-col border-r border-border bg-bg-surface/35">
               <input
                 type="text"
@@ -93,7 +84,6 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Preview column */}
             <section className="min-w-0 flex-1 bg-bg-surface/35">
               <Preview content={activeNote.content} />
             </section>

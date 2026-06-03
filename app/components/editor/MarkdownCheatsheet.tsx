@@ -1,8 +1,5 @@
 "use client";
 
-// MarkdownCheatsheet — a "?" button that opens a small popover listing
-// common Markdown syntax, so users don't have to memorize it.
-
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/app/lib/cn";
 
@@ -26,7 +23,6 @@ export default function MarkdownCheatsheet() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close on outside click or Escape.
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {

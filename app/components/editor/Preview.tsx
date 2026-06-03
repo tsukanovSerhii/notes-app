@@ -1,8 +1,5 @@
 "use client";
 
-// Preview — renders the markdown content with react-markdown + remark-gfm.
-// The wrapper carries id="preview-content" so the PDF export can target it.
-
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 

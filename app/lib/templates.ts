@@ -1,10 +1,8 @@
-// Ready-made note templates inserted via the "Templates" menu.
-
 export interface NoteTemplate {
   id: string;
   label: string;
-  title: string; // suggested note title
-  body: string; // markdown body inserted into the editor
+  title: string;
+  body: string;
 }
 
 export const TEMPLATES: NoteTemplate[] = [
@@ -50,9 +48,7 @@ export const TEMPLATES: NoteTemplate[] = [
 
 ## How I feel
 
-
 ## What happened
-
 
 ## Notes
 -

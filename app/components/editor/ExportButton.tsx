@@ -1,13 +1,5 @@
 "use client";
 
-// ExportButton — exports the active note as a clean, light-themed PDF.
-//
-// We deliberately do NOT screenshot the dark on-screen preview: html2canvas
-// (inside html2pdf.js) can't parse modern oklch/oklab colors that Tailwind 4
-// emits, which produced white-on-white text. Instead we render the markdown
-// into a hidden, print-oriented container with explicit hex colors and export
-// that.
-
 import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -19,9 +11,6 @@ interface ExportButtonProps {
   disabled?: boolean;
 }
 
-// Inline CSS lives *inside* the cloned container so html2canvas (which clones
-// the node into its own iframe, without our global stylesheet) still applies
-// it. Explicit hex colors only — no oklch/CSS variables.
 const PDF_STYLES = `
 .pdf-document { color: #1f2933; }
 .pdf-document h1, .pdf-document h2, .pdf-document h3, .pdf-document h4 {
@@ -121,8 +110,6 @@ export default function ExportButton({
         {loading ? "Exporting..." : "Export PDF"}
       </Button>
 
-      {/* Hidden, light-themed render target for the PDF. Offscreen, not
-          display:none — html2canvas needs it laid out to measure it. */}
       <div className="pointer-events-none fixed -left-[9999px] top-0" aria-hidden>
         <div
           ref={printRef}

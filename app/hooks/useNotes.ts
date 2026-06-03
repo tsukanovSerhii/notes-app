@@ -1,8 +1,5 @@
 "use client";
 
-// useNotes — single source of truth for note state: CRUD operations,
-// active-note selection, search filtering, and localStorage persistence.
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Note } from "@/app/types/note";
 
@@ -30,7 +27,6 @@ export function useNotes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [hydrated, setHydrated] = useState(false);
 
-  // Load from localStorage once on mount.
   useEffect(() => {
     const stored = loadNotes();
     setNotes(stored);
@@ -38,13 +34,11 @@ export function useNotes() {
     setHydrated(true);
   }, []);
 
-  // Persist on every change (after initial hydration).
   useEffect(() => {
     if (!hydrated) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
   }, [notes, hydrated]);
 
-  // Always keep notes sorted by most-recently updated.
   const sortedNotes = useMemo(
     () => [...notes].sort((a, b) => b.updatedAt - a.updatedAt),
     [notes]

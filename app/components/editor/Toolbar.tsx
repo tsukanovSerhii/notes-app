@@ -1,9 +1,5 @@
 "use client";
 
-// Toolbar — formatting buttons (bold, italic, heading, lists, link, code,
-// table), a "Templates" menu for whole-note starters, and the markdown
-// cheatsheet. Each formatting button calls back into the editor's textarea.
-
 import { useEffect, useRef, useState } from "react";
 import { TEMPLATES, type NoteTemplate } from "@/app/lib/templates";
 import MarkdownCheatsheet from "@/app/components/editor/MarkdownCheatsheet";
@@ -87,7 +83,6 @@ export default function Toolbar({
 
       <Divider />
 
-      {/* Templates menu */}
       <div className="relative" ref={menuRef}>
         <button
           type="button"
@@ -123,7 +118,6 @@ export default function Toolbar({
         )}
       </div>
 
-      {/* Push cheatsheet to the right */}
       <div className="ml-auto">
         <MarkdownCheatsheet />
       </div>

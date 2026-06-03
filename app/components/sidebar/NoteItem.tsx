@@ -1,8 +1,5 @@
 "use client";
 
-// NoteItem — a single row in the sidebar note list. Shows the title and a
-// relative timestamp; reveals a delete button on hover.
-
 import type { Note } from "@/app/types/note";
 import { cn } from "@/app/lib/cn";
 
@@ -72,7 +69,6 @@ export default function NoteItem({
   );
 }
 
-// Human-friendly relative time, e.g. "just now", "2 hours ago", "3 days ago".
 function relativeTime(timestamp: number): string {
   const diff = Date.now() - timestamp;
   const sec = Math.floor(diff / 1000);

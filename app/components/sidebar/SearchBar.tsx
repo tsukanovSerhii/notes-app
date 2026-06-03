@@ -1,8 +1,5 @@
 "use client";
 
-// SearchBar — filters the note list. Magnifier icon on the left,
-// clear (×) button on the right when there is a query.
-
 interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
@@ -11,7 +8,6 @@ interface SearchBarProps {
 export default function SearchBar({ value, onChange }: SearchBarProps) {
   return (
     <div className="relative">
-      {/* Magnifier */}
       <svg
         className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
         width="16"

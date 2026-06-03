@@ -1,8 +1,5 @@
 "use client";
 
-// Sidebar — note list panel: header with "New note" action, a search bar,
-// and a scrollable list of NoteItem rows.
-
 import type { Note } from "@/app/types/note";
 import SearchBar from "@/app/components/sidebar/SearchBar";
 import NoteItem from "@/app/components/sidebar/NoteItem";
@@ -29,7 +26,6 @@ export default function Sidebar({
 }: SidebarProps) {
   return (
     <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-border">
-      {/* Header */}
       <div className="px-4 pb-3 pt-4">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
           Notes
@@ -57,12 +53,10 @@ export default function Sidebar({
         </Button>
       </div>
 
-      {/* Search */}
       <div className="px-3 pb-3">
         <SearchBar value={searchQuery} onChange={onSearchChange} />
       </div>
 
-      {/* Note list */}
       <div className="flex-1 space-y-1 overflow-y-auto px-2 pb-3">
         {notes.length === 0 ? (
           <p className="px-3 py-6 text-center text-xs text-text-muted">

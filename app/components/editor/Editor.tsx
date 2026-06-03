@@ -1,8 +1,5 @@
 "use client";
 
-// Editor — markdown textarea with a formatting toolbar, template insertion,
-// keyboard shortcuts (Ctrl+B/I/K), and a live character count.
-
 import { useRef } from "react";
 import Toolbar from "@/app/components/editor/Toolbar";
 import {
@@ -22,8 +19,6 @@ interface EditorProps {
 export default function Editor({ value, onChange, onTemplate }: EditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Apply an edit result: update React state, then restore the caret/selection
-  // on the next frame (after React re-renders the textarea).
   const apply = (result: EditResult) => {
     onChange(result.value);
     requestAnimationFrame(() => {
@@ -49,7 +44,6 @@ export default function Editor({ value, onChange, onTemplate }: EditorProps) {
     if (el) apply(insertBlock(el, text));
   };
 
-  // Keyboard shortcuts inside the textarea.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!(e.ctrlKey || e.metaKey)) return;
     const key = e.key.toLowerCase();
