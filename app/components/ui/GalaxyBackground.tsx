@@ -56,7 +56,7 @@ export default function GalaxyBackground() {
         y: Math.random(),
         radius: Math.random() * 0.3 + 0.25,
         color: NEBULA_COLORS[i % NEBULA_COLORS.length],
-        opacity: Math.random() * 0.04 + 0.04, // 0.04–0.08
+        opacity: Math.random() * 0.12 + 0.1, // 0.10–0.22 (panels dim it further)
       }));
     };
 
