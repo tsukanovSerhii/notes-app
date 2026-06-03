@@ -22,7 +22,22 @@
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
+
+# IDE / editors
+.vscode/
+.idea/
+*.swp
+
+# Playwright (test artifacts)
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# local verification scratch
+verify*.mjs
+dev-server.log
 
 # debug
 npm-debug.log*
