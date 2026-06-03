@@ -6,6 +6,7 @@
 import type { Note } from "@/app/types/note";
 import SearchBar from "@/app/components/sidebar/SearchBar";
 import NoteItem from "@/app/components/sidebar/NoteItem";
+import Button from "@/app/components/ui/Button";
 
 interface SidebarProps {
   notes: Note[];
@@ -29,20 +30,23 @@ export default function Sidebar({
   return (
     <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-border">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4">
-        <h2 className="text-sm font-semibold text-text-primary">Notes</h2>
-        <button
-          type="button"
+      <div className="px-4 pb-3 pt-4">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+          Notes
+        </h2>
+        <Button
+          variant="primary"
+          size="md"
           onClick={onCreate}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent-glow"
+          className="w-full"
         >
           <svg
-            width="14"
-            height="14"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="2.4"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
@@ -50,7 +54,7 @@ export default function Sidebar({
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           New note
-        </button>
+        </Button>
       </div>
 
       {/* Search */}

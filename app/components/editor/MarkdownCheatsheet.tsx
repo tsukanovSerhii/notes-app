@@ -4,6 +4,7 @@
 // common Markdown syntax, so users don't have to memorize it.
 
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@/app/lib/cn";
 
 const ROWS: { syntax: string; result: string }[] = [
   { syntax: "# Heading", result: "Big heading" },
@@ -49,7 +50,12 @@ export default function MarkdownCheatsheet() {
         onClick={() => setOpen((v) => !v)}
         aria-label="Markdown help"
         title="Markdown help"
-        className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-xs font-semibold text-text-muted transition-colors hover:border-accent hover:text-text-primary"
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-md border text-sm font-bold transition-colors",
+          open
+            ? "border-accent bg-accent-glow text-accent"
+            : "border-border text-text-primary/70 hover:border-accent hover:text-accent"
+        )}
       >
         ?
       </button>

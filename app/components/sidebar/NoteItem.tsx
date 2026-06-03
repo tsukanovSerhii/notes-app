@@ -4,6 +4,7 @@
 // relative timestamp; reveals a delete button on hover.
 
 import type { Note } from "@/app/types/note";
+import { cn } from "@/app/lib/cn";
 
 interface NoteItemProps {
   note: Note;
@@ -21,15 +22,21 @@ export default function NoteItem({
   return (
     <div
       onClick={onSelect}
-      className={`group relative cursor-pointer rounded-md border-l-2 px-3 py-2.5 transition-colors ${
+      className={cn(
+        "group relative cursor-pointer rounded-md border-l-2 px-3 py-2.5 transition-colors",
         active
           ? "border-accent bg-accent-glow"
           : "border-transparent hover:bg-bg-elevated"
-      }`}
+      )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-text-primary">
+          <p
+            className={cn(
+              "truncate text-sm font-medium",
+              active ? "text-accent" : "text-text-primary"
+            )}
+          >
             {note.title || "Untitled"}
           </p>
           <p className="mt-0.5 text-xs text-text-muted">

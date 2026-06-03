@@ -8,6 +8,7 @@ import Sidebar from "@/app/components/sidebar/Sidebar";
 import Editor from "@/app/components/editor/Editor";
 import Preview from "@/app/components/editor/Preview";
 import ExportButton from "@/app/components/editor/ExportButton";
+import Button from "@/app/components/ui/Button";
 import type { NoteTemplate } from "@/app/lib/templates";
 
 export default function Home() {
@@ -46,7 +47,11 @@ export default function Home() {
             Note<span className="text-accent">Void</span>
           </span>
         </div>
-        <ExportButton title={activeNote?.title} />
+        <ExportButton
+          title={activeNote?.title}
+          content={activeNote?.content ?? ""}
+          disabled={!activeNote}
+        />
       </header>
 
       {/* Body: three columns */}
@@ -102,13 +107,13 @@ export default function Home() {
                   : "Loading..."}
               </p>
               {hydrated && (
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
                   onClick={createNote}
-                  className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-medium text-bg-base transition-opacity hover:opacity-90"
+                  className="mt-4"
                 >
                   + New note
-                </button>
+                </Button>
               )}
             </div>
           </section>

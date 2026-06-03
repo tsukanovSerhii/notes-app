@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { TEMPLATES, type NoteTemplate } from "@/app/lib/templates";
 import MarkdownCheatsheet from "@/app/components/editor/MarkdownCheatsheet";
+import { cn } from "@/app/lib/cn";
 
 export interface ToolbarProps {
   onWrap: (before: string, after: string, placeholder?: string) => void;
@@ -91,7 +92,12 @@ export default function Toolbar({
         <button
           type="button"
           onClick={() => setMenuOpen((v) => !v)}
-          className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-text-muted transition-colors hover:border-accent hover:text-text-primary"
+          className={cn(
+            "flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+            menuOpen
+              ? "border-accent bg-accent-glow text-accent"
+              : "border-border text-text-primary/80 hover:border-accent hover:text-accent"
+          )}
         >
           Templates
           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
@@ -140,7 +146,11 @@ function Btn({
       title={label}
       aria-label={label}
       onClick={onClick}
-      className="flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+      className={cn(
+        "flex h-8 min-w-8 items-center justify-center rounded-md px-2",
+        "text-sm text-text-primary/80 transition-colors",
+        "hover:bg-accent-glow hover:text-accent active:scale-95"
+      )}
     >
       {children}
     </button>
