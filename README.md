@@ -1,28 +1,100 @@
 # NoteVoid
 
-A clean, dark Markdown notes app with a live preview, a starry galaxy
-background, and one-click PDF export. Notes are stored locally in your browser —
-no account, no server.
+A local-first Markdown notes app with a live preview, PDF/Markdown export and
+a calm galaxy background. Notes never leave the browser: no account, no server.
 
-Built with **Next.js 16** (App Router), **React 19**, **TypeScript**, and
-**Tailwind CSS 4**.
+Built with **Next.js 16** (App Router), **React 19**, **TypeScript** (strict)
+and **Tailwind CSS 4**.
+
+![NoteVoid on desktop](docs/screenshot.png)
+
+<details>
+<summary>Mobile layout</summary>
+
+<img src="docs/screenshot-mobile.png" alt="NoteVoid on a phone" width="320" />
+
+</details>
 
 ---
 
 ## Features
 
-- **Live Markdown preview** — GitHub-Flavored Markdown (tables, task lists,
-  strikethrough) rendered as you type.
-- **Formatting toolbar** — bold, italic, headings, lists, checkboxes, quotes,
-  links, inline/block code, and tables, inserted at the cursor.
-- **Keyboard shortcuts** — `Ctrl/Cmd + B`, `Ctrl/Cmd + I`, `Ctrl/Cmd + K`.
-- **Note templates** — Meeting notes, To-do list, Daily journal, Code snippet.
-- **Markdown cheatsheet** — a quick syntax reference in the editor.
-- **Search** — filter notes by title or content.
-- **Local persistence** — notes are saved to `localStorage`.
-- **PDF export** — export the active note as a clean, light-themed PDF.
-- **Galaxy background** — animated canvas stars, soft nebulae, and drifting
-  SVG shapes.
+- **Live GFM preview**: tables, task lists, strikethrough. Edit, split or
+  preview-only view modes.
+- **Formatting toolbar and shortcuts**: bold, italic, headings, lists,
+  checkboxes, quotes, links, code, tables. Native **Ctrl + Z** keeps working
+  after toolbar actions.
+- **Smart lists**: Enter continues a bullet, numbered or task list and ends it
+  on an empty item.
+- **Pinning, search and undo**: pinned notes stay on top, search covers titles
+  and content, and every delete can be undone from a toast.
+- **Autosave with status**: debounced writes to `localStorage`, with a visible
+  "Saving… / Saved / Not saved" state.
+- **Cross-tab sync**: open the app in two tabs and edits show up in both.
+- **Export** the active note as a light-themed **PDF** or a **.md** file.
+- **Templates**: meeting notes, to-do list, daily journal, code snippet.
+- **Responsive**: on phones the notes list becomes a drawer.
+- **Accessible**: semantic list and buttons, labelled controls, visible focus
+  rings, keyboard-reachable actions, WCAG AA text contrast, and
+  `prefers-reduced-motion` support.
+
+### Keyboard shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `Alt + N` | New note |
+| `/` | Focus search |
+| `Ctrl/Cmd + B`, `I`, `K` | Bold, italic, link |
+| `Enter` in a list | Continue or end the list |
+| `Esc` | Close menus, clear search, close the drawer |
+
+---
+
+## Architecture
+
+```
+UI components ──► useNotes() ──► notesStore ──► notesReducer (pure)
+                     │               │
+         useSyncExternalStore        └──► storage.ts ──► localStorage
+```
+
+| Layer | File | Responsibility |
+| --- | --- | --- |
+| Reducer | [`app/lib/notes/reducer.ts`](app/lib/notes/reducer.ts) | Pure state transitions: create, update, delete/undo, pin, select, sort, filter |
+| Storage | [`app/lib/notes/storage.ts`](app/lib/notes/storage.ts) | Versioned schema, validation of untrusted data, migration from the legacy format |
+| Store | [`app/lib/notes/store.ts`](app/lib/notes/store.ts) | Holds state, debounces persistence, reports save status, applies cross-tab changes |
+| Hook | [`app/hooks/useNotes.ts`](app/hooks/useNotes.ts) | Connects React to the store via `useSyncExternalStore` |
+| Editor logic | [`app/lib/markdownActions.ts`](app/lib/markdownActions.ts) | Pure text transforms (`wrap`, `prefix`, `insert`, `continueList`) |
+
+### Design decisions
+
+- **`useSyncExternalStore` instead of `useEffect` + `setState`.** `localStorage`
+  is an external store. Reading it through a server snapshot and a client
+  snapshot avoids hydration mismatches and the cascading render that loading
+  data in an effect causes.
+- **The logic has no React and no DOM.** The reducer, storage parser and
+  Markdown transforms take plain values and return plain values, so they are
+  unit-tested without a browser. The store gets its storage, clock, ID
+  generator and timers injected, which makes debounce behaviour testable
+  without real waiting.
+- **Debounced, fail-safe persistence.** Typing no longer serializes every note
+  on every keystroke. Pending writes are flushed on `pagehide` and when the tab
+  is hidden. A full or blocked storage shows an error state instead of crashing.
+- **Stored data is untrusted.** Every stored note is validated and normalized;
+  corrupt JSON or malformed entries are dropped instead of breaking the app.
+  The payload is versioned (`{ version: 1, notes, activeId }`), and the earlier
+  bare-array format is still read.
+- **Native undo.** Toolbar edits go through `execCommand("insertText")` and
+  replace only the changed range, so the browser's undo stack survives. If the
+  browser refuses, the edit falls back to a state update.
+- **Rendering cost.** The preview uses `useDeferredValue`, so long notes do not
+  slow typing. The PDF copy of a note is mounted only while an export runs
+  (before, a second Markdown tree re-rendered on every keystroke).
+  `html2pdf.js` is loaded with a dynamic `import()`, only on export.
+- **The background stays cheap.** The canvas scales for HiDPI, caps at 30 fps,
+  pauses in hidden tabs and draws a static frame when reduced motion is
+  preferred. The floating shapes use a seeded PRNG, so server and client
+  render the same markup.
 
 ---
 
@@ -37,64 +109,64 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
----
-
 ## Scripts
 
 | Command | Description |
 | --- | --- |
 | `npm run dev` | Start the dev server |
-| `npm run build` | Production build |
-| `npm run start` | Serve the production build |
-| `npm run lint` | Run ESLint |
-| `npm test` | Run the Playwright end-to-end tests |
-| `npm run test:ui` | Run the tests in Playwright's UI mode |
-| `npm run test:report` | Open the last HTML test report |
-
----
+| `npm run build` / `npm start` | Production build and server |
+| `npm run lint` | ESLint (Next.js core-web-vitals + TypeScript rules) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test:unit` | Unit tests for the pure logic in `app/lib` |
+| `npm run test:e2e` | Playwright end-to-end tests |
+| `npm test` | Unit tests, then end-to-end tests |
+| `npm run check` | Lint, typecheck and unit tests (quick pre-push check) |
 
 ## Testing
 
-End-to-end tests live in [`e2e/`](e2e/) and run on
-[Playwright](https://playwright.dev/). They cover note CRUD, search,
-persistence, the Markdown preview, the editor toolbar, templates, keyboard
-shortcuts, and PDF export.
+- **Unit tests** (`app/**/*.test.ts`, 57 tests) cover the reducer, storage
+  parsing and migration, the store (debounce, flush, quota errors, cross-tab
+  sync), the Markdown transforms and the text helpers. They run on the
+  Playwright test runner without a browser, so the project needs only one test
+  runner.
+- **End-to-end tests** (`e2e/`, 24 tests) cover note CRUD, undo, pinning,
+  search, persistence, cross-tab sync, the toolbar, native undo, list
+  continuation, view modes, shortcuts, PDF and Markdown export, and the mobile
+  drawer.
 
 ```bash
 npx playwright install chromium   # first run only
 npm test
 ```
 
-The test runner reuses a dev server on port `3000` if one is already running,
-otherwise it starts its own.
+## CI
 
----
+[GitHub Actions](.github/workflows/ci.yml) runs lint, typecheck, unit tests
+and the production build, then runs the end-to-end suite against
+`next start`. The Playwright report is uploaded when a run fails.
 
 ## Project structure
 
 ```
 app/
   components/
-    editor/      Editor, Preview, Toolbar, ExportButton, MarkdownCheatsheet
+    editor/      Editor, Toolbar, StatusBar, Preview, Markdown, ExportMenu,
+                 ViewModeToggle, MarkdownCheatsheet
     sidebar/     Sidebar, NoteItem, SearchBar
-    ui/          Button, GalaxyBackground, FloatingElements
-  hooks/         useNotes — note state + localStorage
-  lib/           cn, markdownActions, templates
-  types/         note
-  layout.tsx     fonts + background
-  page.tsx       three-column app shell
-  globals.css    design tokens + base styles
-e2e/             Playwright tests
+    ui/          Button, Icon, Toast, GalaxyBackground, FloatingElements
+  hooks/         useNotes, useDismiss, useMediaQuery
+  lib/
+    notes/       reducer, storage, store, welcome note (+ tests)
+    markdownActions, textarea, text, templates, download, cn (+ tests)
+  types/         Note
+  page.tsx       App shell: layout, shortcuts, toasts
+e2e/             Playwright end-to-end tests
 ```
 
----
+## Possible next steps
 
-## Tech stack
-
-- [Next.js 16](https://nextjs.org/) — App Router
-- [React 19](https://react.dev/)
-- [Tailwind CSS 4](https://tailwindcss.com/)
-- [react-markdown](https://github.com/remarkjs/react-markdown) +
-  [remark-gfm](https://github.com/remarkjs/remark-gfm)
-- [html2pdf.js](https://github.com/eKoopmans/html2pdf.js) — PDF export
-- [Playwright](https://playwright.dev/) — end-to-end tests
+- Syntax highlighting in code blocks (`rehype-highlight`)
+- Tags and folders
+- Import of `.md` files and a JSON backup
+- IndexedDB storage for large note collections
+- Optional sync backend
