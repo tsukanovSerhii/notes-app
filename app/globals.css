@@ -115,3 +115,36 @@ h4 {
   margin: 0 0.5em 0 0;
   accent-color: var(--accent);
 }
+
+/* Syntax highlighting tokens (see app/lib/highlight.ts) */
+.tok-keyword {
+  color: #c4b5fd;
+}
+.tok-string {
+  color: #86efac;
+}
+.tok-number,
+.tok-literal {
+  color: #fdba74;
+}
+.tok-comment {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.tok-function {
+  color: #7dd3fc;
+}
+.tok-type,
+.tok-tag {
+  color: #67e8f9;
+}
+.tok-property,
+.tok-attr {
+  color: #f9a8d4;
+}
+.tok-variable {
+  color: #fcd34d;
+}
+.tok-operator {
+  color: #a5b4fc;
+}

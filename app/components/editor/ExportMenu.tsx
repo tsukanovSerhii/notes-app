@@ -58,6 +58,14 @@ const PDF_STYLES = `
 }
 .pdf-document th { background: #f3f4f6; font-weight: 700; }
 .pdf-document hr { border: none; border-top: 1px solid #e5e7eb; margin: 10pt 0; }
+.pdf-document .tok-keyword { color: #7c3aed; }
+.pdf-document .tok-string { color: #047857; }
+.pdf-document .tok-number, .pdf-document .tok-literal { color: #b45309; }
+.pdf-document .tok-comment { color: #6b7280; font-style: italic; }
+.pdf-document .tok-function { color: #1d4ed8; }
+.pdf-document .tok-type, .pdf-document .tok-tag { color: #0e7490; }
+.pdf-document .tok-property, .pdf-document .tok-attr { color: #be185d; }
+.pdf-document .tok-variable { color: #a16207; }
 .pdf-document ul.contains-task-list, .pdf-document li.task-list-item { list-style: none; }
 .pdf-document ul.contains-task-list { padding-left: 4pt; }
 .pdf-document input[type="checkbox"] {
@@ -173,7 +181,7 @@ export default function ExportMenu({
             {pdfJob.title.trim() && (
               <h1 style={{ fontSize: "20pt", marginBottom: "8pt" }}>{pdfJob.title}</h1>
             )}
-            <Markdown>{pdfJob.content || "_(empty note)_"}</Markdown>
+            <Markdown variant="print">{pdfJob.content || "_(empty note)_"}</Markdown>
           </div>
         </div>
       )}
