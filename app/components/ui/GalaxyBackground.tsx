@@ -14,39 +14,45 @@ interface Nebula {
   x: number;
   y: number;
   radius: number;
-  color: string;
+  color: [number, number, number];
   opacity: number;
 }
 
-const NEBULA_COLORS = ["#818cf8", "#67e8f9", "#a78bfa"];
+const NEBULA_COLORS: [number, number, number][] = [
+  [129, 140, 248],
+  [103, 232, 249],
+  [167, 139, 250],
+];
+const STAR_DENSITY = 1 / 4000;
+const MAX_STARS = 400;
+const FRAME_INTERVAL = 1000 / 30;
 
 export default function GalaxyBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
 
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     let stars: Star[] = [];
     let nebulae: Nebula[] = [];
-    let animationId = 0;
+    let width = 0;
+    let height = 0;
+    let frameId = 0;
+    let lastFrame = 0;
 
     const buildScene = () => {
-      const w = canvas.width;
-      const h = canvas.height;
-
-      stars = Array.from({ length: 350 }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
+      const count = Math.min(MAX_STARS, Math.round(width * height * STAR_DENSITY));
+      stars = Array.from({ length: count }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
         radius: Math.random() * 1.1 + 0.3,
         phase: Math.random() * Math.PI * 2,
         speed: Math.random() * 0.8 + 0.3,
       }));
-
-      const count = 4 + Math.floor(Math.random() * 2);
-      nebulae = Array.from({ length: count }, (_, i) => ({
+      nebulae = Array.from({ length: 4 }, (_, i) => ({
         x: Math.random(),
         y: Math.random(),
         radius: Math.random() * 0.3 + 0.25,
@@ -55,27 +61,18 @@ export default function GalaxyBackground() {
       }));
     };
 
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      buildScene();
-    };
-
-    const render = (time: number) => {
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-
-      const minDim = Math.min(w, h);
+    const draw = (time: number) => {
+      ctx.clearRect(0, 0, width, height);
+      const minDim = Math.min(width, height);
       for (const n of nebulae) {
-        const cx = n.x * w;
-        const cy = n.y * h;
-        const r = n.radius * minDim;
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-        grad.addColorStop(0, hexToRgba(n.color, n.opacity));
-        grad.addColorStop(1, hexToRgba(n.color, 0));
+        const cx = n.x * width;
+        const cy = n.y * height;
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, n.radius * minDim);
+        const [r, g, b] = n.color;
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${n.opacity})`);
+        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
         ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillRect(0, 0, width, height);
       }
 
       const t = time / 1000;
@@ -86,33 +83,62 @@ export default function GalaxyBackground() {
         ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + twinkle * 0.35})`;
         ctx.fill();
       }
+    };
 
-      animationId = requestAnimationFrame(render);
+    const loop = (time: number) => {
+      // A twinkle does not need 120 fps; capping saves battery.
+      if (time - lastFrame >= FRAME_INTERVAL) {
+        lastFrame = time;
+        draw(time);
+      }
+      frameId = requestAnimationFrame(loop);
+    };
+
+    const stop = () => {
+      cancelAnimationFrame(frameId);
+      frameId = 0;
+    };
+
+    const start = () => {
+      stop();
+      if (motionQuery.matches || document.hidden) {
+        draw(0);
+        return;
+      }
+      frameId = requestAnimationFrame(loop);
+    };
+
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      buildScene();
+      start();
     };
 
     resize();
-    animationId = requestAnimationFrame(render);
     window.addEventListener("resize", resize);
+    document.addEventListener("visibilitychange", start);
+    motionQuery.addEventListener("change", start);
 
     return () => {
-      cancelAnimationFrame(animationId);
+      stop();
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", start);
+      motionQuery.removeEventListener("change", start);
     };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-0"
-      style={{ pointerEvents: "none" }}
+      className="pointer-events-none fixed inset-0 z-0"
       aria-hidden
     />
   );
-}
-
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

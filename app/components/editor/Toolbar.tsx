@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { TEMPLATES, type NoteTemplate } from "@/app/lib/templates";
 import MarkdownCheatsheet from "@/app/components/editor/MarkdownCheatsheet";
+import Icon, { type IconName } from "@/app/components/ui/Icon";
+import { useDismiss } from "@/app/hooks/useDismiss";
 import { cn } from "@/app/lib/cn";
 
 export interface ToolbarProps {
@@ -27,59 +29,37 @@ export default function Toolbar({
 }: ToolbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [menuOpen]);
+  useDismiss(menuRef, menuOpen, () => setMenuOpen(false));
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-border px-3 py-2">
+    <div
+      role="toolbar"
+      aria-label="Formatting"
+      className="flex shrink-0 flex-wrap items-center gap-0.5 border-b border-border px-2 py-1.5 sm:px-3"
+    >
       <Btn label="Bold (Ctrl+B)" onClick={() => onWrap("**", "**", "bold")}>
-        <span className="font-bold">B</span>
+        <span className="text-sm font-bold">B</span>
       </Btn>
       <Btn label="Italic (Ctrl+I)" onClick={() => onWrap("*", "*", "italic")}>
-        <span className="italic">I</span>
+        <span className="font-serif text-sm italic">I</span>
       </Btn>
-      <Btn label="Heading" onClick={() => onPrefix("# ")}>
-        <span className="font-semibold">H</span>
-      </Btn>
-
-      <Divider />
-
-      <Btn label="Bullet list" onClick={() => onPrefix("- ")}>
-        •
-      </Btn>
-      <Btn label="Numbered list" onClick={() => onPrefix("", true)}>
-        1.
-      </Btn>
-      <Btn label="Checkbox" onClick={() => onPrefix("- [ ] ")}>
-        ☑
-      </Btn>
-      <Btn label="Quote" onClick={() => onPrefix("> ")}>
-        ❝
+      <Btn label="Heading" onClick={() => onPrefix("## ")}>
+        <span className="text-sm font-semibold">H</span>
       </Btn>
 
       <Divider />
 
-      <Btn label="Link (Ctrl+K)" onClick={() => onWrap("[", "](url)", "text")}>
-        🔗
-      </Btn>
-      <Btn label="Inline code" onClick={() => onWrap("`", "`", "code")}>
-        <span className="font-mono">{"</>"}</span>
-      </Btn>
-      <Btn label="Code block" onClick={() => onInsert(CODE_BLOCK)}>
-        <span className="font-mono text-[10px]">{"{ }"}</span>
-      </Btn>
-      <Btn label="Table" onClick={() => onInsert(TABLE)}>
-        ▦
-      </Btn>
+      <Btn label="Bullet list" icon="list" onClick={() => onPrefix("- ")} />
+      <Btn label="Numbered list" icon="listOrdered" onClick={() => onPrefix("", true)} />
+      <Btn label="Checkbox" icon="checkbox" onClick={() => onPrefix("- [ ] ")} />
+      <Btn label="Quote" icon="quote" onClick={() => onPrefix("> ")} />
+
+      <Divider />
+
+      <Btn label="Link (Ctrl+K)" icon="link" onClick={() => onWrap("[", "](url)", "text")} />
+      <Btn label="Inline code" icon="code" onClick={() => onWrap("`", "`", "code")} />
+      <Btn label="Code block" icon="codeBlock" onClick={() => onInsert(CODE_BLOCK)} />
+      <Btn label="Table" icon="table" onClick={() => onInsert(TABLE)} />
 
       <Divider />
 
@@ -87,29 +67,35 @@ export default function Toolbar({
         <button
           type="button"
           onClick={() => setMenuOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
           className={cn(
-            "flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+            "flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-semibold transition-colors",
+            "focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none",
             menuOpen
-              ? "border-accent bg-accent-glow text-accent"
-              : "border-border text-text-primary/80 hover:border-accent hover:text-accent"
+              ? "bg-accent-glow text-accent"
+              : "text-text-primary/80 hover:bg-accent-glow hover:text-accent"
           )}
         >
+          <Icon name="layoutTemplate" size={14} />
           Templates
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M7 10l5 5 5-5z" />
-          </svg>
+          <Icon name="chevronDown" size={12} />
         </button>
         {menuOpen && (
-          <div className="absolute left-0 top-9 z-20 w-44 rounded-lg border border-border bg-bg-elevated p-1 shadow-xl">
+          <div
+            role="menu"
+            className="absolute left-0 top-9 z-30 w-44 rounded-lg border border-border bg-bg-elevated p-1 shadow-xl"
+          >
             {TEMPLATES.map((t) => (
               <button
                 key={t.id}
                 type="button"
+                role="menuitem"
                 onClick={() => {
                   onTemplate(t);
                   setMenuOpen(false);
                 }}
-                className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-primary transition-colors hover:bg-accent-glow hover:text-accent"
+                className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-primary transition-colors hover:bg-accent-glow hover:text-accent focus-visible:bg-accent-glow focus-visible:outline-none"
               >
                 {t.label}
               </button>
@@ -118,7 +104,7 @@ export default function Toolbar({
         )}
       </div>
 
-      <div className="ml-auto">
+      <div className="ml-auto pl-1">
         <MarkdownCheatsheet />
       </div>
     </div>
@@ -127,12 +113,14 @@ export default function Toolbar({
 
 function Btn({
   label,
+  icon,
   onClick,
   children,
 }: {
   label: string;
+  icon?: IconName;
   onClick: () => void;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <button
@@ -141,16 +129,17 @@ function Btn({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        "flex h-8 min-w-8 items-center justify-center rounded-md px-2",
-        "text-sm text-text-primary/80 transition-colors",
-        "hover:bg-accent-glow hover:text-accent active:scale-95"
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
+        "text-text-primary/80 transition-colors",
+        "hover:bg-accent-glow hover:text-accent active:scale-95",
+        "focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
       )}
     >
-      {children}
+      {icon ? <Icon name={icon} /> : children}
     </button>
   );
 }
 
 function Divider() {
-  return <span className="mx-1 h-5 w-px bg-border" />;
+  return <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />;
 }

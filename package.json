@@ -7,9 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "playwright test -c playwright.unit.config.ts",
+    "test:e2e": "playwright test",
     "test:ui": "playwright test --ui",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "check": "npm run lint && npm run typecheck && npm run test:unit"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",

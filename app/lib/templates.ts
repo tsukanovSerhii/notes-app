@@ -1,8 +1,11 @@
+import { todayLocalISO } from "@/app/lib/text";
+
 export interface NoteTemplate {
   id: string;
   label: string;
   title: string;
-  body: string;
+  /** Built on demand so dates are always current. */
+  body: () => string;
 }
 
 export const TEMPLATES: NoteTemplate[] = [
@@ -10,9 +13,9 @@ export const TEMPLATES: NoteTemplate[] = [
     id: "meeting",
     label: "Meeting notes",
     title: "Meeting notes",
-    body: `# Meeting notes
+    body: () => `# Meeting notes
 
-**Date:** ${todayISO()}
+**Date:** ${todayLocalISO()}
 **Attendees:**
 
 ## Agenda
@@ -30,7 +33,7 @@ export const TEMPLATES: NoteTemplate[] = [
     id: "todo",
     label: "To-do list",
     title: "To-do list",
-    body: `# To-do
+    body: () => `# To-do
 
 ## Today
 - [ ] First task
@@ -44,7 +47,7 @@ export const TEMPLATES: NoteTemplate[] = [
     id: "journal",
     label: "Daily journal",
     title: "Daily journal",
-    body: `# ${todayISO()}
+    body: () => `# ${todayLocalISO()}
 
 ## How I feel
 
@@ -58,7 +61,7 @@ export const TEMPLATES: NoteTemplate[] = [
     id: "snippet",
     label: "Code snippet",
     title: "Code snippet",
-    body: `# Snippet
+    body: () => `# Snippet
 
 What it does:
 
@@ -68,7 +71,3 @@ What it does:
 `,
   },
 ];
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}

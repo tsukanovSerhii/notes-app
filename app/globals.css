@@ -12,7 +12,9 @@
 
   /* Text */
   --text-primary: #fafafa;
-  --text-muted: #71717a;
+  --text-secondary: #c4c4cc;
+  /* #71717a failed WCAG AA on the surface colour; this passes at 4.5:1+. */
+  --text-muted: #8e8e98;
 
   /* Accent */
   --accent: #818cf8;
@@ -26,10 +28,37 @@
   --color-bg-elevated: var(--bg-elevated);
   --color-border: var(--border);
   --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
+  --animate-toast-in: toast-in 180ms ease-out;
   --color-accent: var(--accent);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes float-up {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(-115vh) rotate(20deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 body {
@@ -77,3 +106,45 @@ h4 {
   color: var(--text-primary);
 }
 
+/* GFM task lists: the checkbox is the marker, so hide the bullet */
+.prose ul.contains-task-list {
+  list-style: none;
+  padding-left: 0.25em;
+}
+.prose li.task-list-item input[type="checkbox"] {
+  margin: 0 0.5em 0 0;
+  accent-color: var(--accent);
+}
+
+/* Syntax highlighting tokens (see app/lib/highlight.ts) */
+.tok-keyword {
+  color: #c4b5fd;
+}
+.tok-string {
+  color: #86efac;
+}
+.tok-number,
+.tok-literal {
+  color: #fdba74;
+}
+.tok-comment {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.tok-function {
+  color: #7dd3fc;
+}
+.tok-type,
+.tok-tag {
+  color: #67e8f9;
+}
+.tok-property,
+.tok-attr {
+  color: #f9a8d4;
+}
+.tok-variable {
+  color: #fcd34d;
+}
+.tok-operator {
+  color: #a5b4fc;
+}

@@ -5,6 +5,8 @@ import {
   editor,
   titleInput,
   preview,
+  emptyState,
+  noteRow,
 } from "./helpers";
 
 test.describe("Notes CRUD, search & persistence", () => {
@@ -98,19 +100,78 @@ test.describe("Notes CRUD, search & persistence", () => {
     await createNote(page);
     await titleInput(page).fill("Beta");
 
-    const betaRow = page.locator("aside .group", { hasText: "Beta" }).first();
+    const betaRow = noteRow(page, "Beta");
     await betaRow.hover();
     await betaRow.getByRole("button", { name: /Delete note/i }).click();
 
     await expect(page.locator("aside").getByText("Beta")).toBeHidden();
     await expect(titleInput(page)).toHaveValue("Alpha");
 
-    const alphaRow = page.locator("aside .group", { hasText: "Alpha" }).first();
+    const alphaRow = noteRow(page, "Alpha");
     await alphaRow.hover();
     await alphaRow.getByRole("button", { name: /Delete note/i }).click();
 
+    await expect(emptyState(page)).toBeVisible();
+  });
+
+  test("undoes a delete from the toast", async ({ page }) => {
+    await createNote(page);
+    await titleInput(page).fill("Keep me");
+
+    await noteRow(page, "Keep me").hover();
+    await noteRow(page, "Keep me")
+      .getByRole("button", { name: /Delete note/i })
+      .click();
+    await expect(page.getByRole("status")).toContainText("Deleted “Keep me”");
+
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(noteRow(page, "Keep me")).toBeVisible();
+    await expect(titleInput(page)).toHaveValue("Keep me");
+  });
+
+  test("pinned notes stay on top", async ({ page }) => {
+    await createNote(page);
+    await titleInput(page).fill("Older");
+    await createNote(page);
+    await titleInput(page).fill("Newer");
+
+    const rows = page.getByRole("list", { name: "Note list" }).locator("li");
+    await expect(rows.first()).toContainText("Newer");
+
+    await noteRow(page, "Older").hover();
+    await noteRow(page, "Older").getByRole("button", { name: "Pin note" }).click();
+    await expect(rows.first()).toContainText("Older");
+  });
+
+  test("first visit opens a pinned welcome note", async ({ browser }) => {
+    const page = await (await browser.newContext()).newPage();
+    await page.goto("/");
+    await expect(titleInput(page)).toHaveValue("Welcome to NoteVoid");
+    await expect(preview(page).locator("h1")).toHaveText("Welcome to NoteVoid");
+  });
+
+  test("Alt+N creates a note and / focuses search", async ({ page }) => {
+    await page.keyboard.press("Alt+n");
+    await expect(titleInput(page)).toBeFocused();
+
+    await titleInput(page).blur();
+    await page.keyboard.press("/");
     await expect(
-      page.getByText(/Select a note or create a new one/i)
-    ).toBeVisible();
+      page.getByRole("searchbox", { name: "Search notes" })
+    ).toBeFocused();
+  });
+
+  test("syncs notes between tabs", async ({ page, context }) => {
+    await createNote(page);
+    await titleInput(page).fill("Shared");
+
+    const second = await context.newPage();
+    await second.goto("/");
+    await expect(noteRow(second, "Shared")).toBeVisible();
+
+    await createNote(second);
+    await titleInput(second).fill("From tab two");
+
+    await expect(noteRow(page, "From tab two")).toBeVisible();
   });
 });
