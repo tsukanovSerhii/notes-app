@@ -55,10 +55,15 @@ function NoteItem({
             {preview}
           </span>
         )}
-        <span className="mt-1 block text-[11px] text-text-muted/80">
-          <time dateTime={new Date(note.updatedAt).toISOString()}>
+        <span className="mt-1 flex items-center gap-1.5 overflow-hidden text-[11px] text-text-muted/80">
+          <time dateTime={new Date(note.updatedAt).toISOString()} className="shrink-0">
             {relativeTime(note.updatedAt)}
           </time>
+          {note.tags.slice(0, 2).map((tag) => (
+            <span key={tag} className="truncate text-accent/80">
+              #{tag}
+            </span>
+          ))}
         </span>
       </button>
 
