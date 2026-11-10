@@ -2,15 +2,17 @@ import type { Note } from "@/app/types/note";
 
 const WELCOME = `# Welcome to NoteVoid
 
-A Markdown notes app that lives entirely in your browser. No account, no server: your notes are saved to \`localStorage\` as you type.
+A local-first Markdown notes app. Notes are stored in your browser (IndexedDB) as you type, and you can optionally sync them between devices.
 
 ## Try it
 
 - [x] Open this note
 - [ ] Select some text and press **Ctrl + B**
-- [ ] Insert a template from the toolbar
-- [ ] Export this note as **PDF** or **Markdown**
-- [ ] Open the app in a second tab and watch notes sync
+- [ ] Add a tag below the title and filter by it in the sidebar
+- [ ] Create a folder and move this note into it
+- [ ] Drop a \`.md\` file onto the window to import it
+- [ ] Export this note as **PDF** or **Markdown**, or download a full backup
+- [ ] Turn on sync from the cloud button and open the app on another device
 
 ## Keyboard shortcuts
 
@@ -21,11 +23,13 @@ A Markdown notes app that lives entirely in your browser. No account, no server:
 | \`Ctrl + B\` / \`Ctrl + I\` | Bold / italic |
 | \`Ctrl + K\` | Link |
 
-## Code blocks
+## Code blocks are highlighted
 
 \`\`\`ts
+// The highlighter is ~200 lines, no dependencies.
 function greet(name: string): string {
-  return \`Hello, \${name}!\`;
+  const count = 42;
+  return \`Hello, \${name}! You have \${count} notes.\`;
 }
 \`\`\`
 
@@ -39,6 +43,8 @@ export function createWelcomeNotes(now: number): Note[] {
       title: "Welcome to NoteVoid",
       content: WELCOME,
       pinned: true,
+      tags: ["getting-started"],
+      folderId: null,
       createdAt: now,
       updatedAt: now,
     },

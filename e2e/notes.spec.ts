@@ -6,7 +6,6 @@ import {
   titleInput,
   preview,
   emptyState,
-  gotoFirstVisit,
   noteRow,
 } from "./helpers";
 
@@ -136,7 +135,7 @@ test.describe("Notes CRUD, search & persistence", () => {
     await createNote(page);
     await titleInput(page).fill("Newer");
 
-    const rows = page.locator("aside li");
+    const rows = page.getByRole("list", { name: "Note list" }).locator("li");
     await expect(rows.first()).toContainText("Newer");
 
     await noteRow(page, "Older").hover();
@@ -144,8 +143,9 @@ test.describe("Notes CRUD, search & persistence", () => {
     await expect(rows.first()).toContainText("Older");
   });
 
-  test("first visit opens a pinned welcome note", async ({ page }) => {
-    await gotoFirstVisit(page);
+  test("first visit opens a pinned welcome note", async ({ browser }) => {
+    const page = await (await browser.newContext()).newPage();
+    await page.goto("/");
     await expect(titleInput(page)).toHaveValue("Welcome to NoteVoid");
     await expect(preview(page).locator("h1")).toHaveText("Welcome to NoteVoid");
   });

@@ -3,11 +3,26 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { createNotesStore } from "@/app/lib/notes/store";
 import { sortNotes } from "@/app/lib/notes/reducer";
-import { STORAGE_KEY } from "@/app/lib/notes/storage";
+import { createIndexedDbPersistence } from "@/app/lib/notes/idb";
+import {
+  createLocalStoragePersistence,
+  type NotesPersistence,
+} from "@/app/lib/notes/persistence";
 import { createWelcomeNotes } from "@/app/lib/notes/welcome";
 
-const notesStore = createNotesStore({
-  getStorage: () => (typeof window === "undefined" ? null : window.localStorage),
+let persistence: NotesPersistence | null = null;
+
+function getPersistence(): NotesPersistence | null {
+  if (typeof window === "undefined") return null;
+  persistence ??=
+    "indexedDB" in window && window.indexedDB
+      ? createIndexedDbPersistence(window.indexedDB, window.localStorage)
+      : createLocalStoragePersistence(window.localStorage);
+  return persistence;
+}
+
+export const notesStore = createNotesStore({
+  getPersistence,
   seed: createWelcomeNotes,
 });
 
@@ -19,19 +34,13 @@ export function useNotes() {
   );
 
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) notesStore.receiveExternal(e.newValue);
-    };
-    const flush = () => notesStore.flush();
+    const flush = () => notesStore.flushSync();
     const onVisibility = () => {
-      if (document.visibilityState === "hidden") flush();
+      if (document.visibilityState === "hidden") void notesStore.flush();
     };
-
-    window.addEventListener("storage", onStorage);
     window.addEventListener("pagehide", flush);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.removeEventListener("storage", onStorage);
       window.removeEventListener("pagehide", flush);
       document.removeEventListener("visibilitychange", onVisibility);
     };
@@ -42,18 +51,18 @@ export function useNotes() {
     () => snapshot.notes.find((n) => n.id === snapshot.activeId) ?? null,
     [snapshot.notes, snapshot.activeId]
   );
+  const folders = useMemo(
+    () => [...snapshot.folders].sort((a, b) => a.name.localeCompare(b.name)),
+    [snapshot.folders]
+  );
 
   return {
     notes,
+    folders,
     activeNote,
     lastDeleted: snapshot.lastDeleted,
     hydrated: snapshot.hydrated,
     saveStatus: snapshot.saveStatus,
-    createNote: notesStore.create,
-    updateNote: notesStore.update,
-    deleteNote: notesStore.remove,
-    undoDelete: notesStore.undoDelete,
-    togglePin: notesStore.togglePin,
-    selectNote: notesStore.select,
+    store: notesStore,
   };
 }
