@@ -58,7 +58,7 @@ test.describe("Editor toolbar, shortcuts, templates & cheatsheet", () => {
     page,
   }) => {
     await page.getByRole("button", { name: /Templates/i }).click();
-    await page.getByRole("button", { name: /To-do list/i }).click();
+    await page.getByRole("menuitem", { name: /To-do list/i }).click();
 
     await expect(titleInput(page)).toHaveValue("To-do list");
     await expect(editor(page)).toHaveValue(/## Today/);
@@ -74,5 +74,70 @@ test.describe("Editor toolbar, shortcuts, templates & cheatsheet", () => {
 
     await page.keyboard.press("Escape");
     await expect(page.getByText(/Markdown cheatsheet/i)).toBeHidden();
+  });
+
+  test("native undo works after a toolbar action", async ({ page }) => {
+    await editor(page).fill("text");
+    await selectRange(page, 0, 4);
+    await page.getByRole("button", { name: /^Bold/i }).click();
+    await expect(editor(page)).toHaveValue("**text**");
+
+    await editor(page).press("Control+z");
+    await expect(editor(page)).toHaveValue("text");
+  });
+
+  test("Enter continues a list and ends it on an empty item", async ({
+    page,
+  }) => {
+    await editor(page).click();
+    await page.keyboard.type("- milk");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("eggs");
+    await expect(editor(page)).toHaveValue("- milk\n- eggs");
+
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    await expect(editor(page)).toHaveValue("- milk\n- eggs\n");
+  });
+
+  test("view mode switches between edit, split and preview", async ({
+    page,
+  }) => {
+    const modes = page.getByRole("group", { name: "View mode" });
+
+    await modes.getByRole("button", { name: "Preview" }).click();
+    await expect(editor(page)).toBeHidden();
+    await expect(preview(page)).toBeVisible();
+
+    await modes.getByRole("button", { name: "Edit" }).click();
+    await expect(editor(page)).toBeVisible();
+    await expect(preview(page)).toBeHidden();
+
+    await modes.getByRole("button", { name: "Split" }).click();
+    await expect(editor(page)).toBeVisible();
+    await expect(preview(page)).toBeVisible();
+  });
+
+  test("external links in the preview open in a new tab", async ({ page }) => {
+    await editor(page).fill("[site](https://example.com)");
+    const link = preview(page).getByRole("link", { name: "site" });
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+});
+
+test.describe("Mobile layout", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("notes list lives in a drawer", async ({ page }) => {
+    await gotoFresh(page);
+    await createNote(page);
+    await titleInput(page).fill("Phone note");
+
+    await page.getByRole("button", { name: "Open notes list" }).click();
+    await expect(page.locator("aside").getByText("Phone note")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.locator("aside").getByText("Phone note")).toBeHidden();
   });
 });
