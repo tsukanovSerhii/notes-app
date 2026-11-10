@@ -2,85 +2,95 @@
 
 import { useRef } from "react";
 import Toolbar from "@/app/components/editor/Toolbar";
+import StatusBar from "@/app/components/editor/StatusBar";
 import {
-  wrapSelection,
-  prefixLines,
+  continueList,
   insertBlock,
-  type EditResult,
+  prefixLines,
+  wrapSelection,
+  type TextSelection,
 } from "@/app/lib/markdownActions";
+import { applyNativeEdit, readSelection } from "@/app/lib/textarea";
 import type { NoteTemplate } from "@/app/lib/templates";
+import type { SaveStatus } from "@/app/lib/notes/store";
 
 interface EditorProps {
   value: string;
+  saveStatus: SaveStatus;
   onChange: (value: string) => void;
   onTemplate: (template: NoteTemplate) => void;
 }
 
-export default function Editor({ value, onChange, onTemplate }: EditorProps) {
+type Transform = (selection: TextSelection) => TextSelection | null;
+
+export default function Editor({
+  value,
+  saveStatus,
+  onChange,
+  onTemplate,
+}: EditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const apply = (result: EditResult) => {
-    onChange(result.value);
-    requestAnimationFrame(() => {
-      const el = textareaRef.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(result.selectionStart, result.selectionEnd);
-    });
+  const run = (transform: Transform): boolean => {
+    const el = textareaRef.current;
+    if (!el) return false;
+    const next = transform(readSelection(el));
+    if (!next) return false;
+
+    if (!applyNativeEdit(el, next)) {
+      onChange(next.value);
+      requestAnimationFrame(() => {
+        el.focus();
+        el.setSelectionRange(next.selectionStart, next.selectionEnd);
+      });
+    }
+    return true;
   };
 
-  const handleWrap = (before: string, after: string, placeholder?: string) => {
-    const el = textareaRef.current;
-    if (el) apply(wrapSelection(el, before, after, placeholder));
-  };
-
-  const handlePrefix = (prefix: string, ordered?: boolean) => {
-    const el = textareaRef.current;
-    if (el) apply(prefixLines(el, prefix, ordered));
-  };
-
-  const handleInsert = (text: string) => {
-    const el = textareaRef.current;
-    if (el) apply(insertBlock(el, text));
-  };
+  const wrap = (before: string, after: string, placeholder?: string) =>
+    run((s) => wrapSelection(s, before, after, placeholder));
+  const prefix = (p: string, ordered?: boolean) =>
+    run((s) => prefixLines(s, p, ordered));
+  const insert = (text: string) => run((s) => insertBlock(s, text));
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!(e.ctrlKey || e.metaKey)) return;
-    const key = e.key.toLowerCase();
-    if (key === "b") {
+    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (!e.nativeEvent.isComposing && run(continueList)) e.preventDefault();
+      return;
+    }
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+
+    const shortcuts: Record<string, () => void> = {
+      b: () => wrap("**", "**", "bold"),
+      i: () => wrap("*", "*", "italic"),
+      k: () => wrap("[", "](url)", "text"),
+    };
+    const action = shortcuts[e.key.toLowerCase()];
+    if (action) {
       e.preventDefault();
-      handleWrap("**", "**", "bold");
-    } else if (key === "i") {
-      e.preventDefault();
-      handleWrap("*", "*", "italic");
-    } else if (key === "k") {
-      e.preventDefault();
-      handleWrap("[", "](url)", "text");
+      action();
     }
   };
 
   return (
     <div className="flex h-full flex-col">
       <Toolbar
-        onWrap={handleWrap}
-        onPrefix={handlePrefix}
-        onInsert={handleInsert}
+        onWrap={wrap}
+        onPrefix={prefix}
+        onInsert={insert}
         onTemplate={onTemplate}
       />
-      <div className="relative flex min-h-0 flex-1 flex-col">
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Start writing in Markdown..."
-          spellCheck={false}
-          className="h-full w-full flex-1 resize-none bg-transparent p-6 font-mono text-sm leading-[1.8] text-text-primary placeholder:text-text-muted outline-none"
-        />
-        <div className="pointer-events-none absolute bottom-3 right-4 text-xs text-text-muted">
-          {value.length} chars
-        </div>
-      </div>
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Start writing in Markdown..."
+        aria-label="Note content"
+        spellCheck={false}
+        className="min-h-0 w-full flex-1 resize-none bg-transparent p-4 font-mono text-sm leading-[1.8] text-text-primary placeholder:text-text-muted outline-none sm:p-6"
+      />
+      <StatusBar content={value} saveStatus={saveStatus} />
     </div>
   );
 }

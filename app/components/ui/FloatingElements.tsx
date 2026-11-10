@@ -1,9 +1,6 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
 const COLORS = ["#818cf8", "#67e8f9", "#a78bfa"];
 const SHAPE_COUNT = 8;
+const ITEM_COUNT = 24;
 
 interface FloatItem {
   left: number;
@@ -15,51 +12,54 @@ interface FloatItem {
   color: string;
 }
 
+/**
+ * Small seeded PRNG (mulberry32). A fixed seed gives the server and the client
+ * the same "random" layout, so there is no hydration mismatch and no need to
+ * generate the items in an effect after mount.
+ */
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const random = mulberry32(42);
+const ITEMS: FloatItem[] = Array.from({ length: ITEM_COUNT }, (_, i) => ({
+  left: random() * 100,
+  shape: i % SHAPE_COUNT,
+  duration: random() * 14 + 14,
+  delay: random() * 25,
+  opacity: random() * 0.08 + 0.06,
+  scale: random() * 0.6 + 0.6,
+  color: COLORS[Math.floor(random() * COLORS.length)],
+}));
+
 export default function FloatingElements() {
-
-  const [items, setItems] = useState<FloatItem[]>([]);
-
-  useEffect(() => {
-    setItems(
-      Array.from({ length: 24 }, (_, i) => ({
-        left: Math.random() * 100,
-        shape: i % SHAPE_COUNT,
-        duration: Math.random() * 14 + 14,
-        delay: Math.random() * 25,
-        opacity: Math.random() * 0.08 + 0.06,
-        scale: Math.random() * 0.6 + 0.6,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      }))
-    );
-  }, []);
-
   return (
-    <>
-      <style>{`
-        @keyframes float-up {
-          0%   { transform: translateY(0) rotate(0deg); }
-          100% { transform: translateY(-115vh) rotate(20deg); }
-        }
-      `}</style>
-
-      <div className="fixed inset-0 z-1 overflow-hidden pointer-events-none">
-        {items.map((item, i) => (
-          <div
-            key={i}
-            className="absolute"
-            style={{
-              left: `${item.left}vw`,
-              bottom: "-80px",
-              opacity: item.opacity,
-              transform: `scale(${item.scale})`,
-              animation: `float-up ${item.duration}s linear ${item.delay}s infinite`,
-            }}
-          >
-            {renderShape(item.shape, item.color)}
-          </div>
-        ))}
-      </div>
-    </>
+    <div
+      aria-hidden
+      className="pointer-events-none fixed inset-0 z-1 overflow-hidden motion-reduce:hidden"
+    >
+      {ITEMS.map((item, i) => (
+        <div
+          key={i}
+          className="absolute"
+          style={{
+            left: `${item.left.toFixed(3)}vw`,
+            bottom: "-80px",
+            opacity: Number(item.opacity.toFixed(3)),
+            scale: Number(item.scale.toFixed(3)),
+            animation: `float-up ${item.duration.toFixed(2)}s linear -${item.delay.toFixed(2)}s infinite`,
+          }}
+        >
+          {renderShape(item.shape, item.color)}
+        </div>
+      ))}
+    </div>
   );
 }
 

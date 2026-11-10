@@ -1,86 +1,113 @@
 "use client";
 
+import { memo } from "react";
 import type { Note } from "@/app/types/note";
+import Icon from "@/app/components/ui/Icon";
 import { cn } from "@/app/lib/cn";
+import { excerpt, relativeTime } from "@/app/lib/text";
 
 interface NoteItemProps {
   note: Note;
   active: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  onTogglePin: (id: string) => void;
 }
 
-export default function NoteItem({
+function NoteItem({
   note,
   active,
   onSelect,
   onDelete,
+  onTogglePin,
 }: NoteItemProps) {
+  const title = note.title.trim() || "Untitled";
+  const preview = excerpt(note.content, 80, title);
+
   return (
-    <div
-      onClick={onSelect}
+    <li
       className={cn(
-        "group relative cursor-pointer rounded-md border-l-2 px-3 py-2.5 transition-colors",
+        "group relative rounded-md border-l-2 transition-colors",
         active
           ? "border-accent bg-accent-glow"
           : "border-transparent hover:bg-bg-elevated"
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p
-            className={cn(
-              "truncate text-sm font-medium",
-              active ? "text-accent" : "text-text-primary"
-            )}
-          >
-            {note.title || "Untitled"}
-          </p>
-          <p className="mt-0.5 text-xs text-text-muted">
-            {relativeTime(note.updatedAt)}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          aria-label="Delete note"
-          className="shrink-0 rounded p-1 text-text-muted opacity-0 transition-all hover:text-red-400 group-hover:opacity-100"
+      <button
+        type="button"
+        onClick={() => onSelect(note.id)}
+        aria-current={active ? "true" : undefined}
+        className="block w-full rounded-md py-2.5 pl-3 pr-16 text-left focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
+      >
+        <span
+          className={cn(
+            "flex items-center gap-1.5 truncate text-sm font-medium",
+            active ? "text-accent" : "text-text-primary"
+          )}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </svg>
-        </button>
+          {note.pinned && (
+            <Icon name="pin" size={12} className="shrink-0 text-accent" />
+          )}
+          <span className="truncate">{title}</span>
+        </span>
+        {preview && (
+          <span className="mt-0.5 block truncate text-xs text-text-muted">
+            {preview}
+          </span>
+        )}
+        <span className="mt-1 block text-[11px] text-text-muted/80">
+          <time dateTime={new Date(note.updatedAt).toISOString()}>
+            {relativeTime(note.updatedAt)}
+          </time>
+        </span>
+      </button>
+
+      <div className="absolute right-1.5 top-2 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+        <ItemAction
+          label={note.pinned ? "Unpin note" : "Pin note"}
+          onClick={() => onTogglePin(note.id)}
+          className={note.pinned ? "text-accent" : undefined}
+        >
+          <Icon name="pin" size={14} />
+        </ItemAction>
+        <ItemAction
+          label="Delete note"
+          onClick={() => onDelete(note.id)}
+          className="hover:text-red-400"
+        >
+          <Icon name="trash" size={14} />
+        </ItemAction>
       </div>
-    </div>
+    </li>
   );
 }
 
-function relativeTime(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const sec = Math.floor(diff / 1000);
-  if (sec < 60) return "just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min} minute${min === 1 ? "" : "s"} ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr} hour${hr === 1 ? "" : "s"} ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 30) return `${day} day${day === 1 ? "" : "s"} ago`;
-  const month = Math.floor(day / 30);
-  if (month < 12) return `${month} month${month === 1 ? "" : "s"} ago`;
-  const year = Math.floor(month / 12);
-  return `${year} year${year === 1 ? "" : "s"} ago`;
+function ItemAction({
+  label,
+  onClick,
+  className,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "rounded p-1 text-text-muted transition-colors hover:bg-bg-base/60 hover:text-text-primary",
+        "focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none",
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
 }
+
+export default memo(NoteItem);

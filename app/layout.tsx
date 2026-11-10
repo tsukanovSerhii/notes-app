@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import GalaxyBackground from "@/app/components/ui/GalaxyBackground";
@@ -16,7 +16,14 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "NoteVoid — Markdown Notes",
-  description: "A clean, dark Markdown notes app.",
+  description:
+    "A local-first Markdown notes app with live preview, syntax highlighting and PDF export.",
+  applicationName: "NoteVoid",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f0f11",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
