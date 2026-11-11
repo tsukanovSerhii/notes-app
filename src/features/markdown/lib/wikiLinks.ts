@@ -43,6 +43,26 @@ export function backlinks(notes: readonly Note[], target: Note): Note[] {
   );
 }
 
+/**
+ * Points every `[[Old]]` and `[[Old|text]]` link outside code at `newTitle`,
+ * keeping any shown text. Returns the same string when nothing matched.
+ */
+export function renameLinkTarget(markdown: string, oldTitle: string, newTitle: string): string {
+  const next = newTitle.trim();
+  if (!oldTitle.trim() || !next || sameTitle(oldTitle, next)) return markdown;
+  // Odd entries of the split are code spans and fenced blocks: left as written.
+  const parts = markdown.split(/(```[\s\S]*?(?:```|$)|`[^`\n]*`)/);
+  return parts
+    .map((part, i) =>
+      i % 2 === 1
+        ? part
+        : part.replace(WIKI_LINK, (all, target: string, shown: string | undefined) =>
+            sameTitle(target, oldTitle) ? `[[${next}${shown !== undefined ? `|${shown}` : ""}]]` : all
+          )
+    )
+    .join("");
+}
+
 // --- remark plugin -------------------------------------------------------
 
 interface MdNode {

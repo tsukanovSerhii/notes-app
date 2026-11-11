@@ -198,6 +198,7 @@ export default function Workspace() {
             onOpen={openNote}
             onShowHistory={() => setHistoryFor(activeNote)}
             onTemplate={actions.applyTemplate}
+            onRenamed={actions.renameLinks}
           />
         ) : (
           <EmptyState onCreate={newNote} />

@@ -161,6 +161,7 @@ export const en = {
     conflictOne: (title: string) => `“${title}” was edited on another device too. Your version was kept as a copy.`,
     conflictMany: (count: string) => `${count} were edited on another device too. Your versions were kept as copies.`,
     versionRestored: "Restored an earlier version",
+    linksUpdated: (count: string) => `Updated links in ${count}`,
     movedToFolder: (title: string, folder: string) => `Moved “${title}” to ${folder}`,
   },
   sync: {

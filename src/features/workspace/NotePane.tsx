@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type Ref } from "react";
+import { useMemo, useRef, type Ref } from "react";
 import type { Folder, Note } from "@/features/notes/model/types";
 import type { NotesStore, SaveStatus } from "@/features/notes/state/store";
 import Editor from "@/features/editor/Editor";
@@ -28,6 +28,7 @@ export default function NotePane({
   onOpen,
   onShowHistory,
   onTemplate,
+  onRenamed,
 }: {
   note: Note;
   /** Live notes, for wiki links and backlinks. */
@@ -43,8 +44,11 @@ export default function NotePane({
   onOpen: (id: string) => void;
   onShowHistory: () => void;
   onTemplate: (template: NoteTemplate) => void;
+  /** The title was committed (field left) with a different value than it had on focus. */
+  onRenamed: (note: Note, oldTitle: string) => void;
 }) {
   const { t } = useI18n();
+  const titleOnFocus = useRef(note.title);
   const linkedFrom = useMemo(() => backlinks(notes, note), [notes, note]);
 
   // [[Title]] links in the preview open that note, or create it.
@@ -71,6 +75,10 @@ export default function NotePane({
             ref={titleRef}
             type="text"
             value={note.title}
+            onFocus={() => (titleOnFocus.current = note.title)}
+            onBlur={() => {
+              if (titleOnFocus.current.trim() !== note.title.trim()) onRenamed(note, titleOnFocus.current);
+            }}
             onChange={(e) => store.update(note.id, { title: e.target.value })}
             placeholder={t.common.untitled}
             aria-label={t.note.title}

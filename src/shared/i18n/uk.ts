@@ -160,6 +160,7 @@ export const uk: Messages = {
     conflictOne: (title) => `«${title}» редагували й на іншому пристрої. Вашу версію збережено як копію.`,
     conflictMany: (count) => `${count} редагували й на іншому пристрої. Ваші версії збережено як копії.`,
     versionRestored: "Відновлено попередню версію",
+    linksUpdated: (count) => `Оновлено посилання в: ${count}`,
     movedToFolder: (title, folder) => `«${title}» переміщено в ${folder}`,
   },
   sync: {
