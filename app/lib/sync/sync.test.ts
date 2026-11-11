@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { createMemoryRepository, handleSyncRequest } from "@/app/lib/sync/server";
 import { createSyncClient, SYNC_KEY_STORAGE } from "@/app/lib/sync/client";
 import { generateSyncKey, SYNC_KEY_PATTERN } from "@/app/lib/sync/protocol";
+import { createRateLimiter } from "@/app/lib/sync/rateLimit";
 import { createNotesStore } from "@/app/lib/notes/store";
 import { createMemoryPersistence } from "@/app/lib/notes/persistence";
 import { FakeTimers, note, settle } from "@/app/lib/notes/testUtils";
@@ -42,6 +43,17 @@ test.describe("sync server", () => {
       )
     );
     expect(repo.spaces.get("space-32")?.notes).toHaveLength(4);
+  });
+
+  test("a rate-limited space is refused before any storage work", async () => {
+    const repo = createMemoryRepository();
+    const limiter = createRateLimiter({ perMinute: 1, now: () => 0 });
+    const body = { key: KEY, data: data({ notes: [note("a")] }) };
+    expect((await handleSyncRequest(repo, body, hash, () => 0, limiter)).status).toBe(200);
+    repo.spaces.clear();
+    const refused = await handleSyncRequest(repo, body, hash, () => 0, limiter);
+    expect(refused).toMatchObject({ status: 429, retryAfterSec: 60 });
+    expect(repo.spaces.size).toBe(0);
   });
 });
 
@@ -130,5 +142,36 @@ test.describe("sync client", () => {
     });
     await client.enable(KEY);
     expect(client.getSnapshot()).toMatchObject({ state: "error", error: "Sync storage failed." });
+  });
+
+  test("a 429 retries after the server's Retry-After", async () => {
+    const d = await device();
+    const timers = new FakeTimers();
+    let calls = 0;
+    const client = createSyncClient({
+      store: d.store,
+      keyStorage: null,
+      isOnline: () => true,
+      timers,
+      fetch: (async () => {
+        calls++;
+        return calls === 1
+          ? new Response(JSON.stringify({ error: "Too many sync requests." }), {
+              status: 429,
+              headers: { "Retry-After": "7" },
+            })
+          : new Response(JSON.stringify({ data: data({}), syncedAt: 1 }), { status: 200 });
+      }) as typeof fetch,
+    });
+    await client.enable(KEY);
+    expect(client.getSnapshot().state).toBe("error");
+
+    timers.advance(6999);
+    await settle();
+    expect(calls).toBe(1);
+    timers.advance(1);
+    await settle();
+    expect(calls).toBe(2);
+    expect(client.getSnapshot().state).toBe("idle");
   });
 });
