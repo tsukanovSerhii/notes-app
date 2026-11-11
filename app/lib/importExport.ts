@@ -70,6 +70,9 @@ export function noteFromMarkdown(
     folderId: null,
     createdAt: now,
     updatedAt: now,
+    editedAt: now,
+    editedBy: null,
+    trashedAt: null,
   };
 }
 

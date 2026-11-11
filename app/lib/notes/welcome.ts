@@ -47,6 +47,9 @@ export function createWelcomeNotes(now: number): Note[] {
       folderId: null,
       createdAt: now,
       updatedAt: now,
+      editedAt: now,
+      editedBy: null,
+      trashedAt: null,
     },
   ];
 }

@@ -19,7 +19,10 @@ interface SidebarProps {
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onTogglePin: (id: string) => void;
+  onRestore: (id: string) => void;
   onCreate: () => void;
+  /** Extra control next to the list title, e.g. "Empty trash". */
+  listAction?: ReactNode;
 }
 
 export default function Sidebar({
@@ -34,7 +37,9 @@ export default function Sidebar({
   onSelect,
   onDelete,
   onTogglePin,
+  onRestore,
   onCreate,
+  listAction,
 }: SidebarProps) {
   return (
     <aside
@@ -59,8 +64,11 @@ export default function Sidebar({
 
         <h2 className="mb-1.5 flex items-center justify-between border-t border-border px-4 pt-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
           <span className="truncate">{listTitle}</span>
-          <span className="rounded-full bg-bg-elevated px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal">
-            {notes.length}
+          <span className="flex items-center gap-1.5">
+            {listAction}
+            <span className="rounded-full bg-bg-elevated px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal">
+              {notes.length}
+            </span>
           </span>
         </h2>
 
@@ -76,6 +84,7 @@ export default function Sidebar({
                 onSelect={onSelect}
                 onDelete={onDelete}
                 onTogglePin={onTogglePin}
+                onRestore={onRestore}
               />
             ))}
           </ul>

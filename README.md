@@ -37,6 +37,11 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 - **Tags**: chip input with suggestions; filter by tag; search also matches
   tags.
 - Pinning, full-text search, and undo for every delete.
+- **Trash**: deleted notes wait 30 days, can be opened read-only, restored or
+  deleted forever. The trash syncs, so a note deleted on one device can be
+  restored on another.
+- The list sorts by and shows the last **edit** of the text; pinning,
+  tagging or moving a note does not count as editing it.
 
 **Data**
 - **IndexedDB storage** with one record per note, debounced incremental
@@ -47,7 +52,9 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
   including notes deleted since the backup.
 - **Export** a note as a PDF or a `.md` file.
 - **Sync** (optional): turn it on, copy the sync key, paste it on another
-  device. Changes merge in both directions.
+  device. Changes merge in both directions, and when two devices edit the
+  same note between syncs **neither text is lost**: the overwritten one is
+  kept as a "(conflict copy)" note.
 
 **Offline and security**
 - **Installable PWA** that opens and works without a network after the first
@@ -106,7 +113,7 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 - **The logic has no React and no DOM.** The reducer, merge, validation,
   highlighter, import parsing and the sync handler are plain functions. The
   store and the sync client get their persistence, clock, ID generator, timers
-  and `fetch` injected. That is why 107 unit tests run in about 3 seconds with no
+  and `fetch` injected. That is why 132 unit tests run in about 3 seconds with no
   browser.
 - **IndexedDB with incremental writes.** The store diffs note references
   between states, collects the changed IDs, and writes only those records plus
@@ -120,9 +127,28 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
   deletions leave tombstones. `mergeData` keeps the newest version, drops
   anything deleted after its last edit, and moves notes out of deleted
   folders. Because the merge is commutative and idempotent, the server and
-  every device converge whatever the order of requests. Undo and restoring a
-  backup bump `updatedAt`, so a restored note wins over its tombstone
-  everywhere.
+  every device converge whatever the order of requests. Exact `updatedAt`
+  ties are broken by content, not by argument order. Restoring from the trash
+  or a backup bumps `updatedAt`, so the restore wins everywhere.
+- **Clocks are not trusted.** Each sync measures the device's clock offset
+  from the server time and the request midpoint; every timestamp comes from
+  the corrected clock, and the offset is persisted. The reducer also stamps
+  each change at least 1 ms after the version it was made on, so an edit or
+  deletion always beats the version the user saw, even one a fast clock
+  dated in the future.
+- **No silent loss on conflicts.** Clients send `since`, the moment of their
+  last merged snapshot, and a device id; notes record `editedBy`. Before
+  merging, the server finds text that last-write-wins would drop: the
+  device's own edits made after `since`, or other devices' edits it has not
+  seen. It keeps each as a "(conflict copy)" note whose id derives from the
+  lost version, so retries cannot duplicate it. `editedBy` rules out false
+  alarms from text the device merely received and sent back, or its own
+  earlier text from a reply that never arrived.
+- **A synced soft-delete.** Deleting sets `trashedAt`, which syncs like any
+  field. Only purging (manually or after 30 days) leaves a tombstone.
+- **`updatedAt` versus `editedAt`.** `updatedAt` is the sync version and
+  moves on every change; `editedAt` moves only when title or text change and
+  is what the UI shows and sorts by.
 - **Sync without accounts.** The sync key is a random 144-bit bearer secret.
   The server stores data under its SHA-256 hash and never stores the key.
   Read-merge-write is serialized per space, so concurrent devices don't lose
@@ -199,18 +225,20 @@ for a database.
 
 ## Testing
 
-- **Unit tests** (`app/**/*.test.ts`, 107 tests) cover the reducer, merge
+- **Unit tests** (`app/**/*.test.ts`, 132 tests) cover the reducer, merge
   properties (commutative, idempotent, tombstones), validation and migration,
   the store (incremental and debounced writes, failures, cross-tab reloads,
   unload journal), the highlighter, import/backup parsing, the sync server
-  (validation, merging, concurrent writes) and the sync client (two devices
-  converging through the handler, debounce, errors, `Retry-After`), the rate
-  limiter and the security headers. They run on the
+  (validation, merging, concurrent writes, conflict detection) and the sync
+  client (two devices converging through the handler, concurrent edits
+  keeping both texts, debounce, errors, `Retry-After`), the skew-corrected
+  clock, the trash, the rate limiter and the security headers. They run on the
   Playwright runner without a browser.
-- **End-to-end tests** (`e2e/`, 38 tests) cover the whole app, including
+- **End-to-end tests** (`e2e/`, 41 tests) cover the whole app, including
   folders, tags, highlighting, IndexedDB storage, migration from
   localStorage, Markdown import, backup and restore, and **two browser
-  contexts syncing through the real API route**, the CSP (every script is
+  contexts syncing through the real API route** (concurrent edits included),
+  the trash, the CSP (every script is
   nonced, no violations, injected handlers are blocked) and **opening and
   editing notes offline**. The offline tests need the production build, so
   they run in CI or locally with `npm run build && CI=1 npm run test:e2e`.
@@ -241,9 +269,9 @@ app/
   hooks/         useNotes, useSync, useImport, useDismiss, useMediaQuery
   lib/
     notes/       reducer, merge, storage, persistence, idb, store, welcome
-    sync/        protocol, client, server, fileRepository, rateLimit
+    sync/        protocol, client, server, conflicts, fileRepository, rateLimit
     security/    CSP and security headers
-    highlight, importExport, markdownActions, textarea, text, templates
+    clock, highlight, importExport, markdownActions, textarea, text, templates
   types/         Note, Folder, NotesData
   manifest.ts    Web app manifest
 public/          Service worker and app icons
@@ -255,6 +283,7 @@ e2e/             Playwright end-to-end tests
 
 - A Postgres `SyncRepository` and real accounts instead of sync keys
 - Pruning old tombstones
+- Delta sync, so a request carries only what changed since `since`
 - Field-level merge, so two devices editing different fields of a note
   don't overwrite each other
 - Drag and drop of notes between folders

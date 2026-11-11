@@ -14,6 +14,17 @@ export function mergeTombstones(a: Tombstones, b: Tombstones): Tombstones {
 }
 
 /**
+ * Whether `candidate` should replace `current`. Newer wins; on an exact tie
+ * the larger serialization wins, an arbitrary but order-independent rule, so
+ * merge(a, b) and merge(b, a) pick the same version.
+ */
+export function wins<T extends Versioned>(candidate: T, current: T): boolean {
+  if (candidate.updatedAt !== current.updatedAt) return candidate.updatedAt > current.updatedAt;
+  if (candidate === current) return false;
+  return JSON.stringify(candidate) > JSON.stringify(current);
+}
+
+/**
  * Last-write-wins merge by `updatedAt`. An entity is dropped when it was
  * deleted at or after its last edit; an edit made after the deletion wins.
  */
@@ -25,7 +36,7 @@ export function mergeEntities<T extends Versioned>(
   const byId = new Map<string, T>();
   for (const item of [...a, ...b]) {
     const current = byId.get(item.id);
-    if (!current || item.updatedAt > current.updatedAt) byId.set(item.id, item);
+    if (!current || wins(item, current)) byId.set(item.id, item);
   }
   return [...byId.values()].filter(
     (item) => (tombstones[item.id] ?? -Infinity) < item.updatedAt
@@ -48,8 +59,9 @@ export function mergeData(a: NotesData, b: NotesData): NotesData {
 
 /**
  * Prepares imported data (e.g. a backup) so it is restored even where the
- * user deleted those notes locally: revived entries get a fresh `updatedAt`
- * and their local tombstones are lifted.
+ * user deleted those notes locally, for good or into the trash: revived
+ * entries get an `updatedAt` newer than both the local copy and `now`, and
+ * their local tombstones are lifted.
  */
 export function reviveImported(
   local: NotesData,
@@ -57,10 +69,15 @@ export function reviveImported(
   now: number
 ): NotesData {
   const tombstones = { ...local.tombstones };
+  const trashed = new Map(
+    local.notes.filter((n) => n.trashedAt !== null).map((n) => [n.id, n.updatedAt])
+  );
   const revive = <T extends Versioned>(item: T): T => {
-    if (!(item.id in tombstones)) return item;
+    const deleted = item.id in tombstones;
+    if (!deleted && !trashed.has(item.id)) return item;
+    const localVersion = deleted ? tombstones[item.id] : trashed.get(item.id)!;
     delete tombstones[item.id];
-    return { ...item, updatedAt: Math.max(item.updatedAt, now) };
+    return { ...item, updatedAt: Math.max(item.updatedAt, now, localVersion + 1) };
   };
   return mergeData(
     { ...local, tombstones },

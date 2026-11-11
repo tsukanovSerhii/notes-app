@@ -122,7 +122,7 @@ test.describe("Notes CRUD, search & persistence", () => {
     await noteRow(page, "Keep me")
       .getByRole("button", { name: /Delete note/i })
       .click();
-    await expect(page.getByRole("status")).toContainText("Deleted “Keep me”");
+    await expect(page.getByRole("status")).toContainText("Moved “Keep me” to the trash");
 
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(noteRow(page, "Keep me")).toBeVisible();

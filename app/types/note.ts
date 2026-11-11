@@ -6,7 +6,14 @@ export interface Note {
   tags: string[];
   folderId: string | null;
   createdAt: number;
+  /** Version stamp for sync: bumped by every change, including pin and moves. */
   updatedAt: number;
+  /** When the title or text last changed; what the UI shows and sorts by. */
+  editedAt: number;
+  /** Device that made the last title or text edit; null if unknown. */
+  editedBy: string | null;
+  /** Set while the note is in the trash; synced, so the trash is shared by devices. */
+  trashedAt: number | null;
 }
 
 export interface Folder {

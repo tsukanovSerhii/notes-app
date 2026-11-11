@@ -69,14 +69,43 @@ test.describe("notes store", () => {
     expect(persistence.state?.data.notes.find((x) => x.id === n.id)?.content).toBe("abc");
   });
 
-  test("records deletions and folders in storage", async () => {
+  test("records trashing, purging and folders in storage", async () => {
     const { store, persistence } = await setup();
     expect(store.createFolder("Work")).not.toBeNull();
     store.remove("welcome");
     await store.flush();
-    expect(persistence.state?.data.notes).toEqual([]);
+    expect(persistence.state?.data.notes.map((n) => [n.id, n.trashedAt])).toEqual([["welcome", 1000]]);
     expect(persistence.state?.data.folders.map((x) => x.name)).toEqual(["Work"]);
-    expect(persistence.state?.data.tombstones).toEqual({ welcome: 1000 });
+
+    store.emptyTrash();
+    await store.flush();
+    expect(persistence.state?.data.notes).toEqual([]);
+    expect(persistence.state?.data.tombstones).toEqual({ welcome: 1001 });
+  });
+
+  test("purges notes that sat in the trash past the retention on start", async () => {
+    const { persistence } = await setup({
+      data: {
+        notes: [note("old", { trashedAt: 1 }), note("fresh", { trashedAt: 999 })],
+        folders: [],
+        tombstones: {},
+      },
+      activeId: null,
+    });
+    await settle();
+    // setup() runs at now = 1000 with the default 30-day retention, so
+    // nothing is old enough yet; a short retention shows the purge.
+    expect(persistence.state?.data.notes).toHaveLength(2);
+
+    const store = createNotesStore({
+      getPersistence: () => persistence,
+      now: () => 1000,
+      trashRetentionMs: 500,
+      timers: new FakeTimers(),
+    });
+    await store.start();
+    expect(store.getSnapshot().notes.map((n) => n.id)).toEqual(["fresh"]);
+    expect(store.getSnapshot().tombstones).toHaveProperty("old");
   });
 
   test("reports an error instead of throwing when a write fails", async () => {
@@ -124,8 +153,9 @@ test.describe("notes store", () => {
     const { store } = await setup();
     const n = store.create();
     store.remove(n.id);
-    expect(store.getSnapshot().notes.some((x) => x.id === n.id)).toBe(false);
+    expect(store.getSnapshot().notes.find((x) => x.id === n.id)?.trashedAt).toBe(1001);
     store.undoDelete();
+    expect(store.getSnapshot().notes.find((x) => x.id === n.id)?.trashedAt).toBeNull();
     expect(store.getSnapshot().activeId).toBe(n.id);
   });
 

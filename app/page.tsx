@@ -24,6 +24,8 @@ import { backupFileName, createBackup } from "@/app/lib/importExport";
 import { downloadText } from "@/app/lib/download";
 import type { NoteTemplate } from "@/app/lib/templates";
 import { cn } from "@/app/lib/cn";
+import { trashLabel } from "@/app/components/sidebar/NoteItem";
+import type { Note } from "@/app/types/note";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   return (
@@ -33,11 +35,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export default function Home() {
-  const { notes, folders, activeNote, hydrated, saveStatus, store } = useNotes();
+  const { notes, trash, folders, activeNote, hydrated, saveStatus, store } = useNotes();
   const sync = useSync();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState<LibraryFilter>({ folderId: null, tag: null });
+  const [filter, setFilter] = useState<LibraryFilter>({ folderId: null, tag: null, trash: false });
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -54,14 +56,19 @@ export default function Home() {
     () => ({
       folderId: folders.some((f) => f.id === filter.folderId) ? filter.folderId : null,
       tag: notes.some((n) => filter.tag && n.tags.includes(filter.tag)) ? filter.tag : null,
+      trash: filter.trash,
     }),
     [filter, folders, notes]
   );
 
   const visibleNotes = useMemo(
-    () => filterNotes(notes, { query: searchQuery, ...activeFilter }),
-    [notes, searchQuery, activeFilter]
+    () =>
+      activeFilter.trash
+        ? filterNotes(trash, { query: searchQuery })
+        : filterNotes(notes, { query: searchQuery, ...activeFilter }),
+    [notes, trash, searchQuery, activeFilter]
   );
+  const activeTrashed = activeNote?.trashedAt != null;
   const tags = useMemo(() => collectTags(notes), [notes]);
   const folderCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -70,7 +77,11 @@ export default function Home() {
   }, [notes]);
 
   const currentFolder = folders.find((f) => f.id === activeFilter.folderId);
-  const listTitle = searchQuery.trim()
+  const listTitle = activeFilter.trash
+    ? searchQuery.trim()
+      ? "Search in trash"
+      : "Trash"
+    : searchQuery.trim()
     ? "Search results"
     : [currentFolder?.name ?? "All notes", activeFilter.tag && `#${activeFilter.tag}`]
         .filter(Boolean)
@@ -88,6 +99,23 @@ export default function Home() {
     () => ({ success: (text: string) => showToast({ text }), error: showError }),
     [showToast, showError]
   );
+  // Tell the user when sync kept their overwritten text as a copy.
+  const syncClient = sync.client;
+  useEffect(() => {
+    let seen = syncClient.getSnapshot().lastConflict?.at;
+    return syncClient.subscribe(() => {
+      const conflict = syncClient.getSnapshot().lastConflict;
+      if (!conflict || conflict.at === seen) return;
+      seen = conflict.at;
+      const [first, ...rest] = conflict.titles;
+      showToast({
+        text: rest.length
+          ? `${conflict.titles.length} notes were edited on another device too. Your versions were kept as copies.`
+          : `“${first}” was edited on another device too. Your version was kept as a copy.`,
+      });
+    });
+  }, [syncClient, showToast]);
+
   const { importMarkdown, importBackup, importFiles } = useImport(
     store,
     activeFilter.folderId,
@@ -100,6 +128,7 @@ export default function Home() {
       tags: activeFilter.tag ? [activeFilter.tag] : [],
     });
     setSearchQuery("");
+    setFilter((f) => (f.trash ? { ...f, trash: false } : f));
     setDrawerOpen(false);
     if (viewMode === "preview") setViewMode("split");
     requestAnimationFrame(() => titleRef.current?.select());
@@ -115,15 +144,44 @@ export default function Home() {
 
   const handleDelete = useCallback(
     (id: string) => {
+      const trashed = trash.find((n) => n.id === id);
+      if (trashed) {
+        store.purge(id);
+        showToast({ text: `Deleted “${trashed.title.trim() || "Untitled"}” forever` });
+        return;
+      }
       const note = notes.find((n) => n.id === id);
       store.remove(id);
       showToast({
-        text: `Deleted “${note?.title.trim() || "Untitled"}”`,
+        text: `Moved “${note?.title.trim() || "Untitled"}” to the trash`,
         action: { label: "Undo", onClick: store.undoDelete },
       });
     },
-    [notes, store, showToast]
+    [notes, trash, store, showToast]
   );
+
+  const handleRestore = useCallback(
+    (id: string) => {
+      const note = trash.find((n) => n.id === id);
+      store.restore(id);
+      showToast({ text: `Restored “${note?.title.trim() || "Untitled"}”` });
+    },
+    [trash, store, showToast]
+  );
+
+  const handleEmptyTrash = () => {
+    const count = trash.length;
+    store.emptyTrash();
+    showToast({ text: `Deleted ${count} ${count === 1 ? "note" : "notes"} forever` });
+  };
+
+  const changeFilter = (next: LibraryFilter) => {
+    setFilter(next);
+    // Leaving the trash: don't keep a trashed note open in the editor area.
+    if (!next.trash && activeTrashed) {
+      store.select(filterNotes(notes, next)[0]?.id ?? notes[0]?.id ?? null);
+    }
+  };
 
   const handleDeleteFolder = useCallback(
     (id: string) => {
@@ -176,9 +234,16 @@ export default function Home() {
       searchQuery={searchQuery}
       searchRef={searchRef}
       emptyMessage={
-        searchQuery || activeFilter.folderId || activeFilter.tag
-          ? "No notes match."
-          : "No notes yet."
+        activeFilter.trash && !searchQuery
+          ? "The trash is empty."
+          : searchQuery || activeFilter.folderId || activeFilter.tag
+            ? "No notes match."
+            : "No notes yet."
+      }
+      listAction={
+        activeFilter.trash && trash.length > 0 ? (
+          <EmptyTrashButton onConfirm={handleEmptyTrash} />
+        ) : undefined
       }
       library={
         <LibraryNav
@@ -186,8 +251,9 @@ export default function Home() {
           folderCounts={folderCounts}
           tags={tags}
           totalCount={notes.length}
+          trashCount={trash.length}
           filter={activeFilter}
-          onFilterChange={setFilter}
+          onFilterChange={changeFilter}
           onCreateFolder={(name) => {
             const folder = store.createFolder(name);
             if (folder) setFilter((f) => ({ ...f, folderId: folder.id }));
@@ -200,6 +266,7 @@ export default function Home() {
       onSelect={handleSelect}
       onDelete={handleDelete}
       onTogglePin={store.togglePin}
+      onRestore={handleRestore}
       onCreate={handleCreate}
     />
   );
@@ -220,7 +287,7 @@ export default function Home() {
         </h1>
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-          {activeNote && (
+          {activeNote && !activeTrashed && (
             <ViewModeToggle
               value={effectiveMode}
               onChange={setViewMode}
@@ -275,6 +342,12 @@ export default function Home() {
 
         {!hydrated ? (
           <WorkspaceSkeleton />
+        ) : activeNote && activeTrashed ? (
+          <TrashedNote
+            note={activeNote}
+            onRestore={() => handleRestore(activeNote.id)}
+            onDelete={() => handleDelete(activeNote.id)}
+          />
         ) : activeNote ? (
           <>
             {effectiveMode !== "preview" && (
@@ -328,6 +401,73 @@ export default function Home() {
       <DropOverlay onDrop={importFiles} />
       <Toast toast={toast} onDismiss={dismissToast} />
     </div>
+  );
+}
+
+function TrashedNote({
+  note,
+  onRestore,
+  onDelete,
+}: {
+  note: Note;
+  onRestore: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <section aria-label="Note in trash" className="flex min-w-0 flex-1 flex-col bg-bg-surface/35">
+      <div
+        role="status"
+        className="flex flex-wrap items-center gap-3 border-b border-border bg-bg-elevated/60 px-4 py-3 text-sm sm:px-6"
+      >
+        <Icon name="trash" size={16} className="text-text-muted" />
+        <span className="min-w-0 flex-1 text-text-secondary">
+          This note is in the trash ({trashLabel(note.trashedAt!)}).
+        </span>
+        <Button variant="primary" onClick={onRestore}>
+          <Icon name="restore" />
+          Restore
+        </Button>
+        <Button onClick={onDelete} className="hover:text-red-400">
+          Delete forever
+        </Button>
+      </div>
+      <h2 className="border-b border-border px-4 py-3 text-base font-semibold text-text-primary sm:px-6">
+        {note.title.trim() || "Untitled"}
+      </h2>
+      <div className="min-h-0 flex-1">
+        <Preview content={note.content} />
+      </div>
+    </section>
+  );
+}
+
+/** Asks for a second click before deleting every trashed note for good. */
+function EmptyTrashButton({ onConfirm }: { onConfirm: () => void }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (armed) {
+          setArmed(false);
+          onConfirm();
+        } else {
+          setArmed(true);
+        }
+      }}
+      className={cn(
+        "rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal transition-colors",
+        "focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none",
+        armed ? "bg-red-500/20 text-red-300" : "text-text-muted hover:text-red-300"
+      )}
+    >
+      {armed ? "Click again to empty" : "Empty trash"}
+    </button>
   );
 }
 

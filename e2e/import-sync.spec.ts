@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "fs";
-import { gotoFresh, createNote, titleInput, noteRow } from "./helpers";
+import { gotoFresh, createNote, editor, noteList, titleInput, noteRow } from "./helpers";
 
 test.describe("Import & backup", () => {
   test.beforeEach(async ({ page }) => {
@@ -84,4 +84,32 @@ test("syncs notes between two devices through the server", async ({ browser }) =
       return noteRow(phone, "Written on the laptop").isVisible();
     }, { timeout: 15_000 })
     .toBe(true);
+  await phone.keyboard.press("Escape");
+
+  // Both edit the same note while the phone is offline: neither text is lost.
+  await phone.context().setOffline(true);
+  await noteRow(phone, phoneTitle).click();
+  await editor(phone).fill("Phone version");
+  await noteRow(laptop, phoneTitle).click();
+  await editor(laptop).fill("Laptop version");
+  await laptop.getByRole("button", { name: /^Sync settings/ }).click();
+  await laptop.getByRole("button", { name: "Sync now" }).click();
+  await expect(laptop.getByRole("dialog").getByRole("status")).toContainText("Last synced");
+
+  await phone.context().setOffline(false);
+  await phone.getByRole("button", { name: /^Sync settings/ }).click();
+  await phone.getByRole("button", { name: "Sync now" }).click();
+  await phone.keyboard.press("Escape");
+  await expect(phone.getByRole("status").filter({ hasText: "edited on another device too" })).toBeVisible();
+
+  const copy = `${phoneTitle} (conflict copy)`;
+  await expect(noteRow(phone, copy)).toBeVisible();
+  await noteRow(phone, copy).click();
+  await expect(editor(phone)).toHaveValue("Phone version");
+  await noteList(phone)
+    .locator("li")
+    .filter({ hasText: phoneTitle })
+    .filter({ hasNotText: "conflict copy" })
+    .click();
+  await expect(editor(phone)).toHaveValue("Laptop version");
 });
