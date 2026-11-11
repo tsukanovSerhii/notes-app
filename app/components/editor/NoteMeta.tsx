@@ -11,9 +11,10 @@ interface NoteMetaProps {
   folders: Folder[];
   allTags: string[];
   onChange: (patch: Partial<Pick<Note, "folderId" | "tags">>) => void;
+  onShowHistory?: () => void;
 }
 
-export default function NoteMeta({ note, folders, allTags, onChange }: NoteMetaProps) {
+export default function NoteMeta({ note, folders, allTags, onChange, onShowHistory }: NoteMetaProps) {
   const { t } = useI18n();
   const [draft, setDraft] = useState("");
 
@@ -96,6 +97,18 @@ export default function NoteMeta({ note, folders, allTags, onChange }: NoteMetaP
           ))}
         </datalist>
       </div>
+      {onShowHistory && (
+        <button
+          type="button"
+          onClick={onShowHistory}
+          title={t.note.history}
+          className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-text-muted transition-colors hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
+        >
+          <Icon name="history" size={13} />
+          <span className="hidden sm:inline">{t.note.history}</span>
+          <span className="sr-only sm:hidden">{t.note.history}</span>
+        </button>
+      )}
     </div>
   );
 }

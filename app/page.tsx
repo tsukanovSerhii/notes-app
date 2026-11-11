@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNotes } from "@/app/hooks/useNotes";
+import { historyRecorder, useNotes } from "@/app/hooks/useNotes";
 import { useSync } from "@/app/hooks/useSync";
 import { useImport } from "@/app/hooks/useImport";
 import { useMediaQuery } from "@/app/hooks/useMediaQuery";
@@ -29,6 +29,7 @@ import { trashLabel } from "@/app/components/sidebar/NoteItem";
 import type { Note } from "@/app/types/note";
 import { useI18n } from "@/app/lib/i18n";
 import Backlinks from "@/app/components/editor/Backlinks";
+import HistoryDialog from "@/app/components/editor/HistoryDialog";
 import { WikiLinkContext, type WikiLinkTarget } from "@/app/components/editor/wikiLinkContext";
 import { backlinks, findNoteByTitle } from "@/app/lib/wikiLinks";
 
@@ -51,6 +52,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [historyFor, setHistoryFor] = useState<Note | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -410,6 +412,7 @@ export default function Home() {
                   folders={folders}
                   allTags={tags.map((t) => t.tag)}
                   onChange={(patch) => store.update(activeNote.id, patch)}
+                  onShowHistory={() => setHistoryFor(activeNote)}
                 />
                 <div className="min-h-0 flex-1">
                   <Editor
@@ -441,6 +444,20 @@ export default function Home() {
       </main>
 
       <SyncDialog open={syncOpen} onClose={() => setSyncOpen(false)} sync={sync} />
+      <HistoryDialog
+        note={historyFor}
+        onClose={() => setHistoryFor(null)}
+        onRestore={(version) => {
+          const current = notes.find((n) => n.id === version.noteId);
+          if (current) {
+            // Keep what is being replaced, so the restore itself can be undone.
+            void historyRecorder?.keep(current);
+            store.update(current.id, { title: version.title, content: version.content });
+            showToast({ text: t.toast.versionRestored });
+          }
+          setHistoryFor(null);
+        }}
+      />
       <DropOverlay onDrop={importFiles} />
       <Toast toast={toast} onDismiss={dismissToast} />
     </div>
