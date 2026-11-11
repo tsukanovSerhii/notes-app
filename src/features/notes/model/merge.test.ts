@@ -48,13 +48,17 @@ test.describe("mergeData", () => {
     });
   });
 
-  test("notes whose folder was deleted move out of it", () => {
-    const merged = mergeData(
+  test("a note keeps its folder reference when the folder is deleted or not seen yet", () => {
+    const deleted = mergeData(
       data({ notes: [note("a", { folderId: "f", updatedAt: 1 })], folders: [folder("f")] }),
       data({ tombstones: { f: 5 } })
     );
-    expect(merged.folders).toEqual([]);
-    expect(merged.notes[0].folderId).toBeNull();
+    expect(deleted.folders).toEqual([]);
+    expect(deleted.notes[0].folderId).toBe("f");
+
+    // The folder can arrive later; clearing the reference would lose it.
+    const early = mergeData(data({ notes: [note("a", { folderId: "f" })] }), data({}));
+    expect(mergeData(early, data({ folders: [folder("f")] })).notes[0].folderId).toBe("f");
   });
 
   test("picks the same version on an updatedAt tie, whatever the order", () => {

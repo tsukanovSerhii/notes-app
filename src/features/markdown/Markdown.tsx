@@ -1,4 +1,4 @@
-import { memo, useContext, useEffect, useState, type ReactNode } from "react";
+import { cloneElement, isValidElement, memo, useContext, useEffect, useState, type ReactNode } from "react";
 import ReactMarkdown, { type Components, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { HighlightedCode } from "@/features/markdown/CodeBlock";
@@ -34,10 +34,30 @@ function languageOf(className: string | undefined): string | null {
 }
 
 function textOf(children: ReactNode): string {
-  if (typeof children === "string") return children;
+  if (typeof children === "string" || typeof children === "number") return String(children);
   if (Array.isArray(children)) return children.map(textOf).join("");
+  if (isValidElement<{ children?: ReactNode }>(children)) return textOf(children.props.children);
   return "";
 }
+
+/**
+ * A task-list item. The rendered checkbox has no label of its own, so it gets
+ * the item's text, which is what a screen reader should announce.
+ */
+const listItem: Components["li"] = ({ className, children }) => {
+  if (!className?.includes("task-list-item")) return <li className={className}>{children}</li>;
+  const items = Array.isArray(children) ? children : [children];
+  const label = textOf(items.filter((c) => !(isValidElement(c) && c.type === "input"))).trim();
+  return (
+    <li className={className}>
+      {items.map((c, i) =>
+        isValidElement<{ "aria-label"?: string }>(c) && c.type === "input"
+          ? cloneElement(c, { key: i, "aria-label": label || undefined })
+          : c
+      )}
+    </li>
+  );
+};
 
 /** A `[[Title]]` link: opens the note, or offers to create it. */
 function WikiLink({ title, children }: { title: string; children: ReactNode }) {
@@ -54,7 +74,8 @@ function WikiLink({ title, children }: { title: string; children: ReactNode }) {
         e.preventDefault();
         target.open(title);
       }}
-      className={exists ? undefined : "opacity-70 decoration-dashed"}
+      // Dashed, not faded: opacity would fail the contrast requirement.
+      className={exists ? undefined : "decoration-dashed"}
     >
       {children}
     </a>
@@ -112,8 +133,8 @@ function makePre(withToolbar: boolean): Components["pre"] {
   };
 }
 
-const screenComponents: Components = { a: link, code, pre: makePre(true) };
-const printComponents: Components = { a: link, code, pre: makePre(false) };
+const screenComponents: Components = { a: link, code, pre: makePre(true), li: listItem };
+const printComponents: Components = { a: link, code, pre: makePre(false), li: listItem };
 
 /** One Markdown pipeline for the live preview and the PDF export. */
 function Markdown({

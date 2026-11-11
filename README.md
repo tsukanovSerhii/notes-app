@@ -160,7 +160,7 @@ is broken:
 - **The logic has no React and no DOM.** The reducer, merge, validation,
   highlighter, import parsing and the sync handler are plain functions. The
   store and the sync client get their persistence, clock, ID generator, timers
-  and `fetch` injected. That is why 187 unit tests run in about 3 seconds with no
+  and `fetch` injected. That is why 194 unit tests run in about 3 seconds with no
   browser.
 - **IndexedDB with incremental writes.** The store diffs note references
   between states, collects the changed IDs, and writes only those records plus
@@ -340,14 +340,17 @@ on them.
 | `npm run lint` | ESLint (Next.js core-web-vitals + TypeScript rules) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test:unit` | Unit tests (`src/**/*.test.ts`) |
+| `npm run test:coverage` | Unit tests with V8 coverage; fails below the thresholds in `.c8rc.json` |
 | `npm run test:e2e` | Playwright end-to-end tests |
 | `npm test` | Unit tests, then end-to-end tests |
-| `npm run check` | Lint, typecheck and unit tests |
+| `npm run check` | Lint, typecheck and unit tests with coverage |
 
 ## Testing
 
-- **Unit tests** (`src/**/*.test.ts`, 187 tests) cover the reducer, merge
-  properties (commutative, idempotent, tombstones), validation and migration,
+- **Unit tests** (`src/**/*.test.ts`, 194 tests) cover the reducer, the merge
+  (examples plus **property-based tests** with fast-check: random replicas must
+  merge commutatively, associatively and idempotently, never resurrect a
+  deletion and never rewrite an entity), validation and migration,
   the store (incremental and debounced writes, failures, cross-tab reloads,
   unload journal), the highlighter, import/backup parsing, the sync server
   (validation, merging, concurrent writes, conflict detection, optimistic
@@ -358,9 +361,12 @@ on them.
   holding plaintext or the key), the skew-corrected
   clock, the trash, note history, wiki links, search highlighting, fuzzy
   matching, math detection, translations and plural rules, the rate limiter
-  and the security headers. They run on the
-  Playwright runner without a browser.
-- **End-to-end tests** (`e2e/`, 54 tests) cover the whole app, including
+  and the security headers. They run on the Playwright runner without a
+  browser, with V8 coverage from c8 and thresholds in `.c8rc.json`.
+- **Accessibility tests** run axe-core against the WCAG 2.0/2.1 A and AA rules
+  on the editor, preview, trash, sync dialog, command palette and menu, in the
+  dark and light themes and in Ukrainian.
+- **End-to-end tests** (`e2e/`, 60 tests) cover the whole app, including
   folders, tags, highlighting, IndexedDB storage, migration from
   localStorage, Markdown import, backup and restore, and **two browser
   contexts syncing through the real API route** (concurrent edits included,
@@ -379,8 +385,13 @@ npm test
 ## CI
 
 [GitHub Actions](.github/workflows/ci.yml) runs lint, typecheck, unit tests
-and the production build, then runs the end-to-end suite against
-`next start`.
+with coverage thresholds and the production build, then the end-to-end suite
+against `next start`, then **Lighthouse CI** (`lighthouserc.cjs`), which fails
+if performance, accessibility, best practices or SEO drop below 90 to 95, or if
+LCP, layout shift, blocking time or the 330 KiB first-load JavaScript budget are
+exceeded. Coverage and Lighthouse reports are uploaded as an artifact.
+[CodeQL](.github/workflows/codeql.yml) scans the code weekly and on pull
+requests, and Dependabot proposes dependency updates.
 
 ## Project structure
 

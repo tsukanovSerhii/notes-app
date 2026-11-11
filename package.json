@@ -11,10 +11,12 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "playwright test -c playwright.unit.config.ts",
+    "test:coverage": "c8 playwright test -c playwright.unit.config.ts",
+    "lighthouse": "lhci autorun",
     "test:e2e": "playwright test",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
-    "check": "npm run lint && npm run typecheck && npm run test:unit"
+    "check": "npm run lint && npm run typecheck && npm run test:coverage"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
@@ -32,17 +34,21 @@
     "remark-math": "^6.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@electric-sql/pglite": "^0.5.10",
+    "@lhci/cli": "^0.16.0",
     "@neon/config": "^1.14.0",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/html2pdf.js": "^0.10.0",
-    "@types/node": "^26",
+    "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^10",
+    "c8": "^12.0.0",
+    "eslint": "^9",
     "eslint-config-next": "^16.4.6",
+    "fast-check": "^4.10.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
