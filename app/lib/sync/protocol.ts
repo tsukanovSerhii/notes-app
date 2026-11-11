@@ -1,12 +1,16 @@
-import type { NotesData } from "@/app/types/note";
+import type { SealedData } from "@/app/lib/sync/wire";
 
 /** A sync key is a random bearer secret shared by the user's devices. */
 export const SYNC_KEY_PATTERN = /^[A-Za-z0-9_-]{22,128}$/;
 export const MAX_SYNC_BYTES = 5 * 1024 * 1024;
+/** 2: end-to-end encrypted. Requests without it come from earlier builds. */
+export const PROTOCOL_VERSION = 2;
 
 export interface SyncRequest {
+  v: typeof PROTOCOL_VERSION;
+  /** The space token derived from the sync key; the key itself is never sent. */
   key: string;
-  data: NotesData;
+  data: SealedData;
   /** When the device took the last snapshot the server merged; null before the first sync. */
   since?: number | null;
   /** Lets the server tell this device's edits from other devices'. */
@@ -16,12 +20,14 @@ export interface SyncRequest {
    * hold only what changed locally and the reply only what changed remotely.
    */
   cursor?: number | null;
+  /** Id of a plaintext space left by an earlier build, to erase. */
+  forgetLegacy?: string;
 }
 
 export interface SyncResponse {
-  data: NotesData;
+  data: SealedData;
   syncedAt: number;
-  /** Titles of notes whose overwritten text was kept as a conflict copy. */
+  /** Ids of notes whose overwritten text was kept as a conflict copy. */
   conflicts?: string[];
   /** The space version this reply brings the device up to. */
   cursor?: number;

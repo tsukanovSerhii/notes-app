@@ -292,6 +292,7 @@ export function createNotesStore({
         editedAt: t,
         editedBy: deviceId,
         trashedAt: null,
+        conflictOf: null,
       };
       dispatch({ type: "create", note });
       return note;

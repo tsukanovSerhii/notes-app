@@ -12,6 +12,11 @@ export interface Note {
   editedAt: number;
   /** Device that made the last title or text edit; null if unknown. */
   editedBy: string | null;
+  /**
+   * Set on a conflict copy: the note whose text it preserves. Synced, so every
+   * device labels the copy; the title is left as the user wrote it.
+   */
+  conflictOf: string | null;
   /** Set while the note is in the trash; synced, so the trash is shared by devices. */
   trashedAt: number | null;
 }

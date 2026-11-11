@@ -50,6 +50,7 @@ export function createWelcomeNotes(now: number): Note[] {
       editedAt: now,
       editedBy: null,
       trashedAt: null,
+      conflictOf: null,
     },
   ];
 }

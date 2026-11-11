@@ -73,6 +73,7 @@ export function noteFromMarkdown(
     editedAt: now,
     editedBy: null,
     trashedAt: null,
+    conflictOf: null,
   };
 }
 

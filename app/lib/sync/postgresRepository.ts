@@ -61,5 +61,10 @@ export function createPostgresRepository(client: SqlClient): SyncRepository {
             );
       return rows.length === 1;
     },
+
+    async delete(id) {
+      await schema();
+      await client.query(`delete from ${TABLE} where id = $1`, [id]);
+    },
   };
 }

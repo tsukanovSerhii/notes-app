@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseSpace } from "@/app/lib/sync/space";
 import type { SyncRepository } from "@/app/lib/sync/server";
@@ -35,6 +35,9 @@ export function createFileRepository(dir: string): SyncRepository {
       await writeFile(tmp, JSON.stringify(space), "utf8");
       await rename(tmp, file);
       return true;
+    },
+    async delete(id) {
+      await rm(fileFor(id), { force: true });
     },
   };
 }

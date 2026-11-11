@@ -9,15 +9,17 @@ import {
   TOMBSTONE_TTL_MS,
   type StoredSpace,
 } from "@/app/lib/sync/space";
-import { folder, note } from "@/app/lib/notes/testUtils";
-import type { NotesData } from "@/app/types/note";
+import { sealedNote as note } from "@/app/lib/notes/testUtils";
+import type { SealedData, SealedFolder } from "@/app/lib/sync/wire";
 
-const data = (d: Partial<NotesData>): NotesData => ({ notes: [], folders: [], tombstones: {}, ...d });
+const folder = (id: string): SealedFolder => ({ id, createdAt: 0, updatedAt: 0, sealed: `sealed${id}` });
+
+const data = (d: Partial<SealedData>): SealedData => ({ notes: [], folders: [], tombstones: {}, ...d });
 const space = (d: Partial<StoredSpace>): StoredSpace => ({ ...emptySpace(), ...d });
 
-test("parseSpace reads the bare NotesData stored by earlier builds", () => {
+test("parseSpace validates a stored space and ignores the plaintext format of earlier builds", () => {
   const legacy = { notes: [note("a")], folders: [], tombstones: { b: 1 } };
-  expect(parseSpace(legacy)).toEqual({ version: 0, data: legacy, changes: {}, horizon: 0 });
+  expect(parseSpace(legacy)).toEqual(emptySpace());
   expect(parseSpace({ version: 3, data: legacy, changes: { "n:a": 2, bad: "x" }, horizon: 5 })).toEqual({
     version: 3,
     data: legacy,
@@ -30,7 +32,7 @@ test("changedKeys lists new or different entities and raised tombstones", () => 
   const a = note("a");
   const before = data({ notes: [a, note("b")], folders: [folder("f")], tombstones: { x: 1 } });
   const after = data({
-    notes: [a, note("b", { content: "edited" }), note("c")],
+    notes: [a, note("b", { textHash: "hash-edited" }), note("c")],
     folders: [folder("f")],
     tombstones: { x: 1, y: 2 },
   });
@@ -75,7 +77,7 @@ test.describe("guardAgainstPruned", () => {
       note("fresh", { updatedAt: 150 }),
     ],
   });
-  const ids = (d: NotesData) => d.notes.map((n) => n.id);
+  const ids = (d: SealedData) => d.notes.map((n) => n.id);
 
   test("a device that last synced before the horizon cannot revive old unknown notes", () => {
     expect(ids(guardAgainstPruned(incoming, stored, 80))).toEqual(["known", "fresh"]);

@@ -1,15 +1,25 @@
 import type { NotesStore, Timers } from "@/app/lib/notes/store";
 import type { NotesData } from "@/app/types/note";
 import {
+  PROTOCOL_VERSION,
   SYNC_KEY_PATTERN,
   generateSyncKey,
   type SyncResponse,
 } from "@/app/lib/sync/protocol";
-import { parseData } from "@/app/lib/notes/storage";
+import { deriveSyncKeys, openData, sealData, type SyncKeys } from "@/app/lib/sync/crypto";
+import { parseSealedData } from "@/app/lib/sync/wire";
 
 export const SYNC_KEY_STORAGE = "notevoid-sync-key";
 /** When the last snapshot the server has merged was taken (corrected clock). */
 export const SYNC_BASE_STORAGE = "notevoid-sync-base";
+/** The key whose plaintext space from earlier builds has been erased. */
+export const SYNC_E2EE_STORAGE = "notevoid-sync-e2ee";
+
+/** The id earlier builds filed a space under: SHA-256 of the raw sync key. */
+async function legacySpaceId(key: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 export type SyncState = "off" | "idle" | "syncing" | "error" | "offline";
 
@@ -117,6 +127,26 @@ export function createSyncClient({
    * after a page load is always a full exchange in both directions.
    */
   let cursor: number | null = null;
+  let keys: { key: string; value: Promise<SyncKeys> } | null = null;
+  const keysFor = (key: string) => {
+    if (keys?.key !== key) keys = { key, value: deriveSyncKeys(key) };
+    return keys.value;
+  };
+  const storageGet = (k: string) => {
+    try {
+      return keyStorage?.getItem(k) ?? null;
+    } catch {
+      return null;
+    }
+  };
+  const storageSet = (k: string, v: string | null) => {
+    try {
+      if (v === null) keyStorage?.removeItem(k);
+      else keyStorage?.setItem(k, v);
+    } catch {
+      // Best effort: worst case the legacy cleanup is asked for again.
+    }
+  };
 
   const setBase = (value: number | null) => {
     base = value;
@@ -162,17 +192,24 @@ export function createSyncClient({
     set({ state: "syncing", error: null });
     await store.start();
     try {
+      const k = await keysFor(key);
       const snapshotAt = now();
+      const local = store.getData();
+      const payload = await sealData(k, cursor === null || base === null ? local : changedSince(local, base));
+      // Once per key, ask the server to erase what earlier builds stored in plaintext.
+      const legacy = storageGet(SYNC_E2EE_STORAGE) === key ? null : await legacySpaceId(key);
       const sentAt = rawNow();
       const res = await fetchFn(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          key,
-          data: cursor === null || base === null ? store.getData() : changedSince(store.getData(), base),
+          v: PROTOCOL_VERSION,
+          key: k.spaceToken,
+          data: payload,
           since: base,
           cursor,
           ...(deviceId && { deviceId }),
+          ...(legacy && { forgetLegacy: legacy }),
         }),
       });
       const json = (await res.json().catch(() => null)) as
@@ -191,14 +228,23 @@ export function createSyncClient({
       }
       if (typeof json.syncedAt === "number") onServerTime?.(json.syncedAt, sentAt, rawNow());
       if (snapshot.key !== key) return; // disabled or switched mid-request
-      store.merge(parseData(json.data, { partial: true }), "sync");
+      const { data: remote, rejected } = await openData(k, parseSealedData(json.data));
+      if (snapshot.key !== key) return;
+      store.merge(remote, "sync");
       setBase(snapshotAt);
+      if (legacy) storageSet(SYNC_E2EE_STORAGE, key);
       cursor = typeof json.cursor === "number" ? json.cursor : null;
-      const conflicts = Array.isArray(json.conflicts)
-        ? json.conflicts.filter((t): t is string => typeof t === "string")
-        : [];
+
+      // The server names conflicting notes by id; only we can read their titles.
+      const ids = Array.isArray(json.conflicts) ? json.conflicts.filter((t) => typeof t === "string") : [];
+      const titles = new Map(store.getData().notes.map((n) => [n.id, n.title.trim() || "Untitled"]));
+      const conflicts = ids.map((id) => titles.get(id) ?? "Untitled");
       set({
-        state: "idle",
+        state: rejected > 0 ? "error" : "idle",
+        error:
+          rejected > 0
+            ? `${rejected} synced ${rejected === 1 ? "item" : "items"} could not be decrypted and ${rejected === 1 ? "was" : "were"} skipped.`
+            : null,
         retryAt: null,
         lastSyncedAt: json.syncedAt ?? Date.now(),
         ...(conflicts.length > 0 && { lastConflict: { titles: conflicts, at: now() } }),
@@ -232,6 +278,8 @@ export function createSyncClient({
         return false;
       }
       keyStorage?.setItem(SYNC_KEY_STORAGE, next);
+      // A brand-new key has no plaintext past to clean up.
+      if (!key) storageSet(SYNC_E2EE_STORAGE, next);
       setBase(null);
       cursor = null;
       loaded = true;
@@ -243,6 +291,7 @@ export function createSyncClient({
 
     disable() {
       keyStorage?.removeItem(SYNC_KEY_STORAGE);
+      storageSet(SYNC_E2EE_STORAGE, null);
       setBase(null);
       cursor = null;
       if (timer) timers.clearTimeout(timer);

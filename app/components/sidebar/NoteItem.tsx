@@ -75,6 +75,9 @@ function NoteItem({
               {relativeTime(note.editedAt)}
             </time>
           )}
+          {note.conflictOf && (
+            <span className="shrink-0 rounded bg-amber-400/15 px-1 text-amber-300">conflict copy</span>
+          )}
           {note.tags.slice(0, 2).map((tag) => (
             <span key={tag} className="truncate text-accent/80">
               #{tag}

@@ -1,4 +1,5 @@
 import type { Folder, Note } from "@/app/types/note";
+import type { SealedNote } from "@/app/lib/sync/wire";
 import type { Timers } from "@/app/lib/notes/store";
 
 export const note = (id: string, overrides: Partial<Note> = {}): Note => ({
@@ -13,6 +14,23 @@ export const note = (id: string, overrides: Partial<Note> = {}): Note => ({
   editedAt: 0,
   editedBy: null,
   trashedAt: null,
+  conflictOf: null,
+  ...overrides,
+});
+
+/** A sealed note as the server sees it; the text is opaque. */
+export const sealedNote = (id: string, overrides: Partial<SealedNote> = {}): SealedNote => ({
+  id,
+  pinned: false,
+  folderId: null,
+  createdAt: 0,
+  updatedAt: 0,
+  editedAt: 0,
+  editedBy: null,
+  trashedAt: null,
+  textHash: `hash-${id}-0`,
+  sealed: `sealed${id.replace(/[^A-Za-z0-9_-]/g, "")}`,
+  conflictOf: null,
   ...overrides,
 });
 
