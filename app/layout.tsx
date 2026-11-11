@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { connection } from "next/server";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import GalaxyBackground from "@/app/components/ui/GalaxyBackground";
@@ -26,11 +27,13 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Render per request so Next.js can stamp the CSP nonce from proxy.ts.
+  await connection();
   return (
     <html
       lang="en"
