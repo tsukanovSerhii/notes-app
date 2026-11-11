@@ -4,6 +4,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import GalaxyBackground from "@/app/components/ui/GalaxyBackground";
 import FloatingElements from "@/app/components/ui/FloatingElements";
+import ServiceWorker from "@/app/components/ServiceWorker";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
   description:
     "A local-first Markdown notes app with live preview, syntax highlighting and PDF export.",
   applicationName: "NoteVoid",
+  appleWebApp: { capable: true, title: "NoteVoid", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
@@ -42,6 +44,7 @@ export default async function RootLayout({
       <body className="min-h-full">
         <GalaxyBackground />
         <FloatingElements />
+        <ServiceWorker />
         {children}
       </body>
     </html>
