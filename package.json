@@ -11,10 +11,11 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "playwright test -c playwright.unit.config.ts",
+    "test:coverage": "c8 playwright test -c playwright.unit.config.ts",
     "test:e2e": "playwright test",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
-    "check": "npm run lint && npm run typecheck && npm run test:unit"
+    "check": "npm run lint && npm run typecheck && npm run test:coverage"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",

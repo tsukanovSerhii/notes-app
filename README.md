@@ -340,9 +340,10 @@ on them.
 | `npm run lint` | ESLint (Next.js core-web-vitals + TypeScript rules) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test:unit` | Unit tests (`src/**/*.test.ts`) |
+| `npm run test:coverage` | Unit tests with V8 coverage; fails below the thresholds in `.c8rc.json` |
 | `npm run test:e2e` | Playwright end-to-end tests |
 | `npm test` | Unit tests, then end-to-end tests |
-| `npm run check` | Lint, typecheck and unit tests |
+| `npm run check` | Lint, typecheck and unit tests with coverage |
 
 ## Testing
 
