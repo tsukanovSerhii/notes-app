@@ -23,17 +23,22 @@ const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["minute", 60],
 ];
 
-const relativeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const formatters = new Map<string, Intl.RelativeTimeFormat>();
+const JUST_NOW: Record<string, string> = { en: "just now", uk: "щойно" };
 
-export function relativeTime(timestamp: number, now = Date.now()): string {
+export function relativeTime(timestamp: number, now = Date.now(), locale = "en"): string {
   const seconds = Math.round((now - timestamp) / 1000);
-  if (seconds < 60) return "just now";
-  for (const [unit, size] of UNITS) {
-    if (seconds >= size) {
-      return relativeFormatter.format(-Math.floor(seconds / size), unit);
-    }
+  const justNow = JUST_NOW[locale] ?? JUST_NOW.en;
+  if (seconds < 60) return justNow;
+  let formatter = formatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    formatters.set(locale, formatter);
   }
-  return "just now";
+  for (const [unit, size] of UNITS) {
+    if (seconds >= size) return formatter.format(-Math.floor(seconds / size), unit);
+  }
+  return justNow;
 }
 
 /**

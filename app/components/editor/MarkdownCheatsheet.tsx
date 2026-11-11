@@ -4,34 +4,40 @@ import { useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { useDismiss } from "@/app/hooks/useDismiss";
 import { cn } from "@/app/lib/cn";
+import { useI18n, type Messages } from "@/app/lib/i18n";
 
-const SYNTAX: { syntax: string; result: string }[] = [
-  { syntax: "# Heading", result: "Big heading" },
-  { syntax: "## Subheading", result: "Smaller heading" },
-  { syntax: "**bold**", result: "Bold" },
-  { syntax: "*italic*", result: "Italic" },
-  { syntax: "~~strike~~", result: "Strikethrough" },
-  { syntax: "- item", result: "Bullet list" },
-  { syntax: "1. item", result: "Numbered list" },
-  { syntax: "- [ ] task", result: "Checkbox" },
-  { syntax: "[text](url)", result: "Link" },
-  { syntax: "`code`", result: "Inline code" },
-  { syntax: "```ts", result: "Code block" },
-  { syntax: "> quote", result: "Blockquote" },
-  { syntax: "| a | b |", result: "Table" },
-  { syntax: "---", result: "Divider" },
+type CheatKey = keyof Messages["cheatsheet"];
+
+const SYNTAX: { syntax: string; result: CheatKey }[] = [
+  { syntax: "# Heading", result: "heading" },
+  { syntax: "## Subheading", result: "subheading" },
+  { syntax: "**bold**", result: "bold" },
+  { syntax: "*italic*", result: "italic" },
+  { syntax: "~~strike~~", result: "strike" },
+  { syntax: "- item", result: "bullet" },
+  { syntax: "1. item", result: "numbered" },
+  { syntax: "- [ ] task", result: "checkbox" },
+  { syntax: "[text](url)", result: "link" },
+  { syntax: "[[Note title]]", result: "wikiLink" },
+  { syntax: "`code`", result: "inlineCode" },
+  { syntax: "```ts", result: "codeBlock" },
+  { syntax: "> quote", result: "quote" },
+  { syntax: "| a | b |", result: "table" },
+  { syntax: "---", result: "divider" },
 ];
 
-const SHORTCUTS: { keys: string; action: string }[] = [
-  { keys: "Alt + N", action: "New note" },
-  { keys: "/", action: "Search notes" },
-  { keys: "Ctrl + B", action: "Bold" },
-  { keys: "Ctrl + I", action: "Italic" },
-  { keys: "Ctrl + K", action: "Link" },
-  { keys: "Enter", action: "Continue list" },
+const SHORTCUTS: { keys: string; action: CheatKey }[] = [
+  { keys: "Alt + N", action: "newNote" },
+  { keys: "/", action: "searchNotes" },
+  { keys: "Ctrl + Shift + P", action: "palette" },
+  { keys: "Ctrl + B", action: "bold" },
+  { keys: "Ctrl + I", action: "italic" },
+  { keys: "Ctrl + K", action: "link" },
+  { keys: "Enter", action: "continueList" },
 ];
 
 export default function MarkdownCheatsheet() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useDismiss(ref, open, () => setOpen(false));
@@ -41,9 +47,9 @@ export default function MarkdownCheatsheet() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Markdown help"
+        aria-label={t.editor.help}
         aria-expanded={open}
-        title="Markdown help"
+        title={t.editor.help}
         className={cn(
           "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
           "focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none",
@@ -58,18 +64,18 @@ export default function MarkdownCheatsheet() {
       {open && (
         <div
           role="dialog"
-          aria-label="Markdown cheatsheet"
+          aria-label={t.editor.cheatsheet}
           className="absolute right-0 top-9 z-30 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-bg-elevated p-3 shadow-xl"
         >
           <div className="max-h-96 overflow-y-auto pr-1">
-            <Section title="Markdown cheatsheet">
+            <Section title={t.editor.cheatsheet}>
               {SYNTAX.map((r) => (
-                <Row key={r.syntax} left={r.syntax} right={r.result} />
+                <Row key={r.syntax} left={r.syntax} right={t.cheatsheet[r.result]} />
               ))}
             </Section>
-            <Section title="Keyboard shortcuts">
+            <Section title={t.editor.shortcuts}>
               {SHORTCUTS.map((r) => (
-                <Row key={r.keys} left={r.keys} right={r.action} />
+                <Row key={r.keys} left={r.keys} right={t.cheatsheet[r.action]} />
               ))}
             </Section>
           </div>

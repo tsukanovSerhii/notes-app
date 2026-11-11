@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { cn } from "@/app/lib/cn";
+import { useI18n } from "@/app/lib/i18n";
 
 export interface ToastMessage {
   id: number;
@@ -22,6 +23,7 @@ export default function Toast({
   onDismiss,
   durationMs = 6000,
 }: ToastProps) {
+  const { t } = useI18n();
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(onDismiss, durationMs);
@@ -61,7 +63,7 @@ export default function Toast({
           <button
             type="button"
             onClick={onDismiss}
-            aria-label="Dismiss notification"
+            aria-label={t.common.dismiss}
             className="rounded p-0.5 text-text-muted hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
           >
             <Icon name="x" size={14} />

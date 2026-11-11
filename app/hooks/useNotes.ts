@@ -10,6 +10,7 @@ import {
 } from "@/app/lib/notes/persistence";
 import { createWelcomeNotes } from "@/app/lib/notes/welcome";
 import { createSkewClock } from "@/app/lib/clock";
+import { currentLocale } from "@/app/lib/i18n";
 
 let persistence: NotesPersistence | null = null;
 
@@ -55,7 +56,8 @@ export const appClock = createSkewClock({ storage: getLocalStorage() });
 
 export const notesStore = createNotesStore({
   getPersistence,
-  seed: createWelcomeNotes,
+  // The first-visit note is written in the language the app starts in.
+  seed: (now) => createWelcomeNotes(now, currentLocale()),
   now: appClock.now,
   deviceId,
 });

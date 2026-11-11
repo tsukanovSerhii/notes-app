@@ -6,6 +6,7 @@ import SearchBar from "@/app/components/sidebar/SearchBar";
 import NoteItem from "@/app/components/sidebar/NoteItem";
 import Button from "@/app/components/ui/Button";
 import Icon from "@/app/components/ui/Icon";
+import { useI18n } from "@/app/lib/i18n";
 
 interface SidebarProps {
   notes: Note[];
@@ -41,9 +42,10 @@ export default function Sidebar({
   onCreate,
   listAction,
 }: SidebarProps) {
+  const { t } = useI18n();
   return (
     <aside
-      aria-label="Notes"
+      aria-label={t.sidebar.notes}
       className="flex h-full w-72 shrink-0 flex-col border-r border-border bg-bg-surface/95 md:w-64 md:bg-bg-surface/35"
     >
       <div className="space-y-3 px-3 pb-3 pt-4">
@@ -51,10 +53,10 @@ export default function Sidebar({
           variant="primary"
           onClick={onCreate}
           className="w-full"
-          title="New note (Alt+N)"
+          title={t.sidebar.newNoteHint}
         >
           <Icon name="plus" strokeWidth={2.4} />
-          New note
+          {t.sidebar.newNote}
         </Button>
         <SearchBar ref={searchRef} value={searchQuery} onChange={onSearchChange} />
       </div>
@@ -75,7 +77,7 @@ export default function Sidebar({
         {notes.length === 0 ? (
           <p className="px-3 py-6 text-center text-xs text-text-muted">{emptyMessage}</p>
         ) : (
-          <ul aria-label="Note list" className="space-y-1 px-2">
+          <ul aria-label={t.sidebar.noteList} className="space-y-1 px-2">
             {notes.map((note) => (
               <NoteItem
                 key={note.id}

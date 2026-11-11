@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Folder } from "@/app/types/note";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
 import { cn } from "@/app/lib/cn";
+import { useI18n } from "@/app/lib/i18n";
 
 export interface LibraryFilter {
   folderId: string | null;
@@ -37,15 +38,16 @@ export default function LibraryNav({
   onRenameFolder,
   onDeleteFolder,
 }: LibraryNavProps) {
+  const { t } = useI18n();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
-    <nav aria-label="Library" className="space-y-3 px-2 pb-3">
+    <nav aria-label={t.library.label} className="space-y-3 px-2 pb-3">
       <ul className="space-y-0.5">
         <NavRow
           icon="fileText"
-          label="All notes"
+          label={t.sidebar.allNotes}
           count={totalCount}
           active={!filter.folderId && !filter.trash}
           onClick={() => onFilterChange({ ...filter, folderId: null, trash: false })}
@@ -55,7 +57,7 @@ export default function LibraryNav({
             <li key={folder.id}>
               <NameInput
                 initial={folder.name}
-                label="Folder name"
+                label={t.library.folderName}
                 onSubmit={(name) => {
                   onRenameFolder(folder.id, name);
                   setEditingId(null);
@@ -73,9 +75,9 @@ export default function LibraryNav({
               onClick={() => onFilterChange({ ...filter, folderId: folder.id, trash: false })}
               actions={
                 <>
-                  <RowAction label={`Rename ${folder.name}`} icon="pencil" onClick={() => setEditingId(folder.id)} />
+                  <RowAction label={t.library.rename(folder.name)} icon="pencil" onClick={() => setEditingId(folder.id)} />
                   <RowAction
-                    label={`Delete folder ${folder.name}`}
+                    label={t.library.deleteFolder(folder.name)}
                     icon="trash"
                     onClick={() => {
                       if (filter.folderId === folder.id) onFilterChange({ ...filter, folderId: null });
@@ -89,7 +91,7 @@ export default function LibraryNav({
         )}
         <NavRow
           icon="trash"
-          label="Trash"
+          label={t.sidebar.trash}
           count={trashCount}
           active={filter.trash}
           onClick={() => onFilterChange({ folderId: null, tag: null, trash: true })}
@@ -98,7 +100,7 @@ export default function LibraryNav({
           {creating ? (
             <NameInput
               initial=""
-              label="New folder name"
+              label={t.library.newFolderName}
               onSubmit={(name) => {
                 onCreateFolder(name);
                 setCreating(false);
@@ -112,7 +114,7 @@ export default function LibraryNav({
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
             >
               <Icon name="folderPlus" size={14} />
-              New folder
+              {t.library.newFolder}
             </button>
           )}
         </li>
@@ -121,9 +123,9 @@ export default function LibraryNav({
       {tags.length > 0 && (
         <div>
           <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-            Tags
+            {t.library.tags}
           </p>
-          <div className="flex flex-wrap gap-1 px-1" role="group" aria-label="Filter by tag">
+          <div className="flex flex-wrap gap-1 px-1" role="group" aria-label={t.library.filterByTag}>
             {tags.map(({ tag, count }) => {
               const active = filter.tag === tag;
               return (
@@ -218,6 +220,7 @@ function NameInput({
   onSubmit: (name: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const [value, setValue] = useState(initial);
   const submit = () => (value.trim() ? onSubmit(value) : onCancel());
   return (
@@ -225,7 +228,7 @@ function NameInput({
       autoFocus
       value={value}
       aria-label={label}
-      placeholder="Folder name"
+      placeholder={t.library.folderName}
       maxLength={60}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => {

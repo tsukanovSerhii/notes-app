@@ -26,6 +26,7 @@ import type { NoteTemplate } from "@/app/lib/templates";
 import { cn } from "@/app/lib/cn";
 import { trashLabel } from "@/app/components/sidebar/NoteItem";
 import type { Note } from "@/app/types/note";
+import { useI18n } from "@/app/lib/i18n";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   return (
@@ -35,6 +36,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export default function Home() {
+  const { t, count } = useI18n();
   const { notes, trash, folders, activeNote, hydrated, saveStatus, store } = useNotes();
   const sync = useSync();
 
@@ -79,11 +81,11 @@ export default function Home() {
   const currentFolder = folders.find((f) => f.id === activeFilter.folderId);
   const listTitle = activeFilter.trash
     ? searchQuery.trim()
-      ? "Search in trash"
-      : "Trash"
+      ? t.sidebar.searchInTrash
+      : t.sidebar.trash
     : searchQuery.trim()
-    ? "Search results"
-    : [currentFolder?.name ?? "All notes", activeFilter.tag && `#${activeFilter.tag}`]
+    ? t.sidebar.searchResults
+    : [currentFolder?.name ?? t.sidebar.allNotes, activeFilter.tag && `#${activeFilter.tag}`]
         .filter(Boolean)
         .join(" · ");
 
@@ -110,11 +112,11 @@ export default function Home() {
       const [first, ...rest] = conflict.titles;
       showToast({
         text: rest.length
-          ? `${conflict.titles.length} notes were edited on another device too. Your versions were kept as copies.`
-          : `“${first}” was edited on another device too. Your version was kept as a copy.`,
+          ? t.toast.conflictMany(count(conflict.titles.length, t.plural.notes))
+          : t.toast.conflictOne(first),
       });
     });
-  }, [syncClient, showToast]);
+  }, [syncClient, showToast, t, count]);
 
   const { importMarkdown, importBackup, importFiles } = useImport(
     store,
@@ -147,32 +149,32 @@ export default function Home() {
       const trashed = trash.find((n) => n.id === id);
       if (trashed) {
         store.purge(id);
-        showToast({ text: `Deleted “${trashed.title.trim() || "Untitled"}” forever` });
+        showToast({ text: t.toast.deletedForever(trashed.title.trim() || t.common.untitled) });
         return;
       }
       const note = notes.find((n) => n.id === id);
       store.remove(id);
       showToast({
-        text: `Moved “${note?.title.trim() || "Untitled"}” to the trash`,
-        action: { label: "Undo", onClick: store.undoDelete },
+        text: t.toast.movedToTrash(note?.title.trim() || t.common.untitled),
+        action: { label: t.common.undo, onClick: store.undoDelete },
       });
     },
-    [notes, trash, store, showToast]
+    [notes, trash, store, showToast, t]
   );
 
   const handleRestore = useCallback(
     (id: string) => {
       const note = trash.find((n) => n.id === id);
       store.restore(id);
-      showToast({ text: `Restored “${note?.title.trim() || "Untitled"}”` });
+      showToast({ text: t.toast.restored(note?.title.trim() || t.common.untitled) });
     },
-    [trash, store, showToast]
+    [trash, store, showToast, t]
   );
 
   const handleEmptyTrash = () => {
-    const count = trash.length;
+    const n = trash.length;
     store.emptyTrash();
-    showToast({ text: `Deleted ${count} ${count === 1 ? "note" : "notes"} forever` });
+    showToast({ text: t.toast.deletedManyForever(count(n, t.plural.notes)) });
   };
 
   const changeFilter = (next: LibraryFilter) => {
@@ -187,15 +189,15 @@ export default function Home() {
     (id: string) => {
       const folder = folders.find((f) => f.id === id);
       store.deleteFolder(id);
-      showToast({ text: `Deleted folder “${folder?.name}”. Its notes were kept.` });
+      showToast({ text: t.toast.folderDeleted(folder?.name ?? "") });
     },
-    [folders, store, showToast]
+    [folders, store, showToast, t]
   );
 
   const downloadBackup = () => {
     const backup = createBackup(store.getData());
     downloadText(backupFileName(), JSON.stringify(backup, null, 2), "application/json");
-    showToast({ text: `Backup of ${backup.notes.length} notes downloaded` });
+    showToast({ text: t.toast.backupDownloaded(count(backup.notes.length, t.plural.notes)) });
   };
 
   const applyTemplate = (template: NoteTemplate) => {
@@ -203,8 +205,8 @@ export default function Home() {
     const body = template.body();
     const content = activeNote.content ? `${activeNote.content}\n\n${body}` : body;
     const title =
-      !activeNote.title.trim() || activeNote.title === "Untitled"
-        ? template.title
+      !activeNote.title.trim() || activeNote.title === "Untitled" || activeNote.title === t.common.untitled
+        ? t.templates[template.id]
         : activeNote.title;
     store.update(activeNote.id, { content, title });
   };
@@ -235,10 +237,10 @@ export default function Home() {
       searchRef={searchRef}
       emptyMessage={
         activeFilter.trash && !searchQuery
-          ? "The trash is empty."
+          ? t.sidebar.trashEmpty
           : searchQuery || activeFilter.folderId || activeFilter.tag
-            ? "No notes match."
-            : "No notes yet."
+            ? t.sidebar.noMatch
+            : t.sidebar.noNotes
       }
       listAction={
         activeFilter.trash && trash.length > 0 ? (
@@ -277,7 +279,7 @@ export default function Home() {
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          aria-label="Open notes list"
+          aria-label={t.header.openList}
           className="rounded-md p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary md:hidden"
         >
           <Icon name="menu" size={20} />
@@ -352,7 +354,7 @@ export default function Home() {
           <>
             {effectiveMode !== "preview" && (
               <section
-                aria-label="Editor"
+                aria-label={t.editor.label}
                 className={cn(
                   "flex min-w-0 flex-1 flex-col bg-bg-surface/35",
                   effectiveMode === "split" && "border-r border-border"
@@ -363,8 +365,8 @@ export default function Home() {
                   type="text"
                   value={activeNote.title}
                   onChange={(e) => store.update(activeNote.id, { title: e.target.value })}
-                  placeholder="Untitled"
-                  aria-label="Note title"
+                  placeholder={t.common.untitled}
+                  aria-label={t.note.title}
                   className="border-b border-border bg-transparent px-4 py-3 text-base font-semibold text-text-primary placeholder:text-text-muted outline-none sm:px-6"
                 />
                 <NoteMeta
@@ -413,26 +415,28 @@ function TrashedNote({
   onRestore: () => void;
   onDelete: () => void;
 }) {
+  const i18n = useI18n();
+  const { t } = i18n;
   return (
-    <section aria-label="Note in trash" className="flex min-w-0 flex-1 flex-col bg-bg-surface/35">
+    <section aria-label={t.note.inTrashRegion} className="flex min-w-0 flex-1 flex-col bg-bg-surface/35">
       <div
         role="status"
         className="flex flex-wrap items-center gap-3 border-b border-border bg-bg-elevated/60 px-4 py-3 text-sm sm:px-6"
       >
         <Icon name="trash" size={16} className="text-text-muted" />
         <span className="min-w-0 flex-1 text-text-secondary">
-          This note is in the trash ({trashLabel(note.trashedAt!)}).
+          {t.note.inTrash(trashLabel(note.trashedAt!, i18n))}
         </span>
         <Button variant="primary" onClick={onRestore}>
           <Icon name="restore" />
-          Restore
+          {t.note.restoreButton}
         </Button>
         <Button onClick={onDelete} className="hover:text-red-400">
-          Delete forever
+          {t.note.deleteForever}
         </Button>
       </div>
       <h2 className="border-b border-border px-4 py-3 text-base font-semibold text-text-primary sm:px-6">
-        {note.title.trim() || "Untitled"}
+        {note.title.trim() || t.common.untitled}
       </h2>
       <div className="min-h-0 flex-1">
         <Preview content={note.content} />
@@ -443,6 +447,7 @@ function TrashedNote({
 
 /** Asks for a second click before deleting every trashed note for good. */
 function EmptyTrashButton({ onConfirm }: { onConfirm: () => void }) {
+  const { t } = useI18n();
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (!armed) return;
@@ -466,28 +471,27 @@ function EmptyTrashButton({ onConfirm }: { onConfirm: () => void }) {
         armed ? "bg-red-500/20 text-red-300" : "text-text-muted hover:text-red-300"
       )}
     >
-      {armed ? "Click again to empty" : "Empty trash"}
+      {armed ? t.sidebar.emptyTrashConfirm : t.sidebar.emptyTrash}
     </button>
   );
 }
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
+  const { t } = useI18n();
   return (
     <section className="flex flex-1 items-center justify-center bg-bg-surface/35 p-6">
       <div className="max-w-sm text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-bg-elevated text-accent">
           <Icon name="fileText" size={22} />
         </div>
-        <h2 className="text-base text-text-primary">No notes yet</h2>
-        <p className="mt-1 text-sm text-text-muted">
-          Create a note, or drop Markdown files here to import them.
-        </p>
+        <h2 className="text-base text-text-primary">{t.empty.title}</h2>
+        <p className="mt-1 text-sm text-text-muted">{t.empty.text}</p>
         <Button variant="primary" onClick={onCreate} className="mt-5">
           <Icon name="plus" strokeWidth={2.4} />
-          New note
+          {t.sidebar.newNote}
         </Button>
         <p className="mt-3 text-xs text-text-muted">
-          or press{" "}
+          {t.empty.orPress}{" "}
           <kbd className="rounded border border-border px-1.5 font-mono">Alt + N</kbd>
         </p>
       </div>
@@ -496,9 +500,10 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 }
 
 function WorkspaceSkeleton() {
+  const { t } = useI18n();
   return (
     <section
-      aria-label="Loading notes"
+      aria-label={t.editor.loading}
       aria-busy
       className="flex-1 animate-pulse space-y-3 bg-bg-surface/35 p-6"
     >

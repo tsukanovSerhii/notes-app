@@ -13,6 +13,7 @@ import {
 import { applyNativeEdit, readSelection } from "@/app/lib/textarea";
 import type { NoteTemplate } from "@/app/lib/templates";
 import type { SaveStatus } from "@/app/lib/notes/store";
+import { useI18n } from "@/app/lib/i18n";
 
 interface EditorProps {
   value: string;
@@ -29,6 +30,7 @@ export default function Editor({
   onChange,
   onTemplate,
 }: EditorProps) {
+  const { t } = useI18n();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const run = (transform: Transform): boolean => {
@@ -85,8 +87,8 @@ export default function Editor({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Start writing in Markdown..."
-        aria-label="Note content"
+        placeholder={t.note.placeholder}
+        aria-label={t.note.content}
         spellCheck={false}
         className="min-h-0 w-full flex-1 resize-none bg-transparent p-4 font-mono text-sm leading-[1.8] text-text-primary placeholder:text-text-muted outline-none sm:p-6"
       />

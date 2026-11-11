@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { highlight } from "@/app/lib/highlight";
 import Icon from "@/app/components/ui/Icon";
+import { useI18n } from "@/app/lib/i18n";
 
 export function HighlightedCode({ code, lang }: { code: string; lang: string }) {
   const tokens = useMemo(() => highlight(code, lang), [code, lang]);
@@ -20,6 +21,7 @@ export function HighlightedCode({ code, lang }: { code: string; lang: string }) 
 }
 
 export function CopyButton({ text }: { text: string }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -33,11 +35,11 @@ export function CopyButton({ text }: { text: string }) {
           // Clipboard can be blocked (insecure context, permissions): no-op.
         }
       }}
-      aria-label={copied ? "Copied" : "Copy code"}
+      aria-label={copied ? t.common.copied : t.common.copyCode}
       className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-text-muted opacity-0 transition-opacity hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100"
     >
       <Icon name={copied ? "check" : "copy"} size={12} />
-      {copied ? "Copied" : "Copy"}
+      {copied ? t.common.copied : t.common.copy}
     </button>
   );
 }

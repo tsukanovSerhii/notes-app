@@ -6,6 +6,8 @@ import Icon from "@/app/components/ui/Icon";
 import { cn } from "@/app/lib/cn";
 import { excerpt, relativeTime } from "@/app/lib/text";
 import { TRASH_RETENTION_MS } from "@/app/lib/notes/reducer";
+import type { I18n } from "@/app/lib/i18n";
+import { useI18n } from "@/app/lib/i18n";
 
 interface NoteItemProps {
   note: Note;
@@ -19,9 +21,12 @@ interface NoteItemProps {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** "deleted 3 days ago · 27 days left" */
-export function trashLabel(trashedAt: number, now = Date.now()): string {
+export function trashLabel(trashedAt: number, i18n: I18n, now = Date.now()): string {
   const left = Math.max(0, Math.ceil((trashedAt + TRASH_RETENTION_MS - now) / DAY_MS));
-  return `deleted ${relativeTime(trashedAt, now)} · ${left} ${left === 1 ? "day" : "days"} left`;
+  return i18n.t.note.trashLabel(
+    relativeTime(trashedAt, now, i18n.locale),
+    i18n.count(left, i18n.t.plural.days)
+  );
 }
 
 function NoteItem({
@@ -32,7 +37,9 @@ function NoteItem({
   onTogglePin,
   onRestore,
 }: NoteItemProps) {
-  const title = note.title.trim() || "Untitled";
+  const i18n = useI18n();
+  const { t } = i18n;
+  const title = note.title.trim() || t.common.untitled;
   const preview = excerpt(note.content, 80, title);
   const trashed = note.trashedAt !== null;
 
@@ -69,14 +76,14 @@ function NoteItem({
         )}
         <span className="mt-1 flex items-center gap-1.5 overflow-hidden text-[11px] text-text-muted/80">
           {trashed ? (
-            <span className="shrink-0">{trashLabel(note.trashedAt!)}</span>
+            <span className="shrink-0">{trashLabel(note.trashedAt!, i18n)}</span>
           ) : (
             <time dateTime={new Date(note.editedAt).toISOString()} className="shrink-0">
-              {relativeTime(note.editedAt)}
+              {relativeTime(note.editedAt, undefined, i18n.locale)}
             </time>
           )}
           {note.conflictOf && (
-            <span className="shrink-0 rounded bg-amber-400/15 px-1 text-amber-300">conflict copy</span>
+            <span className="shrink-0 rounded bg-amber-400/15 px-1 text-amber-300">{t.note.conflictCopy}</span>
           )}
           {note.tags.slice(0, 2).map((tag) => (
             <span key={tag} className="truncate text-accent/80">
@@ -88,12 +95,12 @@ function NoteItem({
 
       <div className="absolute right-1.5 top-2 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
         {trashed ? (
-          <ItemAction label="Restore note" onClick={() => onRestore(note.id)}>
+          <ItemAction label={t.note.restore} onClick={() => onRestore(note.id)}>
             <Icon name="restore" size={14} />
           </ItemAction>
         ) : (
           <ItemAction
-            label={note.pinned ? "Unpin note" : "Pin note"}
+            label={note.pinned ? t.note.unpin : t.note.pin}
             onClick={() => onTogglePin(note.id)}
             className={note.pinned ? "text-accent" : undefined}
           >
@@ -101,7 +108,7 @@ function NoteItem({
           </ItemAction>
         )}
         <ItemAction
-          label={trashed ? "Delete forever" : "Delete note"}
+          label={trashed ? t.note.deleteForever : t.note.delete}
           onClick={() => onDelete(note.id)}
           className="hover:text-red-400"
         >

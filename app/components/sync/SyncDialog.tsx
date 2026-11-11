@@ -7,6 +7,7 @@ import Icon from "@/app/components/ui/Icon";
 import { CopyButton } from "@/app/components/editor/CodeBlock";
 import type { SyncClient, SyncSnapshot } from "@/app/lib/sync/client";
 import { syncLabel } from "@/app/components/sync/SyncButton";
+import { useI18n } from "@/app/lib/i18n";
 
 interface SyncDialogProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface SyncDialogProps {
 }
 
 export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
+  const { t } = useI18n();
   const [joinKey, setJoinKey] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -28,12 +30,12 @@ export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Sync between devices">
+    <Modal open={open} onClose={onClose} title={t.sync.title}>
       {sync.key ? (
         <div className="space-y-4 text-sm">
           <p className="text-text-secondary">
-            Sync is on. To connect another device, open NoteVoid there, choose
-            <strong className="text-text-primary"> Use an existing key</strong> and paste:
+            {t.sync.keyIntro}
+            <strong className="text-text-primary"> {t.sync.useExisting}</strong> {t.sync.keyIntroEnd}
           </p>
           <div className="group flex items-center gap-2 rounded-lg border border-border bg-bg-base/60 px-3 py-2">
             <code className="min-w-0 flex-1 truncate font-mono text-xs text-accent" data-testid="sync-key">
@@ -44,15 +46,12 @@ export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
             </span>
           </div>
           <p className="text-xs text-text-muted">
-            Notes are encrypted on this device with this key before they are
-            sent, so the server cannot read them. Anyone with the key can read
-            and change them: keep it private, and keep a copy, since without it
-            the synced notes cannot be recovered.
+            {t.sync.keyWarning}
           </p>
           <SyncStatusLine sync={sync} />
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="ghost" onClick={() => sync.client.disable()}>
-              Turn off sync
+              {t.sync.turnOff}
             </Button>
             <Button
               variant="primary"
@@ -60,16 +59,14 @@ export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
               onClick={() => run(() => sync.client.syncNow())}
             >
               <Icon name="refresh" size={14} />
-              Sync now
+              {t.sync.syncNow}
             </Button>
           </div>
         </div>
       ) : (
         <div className="space-y-5 text-sm">
           <p className="text-text-secondary">
-            Notes stay on this device until you turn sync on. Sync is end-to-end
-            encrypted and merges changes from every device; when two devices
-            edit the same note, both versions are kept.
+            {t.sync.intro}
           </p>
           <Button
             variant="primary"
@@ -78,7 +75,7 @@ export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
             onClick={() => run(() => sync.client.enable())}
           >
             <Icon name="cloud" size={16} />
-            Turn on sync
+            {t.sync.turnOn}
           </Button>
 
           <form
@@ -89,20 +86,20 @@ export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
             }}
           >
             <label htmlFor="sync-join" className="block text-xs font-semibold text-text-muted">
-              Use an existing key
+              {t.sync.useExisting}
             </label>
             <div className="flex gap-2">
               <input
                 id="sync-join"
                 value={joinKey}
                 onChange={(e) => setJoinKey(e.target.value)}
-                placeholder="Paste the key from your other device"
+                placeholder={t.sync.pasteKey}
                 autoComplete="off"
                 spellCheck={false}
                 className="min-w-0 flex-1 rounded-md border border-border bg-bg-base/60 px-3 py-2 font-mono text-xs text-text-primary outline-none placeholder:font-sans placeholder:text-text-muted focus:border-accent"
               />
               <Button type="submit" disabled={busy || !joinKey.trim()}>
-                Connect
+                {t.sync.connect}
               </Button>
             </div>
           </form>
@@ -114,18 +111,19 @@ export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
 }
 
 function SyncStatusLine({ sync }: { sync: SyncSnapshot }) {
+  const { t, locale } = useI18n();
   const text =
     sync.state === "syncing"
-      ? "Syncing…"
+      ? t.sync.syncing
       : sync.state === "offline"
-        ? "Offline — changes will sync when you reconnect."
+        ? t.sync.statusOffline
         : sync.state === "error" && sync.retryAt !== null
-          ? `${syncLabel(sync)}.`
+          ? `${syncLabel(sync, t)}.`
           : sync.state === "error"
-            ? `Sync failed: ${sync.error ?? "unknown error"}`
+            ? t.sync.statusFailed(sync.error ?? t.sync.unknownError)
           : sync.lastSyncedAt
-            ? `Last synced at ${new Date(sync.lastSyncedAt).toLocaleTimeString()}`
-            : "Waiting for the first sync…";
+            ? t.sync.lastSynced(new Date(sync.lastSyncedAt).toLocaleTimeString(locale))
+            : t.sync.waiting;
   return (
     <p
       role="status"
