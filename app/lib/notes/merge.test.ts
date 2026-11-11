@@ -57,6 +57,22 @@ test.describe("mergeData", () => {
     expect(merged.notes[0].folderId).toBeNull();
   });
 
+  test("picks the same version on an updatedAt tie, whatever the order", () => {
+    const left = data({
+      notes: [note("a", { content: "from laptop", updatedAt: 5 })],
+      folders: [folder("f", { name: "Work", updatedAt: 7 })],
+    });
+    const right = data({
+      notes: [note("a", { content: "from phone", updatedAt: 5 })],
+      folders: [folder("f", { name: "Job", updatedAt: 7 })],
+    });
+    const ab = mergeData(left, right);
+    const ba = mergeData(right, left);
+    expect(ab).toEqual(ba);
+    expect(ab.notes).toHaveLength(1);
+    expect(mergeData(ab, left)).toEqual(ab);
+  });
+
   test("is commutative and idempotent", () => {
     const a = data({
       notes: [note("x", { updatedAt: 3 }), note("y", { updatedAt: 1 })],

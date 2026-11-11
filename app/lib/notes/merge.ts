@@ -14,6 +14,17 @@ export function mergeTombstones(a: Tombstones, b: Tombstones): Tombstones {
 }
 
 /**
+ * Whether `candidate` should replace `current`. Newer wins; on an exact tie
+ * the larger serialization wins, an arbitrary but order-independent rule, so
+ * merge(a, b) and merge(b, a) pick the same version.
+ */
+export function wins<T extends Versioned>(candidate: T, current: T): boolean {
+  if (candidate.updatedAt !== current.updatedAt) return candidate.updatedAt > current.updatedAt;
+  if (candidate === current) return false;
+  return JSON.stringify(candidate) > JSON.stringify(current);
+}
+
+/**
  * Last-write-wins merge by `updatedAt`. An entity is dropped when it was
  * deleted at or after its last edit; an edit made after the deletion wins.
  */
@@ -25,7 +36,7 @@ export function mergeEntities<T extends Versioned>(
   const byId = new Map<string, T>();
   for (const item of [...a, ...b]) {
     const current = byId.get(item.id);
-    if (!current || item.updatedAt > current.updatedAt) byId.set(item.id, item);
+    if (!current || wins(item, current)) byId.set(item.id, item);
   }
   return [...byId.values()].filter(
     (item) => (tombstones[item.id] ?? -Infinity) < item.updatedAt
