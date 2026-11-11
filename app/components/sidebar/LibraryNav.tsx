@@ -3,7 +3,9 @@
 import { useState } from "react";
 import type { Folder } from "@/app/types/note";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
+import { NOTE_DRAG_TYPE } from "@/app/components/sidebar/NoteItem";
 import { cn } from "@/app/lib/cn";
+import { useI18n } from "@/app/lib/i18n";
 
 export interface LibraryFilter {
   folderId: string | null;
@@ -23,6 +25,8 @@ interface LibraryNavProps {
   onCreateFolder: (name: string) => void;
   onRenameFolder: (id: string, name: string) => void;
   onDeleteFolder: (id: string) => void;
+  /** A note dropped on a row: into a folder (or out of folders with null), or the trash. */
+  onDropNote: (noteId: string, target: { folderId: string | null } | "trash") => void;
 }
 
 export default function LibraryNav({
@@ -36,26 +40,29 @@ export default function LibraryNav({
   onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
+  onDropNote,
 }: LibraryNavProps) {
+  const { t } = useI18n();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
-    <nav aria-label="Library" className="space-y-3 px-2 pb-3">
+    <nav aria-label={t.library.label} className="space-y-3 px-2 pb-3">
       <ul className="space-y-0.5">
         <NavRow
           icon="fileText"
-          label="All notes"
+          label={t.sidebar.allNotes}
           count={totalCount}
           active={!filter.folderId && !filter.trash}
           onClick={() => onFilterChange({ ...filter, folderId: null, trash: false })}
+          onDropNote={(id) => onDropNote(id, { folderId: null })}
         />
         {folders.map((folder) =>
           editingId === folder.id ? (
             <li key={folder.id}>
               <NameInput
                 initial={folder.name}
-                label="Folder name"
+                label={t.library.folderName}
                 onSubmit={(name) => {
                   onRenameFolder(folder.id, name);
                   setEditingId(null);
@@ -71,11 +78,12 @@ export default function LibraryNav({
               count={folderCounts.get(folder.id) ?? 0}
               active={filter.folderId === folder.id && !filter.trash}
               onClick={() => onFilterChange({ ...filter, folderId: folder.id, trash: false })}
+              onDropNote={(id) => onDropNote(id, { folderId: folder.id })}
               actions={
                 <>
-                  <RowAction label={`Rename ${folder.name}`} icon="pencil" onClick={() => setEditingId(folder.id)} />
+                  <RowAction label={t.library.rename(folder.name)} icon="pencil" onClick={() => setEditingId(folder.id)} />
                   <RowAction
-                    label={`Delete folder ${folder.name}`}
+                    label={t.library.deleteFolder(folder.name)}
                     icon="trash"
                     onClick={() => {
                       if (filter.folderId === folder.id) onFilterChange({ ...filter, folderId: null });
@@ -89,16 +97,17 @@ export default function LibraryNav({
         )}
         <NavRow
           icon="trash"
-          label="Trash"
+          label={t.sidebar.trash}
           count={trashCount}
           active={filter.trash}
           onClick={() => onFilterChange({ folderId: null, tag: null, trash: true })}
+          onDropNote={(id) => onDropNote(id, "trash")}
         />
         <li>
           {creating ? (
             <NameInput
               initial=""
-              label="New folder name"
+              label={t.library.newFolderName}
               onSubmit={(name) => {
                 onCreateFolder(name);
                 setCreating(false);
@@ -112,7 +121,7 @@ export default function LibraryNav({
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
             >
               <Icon name="folderPlus" size={14} />
-              New folder
+              {t.library.newFolder}
             </button>
           )}
         </li>
@@ -121,9 +130,9 @@ export default function LibraryNav({
       {tags.length > 0 && (
         <div>
           <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-            Tags
+            {t.library.tags}
           </p>
-          <div className="flex flex-wrap gap-1 px-1" role="group" aria-label="Filter by tag">
+          <div className="flex flex-wrap gap-1 px-1" role="group" aria-label={t.library.filterByTag}>
             {tags.map(({ tag, count }) => {
               const active = filter.tag === tag;
               return (
@@ -158,6 +167,7 @@ function NavRow({
   active,
   onClick,
   actions,
+  onDropNote,
 }: {
   icon: IconName;
   label: string;
@@ -165,17 +175,36 @@ function NavRow({
   active: boolean;
   onClick: () => void;
   actions?: React.ReactNode;
+  onDropNote?: (noteId: string) => void;
 }) {
+  const [over, setOver] = useState(false);
+  const accepts = (e: React.DragEvent) => !!onDropNote && e.dataTransfer.types.includes(NOTE_DRAG_TYPE);
   return (
     <li className="group relative">
       <button
         type="button"
         onClick={onClick}
+        onDragOver={(e) => {
+          if (!accepts(e)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          setOver(false);
+          if (!accepts(e)) return;
+          e.preventDefault();
+          const id = e.dataTransfer.getData(NOTE_DRAG_TYPE);
+          if (id) onDropNote!(id);
+        }}
+        data-drop-over={over || undefined}
         aria-current={active ? "true" : undefined}
         className={cn(
           "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
           "focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none",
-          active ? "bg-accent-glow text-accent" : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
+          active ? "bg-accent-glow text-accent" : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary",
+          over && "ring-2 ring-inset ring-accent"
         )}
       >
         <Icon name={icon} size={14} className="shrink-0" />
@@ -218,6 +247,7 @@ function NameInput({
   onSubmit: (name: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const [value, setValue] = useState(initial);
   const submit = () => (value.trim() ? onSubmit(value) : onCancel());
   return (
@@ -225,7 +255,7 @@ function NameInput({
       autoFocus
       value={value}
       aria-label={label}
-      placeholder="Folder name"
+      placeholder={t.library.folderName}
       maxLength={60}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => {

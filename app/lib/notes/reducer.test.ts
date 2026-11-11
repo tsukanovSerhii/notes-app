@@ -29,6 +29,19 @@ test.describe("sortNotes", () => {
     expect(sorted.map((n) => n.id)).toEqual(["pinned", "new", "old"]);
   });
 
+  test("sorts by creation date or title, pinned notes still first", () => {
+    const notes = [
+      note("b", { title: "banana", createdAt: 3, editedAt: 1 }),
+      note("a", { title: "Apple", createdAt: 1, editedAt: 3 }),
+      note("n10", { title: "Note 10", createdAt: 2, editedAt: 2 }),
+      note("n9", { title: "Note 9", createdAt: 4, editedAt: 0 }),
+      note("p", { title: "zzz", pinned: true, createdAt: 0 }),
+    ];
+    expect(sortNotes(notes, "created").map((n) => n.id)).toEqual(["p", "n9", "b", "n10", "a"]);
+    // Case-insensitive, and numbers in titles sort naturally.
+    expect(sortNotes(notes, "title").map((n) => n.id)).toEqual(["p", "a", "b", "n9", "n10"]);
+  });
+
   test("does not mutate its input", () => {
     const input = [note("a", { updatedAt: 1 }), note("b", { updatedAt: 2 })];
     sortNotes(input);

@@ -1,7 +1,7 @@
 import { todayLocalISO } from "@/app/lib/text";
 
 export interface NoteTemplate {
-  id: string;
+  id: "meeting" | "todo" | "journal" | "snippet";
   label: string;
   title: string;
   /** Built on demand so dates are always current. */

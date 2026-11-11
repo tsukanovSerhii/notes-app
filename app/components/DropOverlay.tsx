@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
+import { useI18n } from "@/app/lib/i18n";
 
 /** Full-window drop target for importing files. */
 export default function DropOverlay({ onDrop }: { onDrop: (files: File[]) => void }) {
+  const { t } = useI18n();
   const [active, setActive] = useState(false);
   const depth = useRef(0);
   const onDropRef = useRef(onDrop);
@@ -52,8 +54,8 @@ export default function DropOverlay({ onDrop }: { onDrop: (files: File[]) => voi
     <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-bg-base/80 p-6">
       <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-accent px-10 py-8 text-center">
         <Icon name="upload" size={28} className="text-accent" />
-        <p className="text-sm text-text-primary">Drop Markdown files or a backup to import</p>
-        <p className="text-xs text-text-muted">.md, .markdown, .txt or a NoteVoid .json backup</p>
+        <p className="text-sm text-text-primary">{t.drop.title}</p>
+        <p className="text-xs text-text-muted">{t.drop.hint}</p>
       </div>
     </div>
   );

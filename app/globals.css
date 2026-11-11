@@ -3,6 +3,9 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* `dark:` applies unless the light theme is on, so pages render dark by default. */
+@custom-variant dark (&:where(:not([data-theme="light"], [data-theme="light"] *)));
+
 :root {
   /* Backgrounds */
   --bg-base: #0f0f11;
@@ -19,6 +22,41 @@
   /* Accent */
   --accent: #818cf8;
   --accent-glow: rgba(129, 140, 248, 0.15);
+
+  color-scheme: dark;
+}
+
+/* Light theme: same roles, contrast checked against WCAG AA on white. */
+:root[data-theme="light"] {
+  --bg-base: #f4f4f6;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ececf0;
+  --border: #dcdce3;
+
+  --text-primary: #18181b;
+  --text-secondary: #3f3f46;
+  --text-muted: #63636e;
+
+  --accent: #4f46e5;
+  --accent-glow: rgba(79, 70, 229, 0.1);
+
+  color-scheme: light;
+}
+
+/* The starfield is a dark-theme effect. */
+[data-theme="light"] .themed-dark-only {
+  display: none;
+}
+
+/* Status colours tuned for dark backgrounds need more contrast on light ones. */
+[data-theme="light"] .text-amber-300 {
+  color: #b45309;
+}
+[data-theme="light"] .text-red-400,
+[data-theme="light"] .text-red-300,
+[data-theme="light"] .hover\:text-red-400:hover,
+[data-theme="light"] .hover\:text-red-300:hover {
+  color: #dc2626;
 }
 
 /* Expose tokens to Tailwind utilities (bg-surface, text-muted, etc.) */
@@ -148,3 +186,16 @@ h4 {
 .tok-operator {
   color: #a5b4fc;
 }
+
+/* Light-theme syntax colours (darker shades of the same hues). */
+[data-theme="light"] .tok-keyword { color: #7c3aed; }
+[data-theme="light"] .tok-string { color: #15803d; }
+[data-theme="light"] .tok-number,
+[data-theme="light"] .tok-literal { color: #c2410c; }
+[data-theme="light"] .tok-function { color: #0369a1; }
+[data-theme="light"] .tok-type,
+[data-theme="light"] .tok-tag { color: #0e7490; }
+[data-theme="light"] .tok-property,
+[data-theme="light"] .tok-attr { color: #be185d; }
+[data-theme="light"] .tok-variable { color: #a16207; }
+[data-theme="light"] .tok-operator { color: #4338ca; }

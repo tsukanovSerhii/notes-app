@@ -3,13 +3,21 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { createNotesStore, defaultCreateId } from "@/app/lib/notes/store";
 import { liveNotes, sortNotes, trashedNotes } from "@/app/lib/notes/reducer";
-import { createIndexedDbPersistence } from "@/app/lib/notes/idb";
+import { createIndexedDbPersistence, openDatabase } from "@/app/lib/notes/idb";
+import {
+  createHistoryRecorder,
+  createIndexedDbHistory,
+  createMemoryHistory,
+  type HistoryRecorder,
+  type HistoryStore,
+} from "@/app/lib/notes/history";
 import {
   createLocalStoragePersistence,
   type NotesPersistence,
 } from "@/app/lib/notes/persistence";
 import { createWelcomeNotes } from "@/app/lib/notes/welcome";
 import { createSkewClock } from "@/app/lib/clock";
+import { currentLocale } from "@/app/lib/i18n";
 
 let persistence: NotesPersistence | null = null;
 
@@ -55,10 +63,22 @@ export const appClock = createSkewClock({ storage: getLocalStorage() });
 
 export const notesStore = createNotesStore({
   getPersistence,
-  seed: createWelcomeNotes,
+  // The first-visit note is written in the language the app starts in.
+  seed: (now) => createWelcomeNotes(now, currentLocale()),
   now: appClock.now,
   deviceId,
 });
+
+/** Earlier versions of notes, kept on this device only. */
+export const noteHistory: HistoryStore =
+  typeof window !== "undefined" && "indexedDB" in window && window.indexedDB
+    ? createIndexedDbHistory(() => openDatabase(window.indexedDB))
+    : createMemoryHistory();
+
+export const historyRecorder: HistoryRecorder | null =
+  typeof window === "undefined"
+    ? null
+    : createHistoryRecorder({ store: notesStore, history: noteHistory, now: appClock.now });
 
 export function useNotes() {
   const snapshot = useSyncExternalStore(

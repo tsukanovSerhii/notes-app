@@ -5,12 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import type { SaveStatus } from "@/app/lib/notes/store";
 import { getTextStats } from "@/app/lib/text";
 import { cn } from "@/app/lib/cn";
-
-const SAVE_LABEL: Record<SaveStatus, string> = {
-  saved: "Saved",
-  pending: "Saving…",
-  error: "Not saved — storage is full or blocked",
-};
+import { useI18n } from "@/app/lib/i18n";
 
 export default function StatusBar({
   content,
@@ -19,6 +14,7 @@ export default function StatusBar({
   content: string;
   saveStatus: SaveStatus;
 }) {
+  const { t, count } = useI18n();
   const { words, chars, readingMinutes } = useMemo(
     () => getTextStats(content),
     [content]
@@ -27,8 +23,8 @@ export default function StatusBar({
   return (
     <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-4 py-1.5 text-[11px] text-text-muted sm:px-6">
       <span className="truncate">
-        {words} {words === 1 ? "word" : "words"} · {chars} chars
-        {readingMinutes > 0 && ` · ${readingMinutes} min read`}
+        {count(words, t.plural.words)} · {t.status.chars(chars)}
+        {readingMinutes > 0 && ` · ${t.status.minRead(readingMinutes)}`}
       </span>
       <span
         className={cn(
@@ -38,7 +34,7 @@ export default function StatusBar({
       >
         {saveStatus === "saved" && <Icon name="check" size={12} />}
         {saveStatus === "error" && <Icon name="alert" size={12} />}
-        {SAVE_LABEL[saveStatus]}
+        {t.status[saveStatus]}
       </span>
     </div>
   );

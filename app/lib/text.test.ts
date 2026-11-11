@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { excerpt, getTextStats, relativeTime, toFileName, todayLocalISO } from "@/app/lib/text";
+import { excerpt, getTextStats, highlight, relativeTime, searchSnippet, toFileName, todayLocalISO } from "@/app/lib/text";
 
 test.describe("getTextStats", () => {
   test("counts words, chars and reading time", () => {
@@ -55,5 +55,31 @@ test.describe("toFileName", () => {
 test.describe("todayLocalISO", () => {
   test("uses the local date, not UTC", () => {
     expect(todayLocalISO(new Date(2026, 2, 5, 23, 59))).toBe("2026-03-05");
+  });
+});
+
+test.describe("search helpers", () => {
+  test("highlight splits text into matching runs, case-insensitively", () => {
+    expect(highlight("Plan the plan", "PLAN")).toEqual([
+      { text: "Plan", match: true },
+      { text: " the ", match: false },
+      { text: "plan", match: true },
+    ]);
+    expect(highlight("Tagged", "#tag")).toEqual([
+      { text: "Tag", match: true },
+      { text: "ged", match: false },
+    ]);
+    expect(highlight("abc", "  ")).toEqual([{ text: "abc", match: false }]);
+  });
+
+  test("searchSnippet shows plain text around the first match", () => {
+    const body = "# Title\n\nSome **intro** text that goes on for a while before the budget numbers appear, then more words follow after them for a long time.";
+    const snippet = searchSnippet(body, "budget")!;
+    expect(snippet).toContain("budget");
+    expect(snippet.startsWith("…")).toBe(true);
+    expect(snippet.endsWith("…")).toBe(true);
+    expect(snippet).not.toContain("**");
+    expect(searchSnippet(body, "missing")).toBeNull();
+    expect(searchSnippet("see [[Other note]]", "other")).toBe("see Other note");
   });
 });

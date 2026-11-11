@@ -3,22 +3,14 @@
 import Icon from "@/app/components/ui/Icon";
 import type { SyncSnapshot } from "@/app/lib/sync/client";
 import { cn } from "@/app/lib/cn";
+import { useI18n, type Messages } from "@/app/lib/i18n";
 
-const LABEL: Record<SyncSnapshot["state"], string> = {
-  off: "Sync is off",
-  idle: "Synced",
-  syncing: "Syncing…",
-  offline: "Offline — will sync later",
-  error: "Sync failed",
-};
-
-/** "Sync is paused: too many requests, retrying in 12 s" while rate limited. */
-export function syncLabel(sync: SyncSnapshot, now = Date.now()): string {
+/** "Sync paused: too many requests, retrying in 12 s" while rate limited. */
+export function syncLabel(sync: SyncSnapshot, t: Messages, now = Date.now()): string {
   if (sync.state === "error" && sync.retryAt !== null) {
-    const seconds = Math.max(1, Math.ceil((sync.retryAt - now) / 1000));
-    return `Sync paused: too many requests, retrying in ${seconds} s`;
+    return t.sync.paused(Math.max(1, Math.ceil((sync.retryAt - now) / 1000)));
   }
-  return LABEL[sync.state];
+  return t.sync[sync.state];
 }
 
 export default function SyncButton({
@@ -28,13 +20,14 @@ export default function SyncButton({
   sync: SyncSnapshot;
   onClick: () => void;
 }) {
-  const label = syncLabel(sync);
+  const { t } = useI18n();
+  const label = syncLabel(sync, t);
   const limited = sync.state === "error" && sync.retryAt !== null;
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={`Sync settings: ${label}`}
+      aria-label={t.sync.settings(label)}
       title={label}
       data-sync-state={limited ? "limited" : sync.state}
       className={cn(

@@ -7,6 +7,7 @@ import {
   parseTombstones,
   type PersistedState,
 } from "@/app/lib/notes/storage";
+import { HISTORY_STORE } from "@/app/lib/notes/history";
 import {
   applyChange,
   type NotesPersistence,
@@ -15,7 +16,8 @@ import {
 } from "@/app/lib/notes/persistence";
 
 export const DB_NAME = "notevoid";
-export const DB_VERSION = 1;
+/** 2 added the local note history store. */
+export const DB_VERSION = 2;
 const NOTES = "notes";
 const META = "meta";
 const META_KEY = "state";
@@ -38,12 +40,15 @@ function done(tx: IDBTransaction): Promise<void> {
   });
 }
 
-function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
+export function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
   const req = factory.open(DB_NAME, DB_VERSION);
   req.onupgradeneeded = () => {
     const db = req.result;
     if (!db.objectStoreNames.contains(NOTES)) db.createObjectStore(NOTES, { keyPath: "id" });
     if (!db.objectStoreNames.contains(META)) db.createObjectStore(META);
+    if (!db.objectStoreNames.contains(HISTORY_STORE)) {
+      db.createObjectStore(HISTORY_STORE, { keyPath: "key", autoIncrement: true }).createIndex("noteId", "noteId");
+    }
   };
   return request(req).then((db) => {
     // Let other tabs (or a "delete database" in dev tools) upgrade or delete.

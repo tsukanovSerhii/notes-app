@@ -2,13 +2,14 @@
 
 import Icon, { type IconName } from "@/app/components/ui/Icon";
 import { cn } from "@/app/lib/cn";
+import { useI18n } from "@/app/lib/i18n";
 
 export type ViewMode = "edit" | "split" | "preview";
 
-const MODES: { mode: ViewMode; label: string; icon: IconName }[] = [
-  { mode: "edit", label: "Edit", icon: "pencil" },
-  { mode: "split", label: "Split", icon: "columns" },
-  { mode: "preview", label: "Preview", icon: "eye" },
+const MODES: { mode: ViewMode; icon: IconName }[] = [
+  { mode: "edit", icon: "pencil" },
+  { mode: "split", icon: "columns" },
+  { mode: "preview", icon: "eye" },
 ];
 
 interface ViewModeToggleProps {
@@ -22,14 +23,17 @@ export default function ViewModeToggle({
   onChange,
   allowSplit,
 }: ViewModeToggleProps) {
+  const { t } = useI18n();
   return (
     <div
       role="group"
-      aria-label="View mode"
+      aria-label={t.view.label}
       className="flex rounded-lg border border-border bg-bg-base/60 p-0.5"
     >
       {MODES.filter((m) => allowSplit || m.mode !== "split").map(
-        ({ mode, label, icon }) => (
+        ({ mode, icon }) => {
+          const label = t.view[mode];
+          return (
           <button
             key={mode}
             type="button"
@@ -48,7 +52,8 @@ export default function ViewModeToggle({
             <span className="hidden sm:inline">{label}</span>
             <span className="sr-only sm:hidden">{label}</span>
           </button>
-        )
+          );
+        }
       )}
     </div>
   );

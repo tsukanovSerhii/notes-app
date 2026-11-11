@@ -6,6 +6,7 @@ import MarkdownCheatsheet from "@/app/components/editor/MarkdownCheatsheet";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
 import { useDismiss } from "@/app/hooks/useDismiss";
 import { cn } from "@/app/lib/cn";
+import { useI18n } from "@/app/lib/i18n";
 
 export interface ToolbarProps {
   onWrap: (before: string, after: string, placeholder?: string) => void;
@@ -27,6 +28,7 @@ export default function Toolbar({
   onInsert,
   onTemplate,
 }: ToolbarProps) {
+  const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useDismiss(menuRef, menuOpen, () => setMenuOpen(false));
@@ -34,32 +36,32 @@ export default function Toolbar({
   return (
     <div
       role="toolbar"
-      aria-label="Formatting"
+      aria-label={t.editor.formatting}
       className="flex shrink-0 flex-wrap items-center gap-0.5 border-b border-border px-2 py-1.5 sm:px-3"
     >
-      <Btn label="Bold (Ctrl+B)" onClick={() => onWrap("**", "**", "bold")}>
+      <Btn label={t.editor.bold} onClick={() => onWrap("**", "**", "bold")}>
         <span className="text-sm font-bold">B</span>
       </Btn>
-      <Btn label="Italic (Ctrl+I)" onClick={() => onWrap("*", "*", "italic")}>
+      <Btn label={t.editor.italic} onClick={() => onWrap("*", "*", "italic")}>
         <span className="font-serif text-sm italic">I</span>
       </Btn>
-      <Btn label="Heading" onClick={() => onPrefix("## ")}>
+      <Btn label={t.editor.heading} onClick={() => onPrefix("## ")}>
         <span className="text-sm font-semibold">H</span>
       </Btn>
 
       <Divider />
 
-      <Btn label="Bullet list" icon="list" onClick={() => onPrefix("- ")} />
-      <Btn label="Numbered list" icon="listOrdered" onClick={() => onPrefix("", true)} />
-      <Btn label="Checkbox" icon="checkbox" onClick={() => onPrefix("- [ ] ")} />
-      <Btn label="Quote" icon="quote" onClick={() => onPrefix("> ")} />
+      <Btn label={t.editor.bulletList} icon="list" onClick={() => onPrefix("- ")} />
+      <Btn label={t.editor.numberedList} icon="listOrdered" onClick={() => onPrefix("", true)} />
+      <Btn label={t.editor.checkbox} icon="checkbox" onClick={() => onPrefix("- [ ] ")} />
+      <Btn label={t.editor.quote} icon="quote" onClick={() => onPrefix("> ")} />
 
       <Divider />
 
-      <Btn label="Link (Ctrl+K)" icon="link" onClick={() => onWrap("[", "](url)", "text")} />
-      <Btn label="Inline code" icon="code" onClick={() => onWrap("`", "`", "code")} />
-      <Btn label="Code block" icon="codeBlock" onClick={() => onInsert(CODE_BLOCK)} />
-      <Btn label="Table" icon="table" onClick={() => onInsert(TABLE)} />
+      <Btn label={t.editor.link} icon="link" onClick={() => onWrap("[", "](url)", "text")} />
+      <Btn label={t.editor.inlineCode} icon="code" onClick={() => onWrap("`", "`", "code")} />
+      <Btn label={t.editor.codeBlock} icon="codeBlock" onClick={() => onInsert(CODE_BLOCK)} />
+      <Btn label={t.editor.table} icon="table" onClick={() => onInsert(TABLE)} />
 
       <Divider />
 
@@ -78,7 +80,7 @@ export default function Toolbar({
           )}
         >
           <Icon name="layoutTemplate" size={14} />
-          Templates
+          {t.editor.templates}
           <Icon name="chevronDown" size={12} />
         </button>
         {menuOpen && (
@@ -86,18 +88,18 @@ export default function Toolbar({
             role="menu"
             className="absolute left-0 top-9 z-30 w-44 rounded-lg border border-border bg-bg-elevated p-1 shadow-xl"
           >
-            {TEMPLATES.map((t) => (
+            {TEMPLATES.map((tpl) => (
               <button
-                key={t.id}
+                key={tpl.id}
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  onTemplate(t);
+                  onTemplate(tpl);
                   setMenuOpen(false);
                 }}
                 className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-primary transition-colors hover:bg-accent-glow hover:text-accent focus-visible:bg-accent-glow focus-visible:outline-none"
               >
-                {t.label}
+                {t.templates[tpl.id]}
               </button>
             ))}
           </div>

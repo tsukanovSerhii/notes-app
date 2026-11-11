@@ -53,15 +53,18 @@ test.describe("Security headers", () => {
     await page.goto("/");
     // The classic XSS payload: markup with an inline handler slipped into the DOM.
     const result = await page.evaluate(async () => {
-      let blocked = "";
-      document.addEventListener("securitypolicyviolation", (e) => {
-        blocked = e.violatedDirective;
+      // Resolves when the browser reports the blocked handler. The image
+      // request has to fail first, which a busy dev server can take a while
+      // to answer, so wait for the event rather than a fixed delay.
+      const blocked = new Promise<string>((resolve) => {
+        document.addEventListener("securitypolicyviolation", (e) => resolve(e.violatedDirective), { once: true });
+        setTimeout(() => resolve(""), 10_000);
       });
       const box = document.createElement("div");
       box.innerHTML = '<img src="/missing-image.png" onerror="window.__xss = true">';
       document.body.appendChild(box);
-      await new Promise((r) => setTimeout(r, 500));
-      return { ran: (window as unknown as { __xss?: boolean }).__xss === true, blocked };
+      const directive = await blocked;
+      return { ran: (window as unknown as { __xss?: boolean }).__xss === true, blocked: directive };
     });
     expect(result.ran).toBe(false);
     expect(result.blocked).toMatch(/^script-src/);

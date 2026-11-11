@@ -1,9 +1,32 @@
-import { memo, type ReactNode } from "react";
+import { memo, useContext, useEffect, useState, type ReactNode } from "react";
 import ReactMarkdown, { type Components, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CopyButton, HighlightedCode } from "@/app/components/editor/CodeBlock";
+import { WikiLinkContext } from "@/app/components/editor/wikiLinkContext";
+import { remarkWikiLinks, titleFromHref } from "@/app/lib/wikiLinks";
+import { useI18n } from "@/app/lib/i18n";
+import MermaidDiagram from "@/app/components/editor/MermaidDiagram";
+import { hasMath, loadMath, type MathPlugins } from "@/app/lib/markdownExtras";
 
-const remarkPlugins: Options["remarkPlugins"] = [remarkGfm];
+const remarkPlugins: Options["remarkPlugins"] = [remarkGfm, remarkWikiLinks];
+
+/** The KaTeX plugins once a note with math has asked for them. */
+function useMathPlugins(needed: boolean): MathPlugins | null {
+  const [plugins, setPlugins] = useState<MathPlugins | null>(null);
+  useEffect(() => {
+    if (!needed || plugins) return;
+    let cancelled = false;
+    loadMath()
+      .then((p) => !cancelled && setPlugins(p))
+      .catch(() => {
+        // Without KaTeX the formulas stay as written.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needed, plugins]);
+  return needed ? plugins : null;
+}
 
 function languageOf(className: string | undefined): string | null {
   return /language-([\w+-]+)/.exec(className ?? "")?.[1] ?? null;
@@ -15,7 +38,31 @@ function textOf(children: ReactNode): string {
   return "";
 }
 
+/** A `[[Title]]` link: opens the note, or offers to create it. */
+function WikiLink({ title, children }: { title: string; children: ReactNode }) {
+  const target = useContext(WikiLinkContext);
+  const { t } = useI18n();
+  if (!target) return <span>{children}</span>;
+  const exists = target.exists(title);
+  return (
+    <a
+      href={`#note=${encodeURIComponent(title)}`}
+      data-wiki-link={exists ? "found" : "missing"}
+      title={exists ? undefined : t.links.missing(title)}
+      onClick={(e) => {
+        e.preventDefault();
+        target.open(title);
+      }}
+      className={exists ? undefined : "opacity-70 decoration-dashed"}
+    >
+      {children}
+    </a>
+  );
+}
+
 const link: Components["a"] = ({ href, title, children }) => {
+  const wiki = titleFromHref(href);
+  if (wiki !== null) return <WikiLink title={wiki}>{children}</WikiLink>;
   const external = !!href && /^https?:\/\//i.test(href);
   return (
     <a
@@ -47,6 +94,7 @@ function makePre(withToolbar: boolean): Components["pre"] {
         : "";
 
     if (!withToolbar) return <pre>{children}</pre>;
+    if (lang === "mermaid") return <MermaidDiagram code={raw.replace(/\n$/, "")} />;
     return (
       <div className="group relative">
         <div className="absolute right-2 top-1.5 flex items-center gap-2">
@@ -74,9 +122,11 @@ function Markdown({
   children: string;
   variant?: "screen" | "print";
 }) {
+  const math = useMathPlugins(hasMath(children));
   return (
     <ReactMarkdown
-      remarkPlugins={remarkPlugins}
+      remarkPlugins={math ? [...remarkPlugins!, math.remark] : remarkPlugins}
+      rehypePlugins={math ? [math.rehype] : undefined}
       components={variant === "print" ? printComponents : screenComponents}
     >
       {children}

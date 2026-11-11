@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
 import { useDismiss } from "@/app/hooks/useDismiss";
 import { cn } from "@/app/lib/cn";
+import { LOCALES, LOCALE_NAMES, setLocale, useI18n } from "@/app/lib/i18n";
+import { useTheme } from "@/app/components/ThemeController";
 
 interface AppMenuProps {
   onImportMarkdown: (files: File[]) => void;
@@ -18,6 +20,8 @@ export default function AppMenu({
   onDownloadBackup,
   onOpenSync,
 }: AppMenuProps) {
+  const { t, locale } = useI18n();
+  const [theme, setTheme] = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const mdInput = useRef<HTMLInputElement>(null);
@@ -30,7 +34,7 @@ export default function AppMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="More actions"
+        aria-label={t.header.moreActions}
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn(
@@ -47,11 +51,47 @@ export default function AppMenu({
           role="menu"
           className="absolute right-0 top-11 z-40 w-56 rounded-lg border border-border bg-bg-elevated p-1 shadow-xl"
         >
-          <MenuItem icon="upload" label="Import Markdown files…" onSelect={() => mdInput.current?.click()} close={close} />
-          <MenuItem icon="database" label="Restore from backup…" onSelect={() => backupInput.current?.click()} close={close} />
-          <MenuItem icon="download" label="Download backup (.json)" onSelect={onDownloadBackup} close={close} />
+          <MenuItem icon="upload" label={t.menu.importMarkdown} onSelect={() => mdInput.current?.click()} close={close} />
+          <MenuItem icon="database" label={t.menu.restoreBackup} onSelect={() => backupInput.current?.click()} close={close} />
+          <MenuItem icon="download" label={t.menu.downloadBackup} onSelect={onDownloadBackup} close={close} />
           <div className="my-1 h-px bg-border" />
-          <MenuItem icon="cloud" label="Sync settings…" onSelect={onOpenSync} close={close} />
+          <MenuItem icon="cloud" label={t.menu.syncSettings} onSelect={onOpenSync} close={close} />
+          <div className="my-1 border-t border-border" role="separator" />
+          <div role="group" aria-label={t.menu.theme} className="flex gap-1 px-1.5 py-1">
+            {(["system", "light", "dark"] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="menuitemradio"
+                aria-checked={theme === c}
+                onClick={() => setTheme(c)}
+                className={cn(
+                  "flex-1 rounded px-2 py-1 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none",
+                  theme === c ? "bg-accent-glow text-accent" : "text-text-muted hover:text-text-primary"
+                )}
+              >
+                {t.menu[c === "system" ? "themeSystem" : c === "light" ? "themeLight" : "themeDark"]}
+              </button>
+            ))}
+          </div>
+          <div role="group" aria-label={t.menu.language} className="flex gap-1 px-1.5 py-1">
+            {LOCALES.map((l) => (
+              <button
+                key={l}
+                type="button"
+                role="menuitemradio"
+                aria-checked={locale === l}
+                lang={l}
+                onClick={() => setLocale(l)}
+                className={cn(
+                  "flex-1 rounded px-2 py-1 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none",
+                  locale === l ? "bg-accent-glow text-accent" : "text-text-muted hover:text-text-primary"
+                )}
+              >
+                {LOCALE_NAMES[l]}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

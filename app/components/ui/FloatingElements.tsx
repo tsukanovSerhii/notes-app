@@ -42,7 +42,7 @@ export default function FloatingElements() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-1 overflow-hidden motion-reduce:hidden"
+      className="themed-dark-only pointer-events-none fixed inset-0 z-1 overflow-hidden motion-reduce:hidden"
     >
       {ITEMS.map((item, i) => (
         <div

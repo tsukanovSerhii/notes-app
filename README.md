@@ -1,12 +1,16 @@
 # NoteVoid
 
-A local-first Markdown notes app: live preview, folders and tags, syntax
-highlighting, import/export, and optional sync between devices. Notes live in
-the browser (IndexedDB); the sync server is opt-in.
+A local-first Markdown notes app: live preview, wiki links, folders and
+tags, math and diagrams, version history, a command palette, light and dark
+themes, English and Ukrainian, and optional end-to-end encrypted sync between
+devices. Notes live in the browser (IndexedDB) and the app works offline; the
+sync server is opt-in.
 
 Built with **Next.js 16** (App Router + Route Handlers), **React 19**,
-**TypeScript** (strict) and **Tailwind CSS 4**. No UI or state libraries:
-only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
+**TypeScript** (strict) and **Tailwind CSS 4**. No UI or state libraries. In
+the browser: `react-markdown` with `remark-gfm`, `html2pdf.js`, and KaTeX and
+Mermaid loaded only when a note needs them; on the server, `pg` when sync is
+backed by Postgres. Encryption uses the built-in Web Crypto API.
 
 ![NoteVoid on desktop](docs/screenshot.png)
 
@@ -24,6 +28,12 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 **Writing**
 - Live GFM preview (tables, task lists, strikethrough) with edit, split and
   preview-only modes.
+- **Wiki links**: `[[Note title]]` or `[[Note title|text]]` opens that note,
+  or creates it; each note lists the notes that link to it.
+- **Math** with KaTeX (`$…$`, `$$…$$`) and **diagrams** with Mermaid
+  (```` ```mermaid ````), both loaded only when a note uses them.
+- **Version history**: earlier versions of each note are kept on the device
+  every few minutes while editing, and any of them can be restored.
 - **Syntax highlighting** for TypeScript/JavaScript, JSON, CSS, HTML, bash and
   Python, using an in-house tokenizer with no dependencies. Code blocks show
   their language and have a Copy button.
@@ -36,7 +46,12 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
   notes) and filter the list by folder.
 - **Tags**: chip input with suggestions; filter by tag; search also matches
   tags.
-- Pinning, full-text search, and undo for every delete.
+- Pinning, and full-text search that highlights matches and shows the text
+  around them.
+- **Drag and drop** notes onto a folder, out of folders, or into the trash;
+  sort the list by last edit, creation or title.
+- **Command palette** (`Ctrl/Cmd + Shift + P`, or `Ctrl/Cmd + K` outside the
+  editor) to jump to any note or run any command.
 - **Trash**: deleted notes wait 30 days, can be opened read-only, restored or
   deleted forever. The trash syncs, so a note deleted on one device can be
   restored on another.
@@ -64,6 +79,10 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
   rate-limited sync endpoint.
 
 **Quality**
+- **Light and dark themes**, following the system by default, with no flash
+  of the wrong theme on load.
+- **English and Ukrainian**, chosen from the browser language or the menu,
+  with correct plural forms.
 - Responsive layout (the notes list is a drawer on phones). Semantic markup,
   labelled controls, focus rings, WCAG AA contrast, `prefers-reduced-motion`.
 
@@ -73,6 +92,7 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 | --- | --- |
 | `Alt + N` | New note (in the current folder) |
 | `/` | Focus search |
+| `Ctrl/Cmd + Shift + P` | Command palette (also `Ctrl/Cmd + K` outside the editor) |
 | `Ctrl/Cmd + B`, `I`, `K` | Bold, italic, link |
 | `Enter` in a list | Continue or end the list |
 | `Esc` | Close menus and dialogs, clear search, close the drawer |
@@ -114,7 +134,7 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 - **The logic has no React and no DOM.** The reducer, merge, validation,
   highlighter, import parsing and the sync handler are plain functions. The
   store and the sync client get their persistence, clock, ID generator, timers
-  and `fetch` injected. That is why 167 unit tests run in about 3 seconds with no
+  and `fetch` injected. That is why 187 unit tests run in about 3 seconds with no
   browser.
 - **IndexedDB with incremental writes.** The store diffs note references
   between states, collects the changed IDs, and writes only those records plus
@@ -197,6 +217,21 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
   the page and everything it references on install, and the page hands over
   chunks it loaded before the worker took control, so the first visit is
   already complete offline. It is registered only in production builds.
+- **Typed translations.** All UI strings live in one dictionary; the
+  Ukrainian one is typed as the English one's shape, so a missing key fails
+  the build. Counts use `Intl.PluralRules` (Ukrainian has three forms). The
+  server renders English and the client switches after hydration through
+  `useSyncExternalStore`, so there is no hydration mismatch.
+- **A theme without a flash.** Themes are the same design tokens with a
+  second palette under `[data-theme="light"]`. A one-line script in `<head>`,
+  carrying the request's CSP nonce, sets the theme before the first paint.
+- **History by observation.** A recorder subscribes to the store and, when a
+  note's text changes, saves the version from just before the change, at most
+  every five minutes per note, in its own IndexedDB object store. That covers
+  edits and text replaced by sync alike, without touching the reducer.
+- **Heavy features load on demand.** KaTeX and Mermaid are dynamic imports
+  triggered by the content itself; Mermaid runs in strict mode, which
+  sanitizes the SVG it returns.
 - **Defence in depth against XSS.** The sync key sits in `localStorage`, so
   `proxy.ts` sends a per-request nonce CSP with `'strict-dynamic'`: only
   scripts Next.js stamped can run, lazily loaded chunks still work, and
@@ -264,7 +299,7 @@ on them.
 
 ## Testing
 
-- **Unit tests** (`app/**/*.test.ts`, 167 tests) cover the reducer, merge
+- **Unit tests** (`app/**/*.test.ts`, 187 tests) cover the reducer, merge
   properties (commutative, idempotent, tombstones), validation and migration,
   the store (incremental and debounced writes, failures, cross-tab reloads,
   unload journal), the highlighter, import/backup parsing, the sync server
@@ -274,14 +309,17 @@ on them.
   keeping both texts, debounce, errors, `Retry-After`), encryption (key
   derivation, sealing, wrong keys, tampering, moved blobs, the server never
   holding plaintext or the key), the skew-corrected
-  clock, the trash, the rate limiter and the security headers. They run on the
+  clock, the trash, note history, wiki links, search highlighting, fuzzy
+  matching, math detection, translations and plural rules, the rate limiter
+  and the security headers. They run on the
   Playwright runner without a browser.
-- **End-to-end tests** (`e2e/`, 41 tests) cover the whole app, including
+- **End-to-end tests** (`e2e/`, 54 tests) cover the whole app, including
   folders, tags, highlighting, IndexedDB storage, migration from
   localStorage, Markdown import, backup and restore, and **two browser
   contexts syncing through the real API route** (concurrent edits included,
   and a check that the server's files hold no plaintext),
-  the trash, the CSP (every script is
+  the trash, history (on Playwright's clock), wiki links, the command palette,
+  drag and drop, themes, both languages, KaTeX and Mermaid, the CSP (every script is
   nonced, no violations, injected handlers are blocked) and **opening and
   editing notes offline**. The offline tests need the production build, so
   they run in CI or locally with `npm run build && CI=1 npm run test:e2e`.
@@ -304,17 +342,20 @@ app/
   api/sync/      Sync Route Handler
   components/
     editor/      Editor, Toolbar, NoteMeta, StatusBar, Preview, Markdown,
-                 CodeBlock, ExportMenu, ViewModeToggle, MarkdownCheatsheet
+                 CodeBlock, ExportMenu, ViewModeToggle, MarkdownCheatsheet,
+                 Backlinks, HistoryDialog, MermaidDiagram
     sidebar/     Sidebar, LibraryNav, NoteItem, SearchBar
     sync/        SyncButton, SyncDialog
     ui/          Button, Icon, Modal, Toast, GalaxyBackground, FloatingElements
-    AppMenu, DropOverlay, ServiceWorker
+    AppMenu, DropOverlay, ServiceWorker, CommandPalette, ThemeController
   hooks/         useNotes, useSync, useImport, useDismiss, useMediaQuery
   lib/
-    notes/       reducer, merge, storage, persistence, idb, store, welcome
+    notes/       reducer, merge, storage, persistence, idb, store, history, welcome
     sync/        protocol, client, server, conflicts, crypto, wire, space, fileRepository, postgresRepository, rateLimit
     security/    CSP and security headers
-    clock, highlight, importExport, markdownActions, textarea, text, templates
+    i18n/        typed dictionaries (en, uk), useI18n, plural rules
+    clock, fuzzy, highlight, importExport, markdownActions, markdownExtras,
+    textarea, text, templates, theme, wikiLinks
   types/         Note, Folder, NotesData
   manifest.ts    Web app manifest
 public/          Service worker and app icons
@@ -326,9 +367,11 @@ e2e/             Playwright end-to-end tests
 
 - Real accounts instead of sync keys
 - A hosted demo
+- Images stored with notes (they would need encrypting and syncing as
+  binary data, within the request size limit)
+- An inverted search index in a Web Worker for very large libraries
 - Field-level merge, so two devices editing different fields of a note
   don't overwrite each other
-- Drag and drop of notes between folders
 
 ## License
 

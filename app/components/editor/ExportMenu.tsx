@@ -1,18 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import Markdown from "@/app/components/editor/Markdown";
 import Button from "@/app/components/ui/Button";
 import Icon from "@/app/components/ui/Icon";
 import { useDismiss } from "@/app/hooks/useDismiss";
 import { downloadText } from "@/app/lib/download";
 import { toFileName } from "@/app/lib/text";
+import { useI18n } from "@/app/lib/i18n";
 
 interface ExportMenuProps {
   title?: string;
   content: string;
   disabled?: boolean;
   onError: (message: string) => void;
+  /** Lets the command palette start an export. */
+  ref?: Ref<ExportActions>;
+}
+
+export interface ExportActions {
+  exportPdf(): void;
+  exportMarkdown(): void;
 }
 
 type Html2Pdf = (typeof import("html2pdf.js"))["default"];
@@ -24,6 +32,8 @@ type PdfOptions = Parameters<InstanceType<Html2Pdf["Worker"]>["set"]>[0] & {
 interface PdfJob {
   title: string;
   content: string;
+  /** Captured when the job starts, so the effect does not depend on the locale. */
+  failedMessage: string;
 }
 
 const PDF_STYLES = `
@@ -85,7 +95,9 @@ export default function ExportMenu({
   content,
   disabled,
   onError,
+  ref,
 }: ExportMenuProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [pdfJob, setPdfJob] = useState<PdfJob | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -115,7 +127,7 @@ export default function ExportMenu({
         await html2pdf().set(options).from(element)
           .save();
       } catch {
-        if (!cancelled) onError("PDF export failed. Please try again.");
+        if (!cancelled) onError(pdfJob.failedMessage);
       } finally {
         if (!cancelled) setPdfJob(null);
       }
@@ -128,7 +140,7 @@ export default function ExportMenu({
 
   const exportPdf = () => {
     setOpen(false);
-    setPdfJob({ title: title ?? "", content });
+    setPdfJob({ title: title ?? "", content, failedMessage: t.export.failed });
   };
 
   const exportMarkdown = () => {
@@ -137,6 +149,15 @@ export default function ExportMenu({
   };
 
   const busy = pdfJob !== null;
+
+  useImperativeHandle(ref, () => ({
+    exportPdf: () => {
+      if (!disabled && !busy) exportPdf();
+    },
+    exportMarkdown: () => {
+      if (!disabled) exportMarkdown();
+    },
+  }));
 
   return (
     <div className="relative" ref={menuRef}>
@@ -148,7 +169,7 @@ export default function ExportMenu({
         aria-expanded={open}
       >
         <Icon name="download" strokeWidth={2.2} />
-        <span className="hidden sm:inline">{busy ? "Exporting…" : "Export"}</span>
+        <span className="hidden sm:inline">{busy ? t.export.exporting : t.export.button}</span>
         <Icon name="chevronDown" size={12} className="hidden sm:block" />
       </Button>
 
@@ -157,8 +178,8 @@ export default function ExportMenu({
           role="menu"
           className="absolute right-0 top-11 z-40 w-48 rounded-lg border border-border bg-bg-elevated p-1 shadow-xl"
         >
-          <MenuItem icon="download" label="PDF document" onClick={exportPdf} />
-          <MenuItem icon="fileText" label="Markdown (.md)" onClick={exportMarkdown} />
+          <MenuItem icon="download" label={t.export.pdf} onClick={exportPdf} />
+          <MenuItem icon="fileText" label={t.export.markdown} onClick={exportMarkdown} />
         </div>
       )}
 
@@ -181,7 +202,7 @@ export default function ExportMenu({
             {pdfJob.title.trim() && (
               <h1 style={{ fontSize: "20pt", marginBottom: "8pt" }}>{pdfJob.title}</h1>
             )}
-            <Markdown variant="print">{pdfJob.content || "_(empty note)_"}</Markdown>
+            <Markdown variant="print">{pdfJob.content || t.export.empty}</Markdown>
           </div>
         </div>
       )}

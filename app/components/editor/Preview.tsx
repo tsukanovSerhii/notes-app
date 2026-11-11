@@ -2,12 +2,14 @@
 
 import { useDeferredValue } from "react";
 import Markdown from "@/app/components/editor/Markdown";
+import { useI18n } from "@/app/lib/i18n";
 
 interface PreviewProps {
   content: string;
 }
 
 export default function Preview({ content }: PreviewProps) {
+  const { t } = useI18n();
   // Parsing Markdown on every keystroke can lag on long notes; the deferred
   // value lets React keep typing responsive and catch the preview up after.
   const deferred = useDeferredValue(content);
@@ -17,9 +19,9 @@ export default function Preview({ content }: PreviewProps) {
     <div className="h-full overflow-y-auto p-4 sm:p-6">
       <article
         id="preview-content"
-        aria-label="Preview"
+        aria-label={t.editor.preview}
         aria-busy={stale}
-        className="prose prose-invert max-w-none transition-opacity
+        className="prose dark:prose-invert max-w-none transition-opacity
           prose-headings:text-text-primary
           prose-p:text-text-secondary
           prose-li:text-text-secondary
@@ -33,7 +35,7 @@ export default function Preview({ content }: PreviewProps) {
         {deferred.trim() ? (
           <Markdown>{deferred}</Markdown>
         ) : (
-          <p className="text-text-muted">Nothing to preview yet.</p>
+          <p className="text-text-muted">{t.editor.nothingToPreview}</p>
         )}
       </article>
     </div>
