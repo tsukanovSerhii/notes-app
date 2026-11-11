@@ -42,7 +42,7 @@ test.describe("sync server", () => {
         handleSyncRequest(repo, { key: KEY, data: data({ notes: [note(id)] }) }, hash)
       )
     );
-    expect(repo.spaces.get("space-32")?.notes).toHaveLength(4);
+    expect(repo.spaces.get("space-32")?.data.notes).toHaveLength(4);
   });
 
   test("a rate-limited space is refused before any storage work", async () => {
@@ -223,6 +223,96 @@ test.describe("sync client", () => {
     expect(contents(phone.store)).toEqual(expected);
   });
 
+  test("after the first full exchange only changes travel, both ways", async () => {
+    let t = 1_000;
+    const clock = () => t;
+    const repo = createMemoryRepository();
+    const bodies: { cursor: unknown; notes: string[] }[] = [];
+    const replies: string[][] = [];
+    const store = createNotesStore({
+      getPersistence: () => createMemoryPersistence({ data: data({}), activeId: null }),
+      timers: new FakeTimers(),
+      now: clock,
+    });
+    await store.start();
+    const client = createSyncClient({
+      store,
+      keyStorage: null,
+      isOnline: () => true,
+      timers: new FakeTimers(),
+      now: clock,
+      fetch: (async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(String(init.body));
+        bodies.push({ cursor: body.cursor, notes: body.data.notes.map((n: { title: string }) => n.title) });
+        const result = await handleSyncRequest(repo, body, hash, clock);
+        if ("data" in result.body) replies.push(result.body.data.notes.map((n) => n.title));
+        return new Response(JSON.stringify(result.body), { status: result.status });
+      }) as typeof fetch,
+    });
+
+    store.create({ title: "old 1" });
+    store.create({ title: "old 2" });
+    t = 2_000;
+    await client.enable(KEY); // full: no cursor yet
+    // Another device adds a note directly on the server.
+    await handleSyncRequest(repo, { key: KEY, data: data({ notes: [note("x", { title: "remote" })] }) }, hash, clock);
+
+    t = 3_000;
+    store.create({ title: "new" });
+    await client.syncNow();
+
+    expect(bodies[0]).toEqual({ cursor: null, notes: expect.arrayContaining(["old 1", "old 2"]) });
+    expect(bodies[1]).toEqual({ cursor: 1, notes: ["new"] });
+    // The reply carries what changed after cursor 1: the remote note and our own new one.
+    expect(replies[1].sort()).toEqual(["new", "remote"]);
+    expect(store.getSnapshot().notes.map((n) => n.title).sort()).toEqual(["new", "old 1", "old 2", "remote"]);
+  });
+
+  test("moving a note into an existing folder survives a delta sync", async () => {
+    let t = 1_000;
+    const clock = () => t;
+    const repo = createMemoryRepository();
+    const make = async () => {
+      const store = createNotesStore({
+        getPersistence: () => createMemoryPersistence({ data: data({}), activeId: null }),
+        timers: new FakeTimers(),
+        now: clock,
+      });
+      await store.start();
+      const client = createSyncClient({
+        store,
+        keyStorage: null,
+        isOnline: () => true,
+        timers: new FakeTimers(),
+        now: clock,
+        fetch: (async (_url: string, init: RequestInit) => {
+          const result = await handleSyncRequest(repo, JSON.parse(String(init.body)), hash, clock);
+          return new Response(JSON.stringify(result.body), { status: result.status });
+        }) as typeof fetch,
+      });
+      return { store, client };
+    };
+    const a = await make();
+    const b = await make();
+    const work = a.store.createFolder("Work")!;
+    const n = a.store.create({ title: "Report" });
+    await a.client.enable(KEY);
+    t = 1_100;
+    await b.client.enable(KEY);
+
+    // Only the note changes; the folder is not part of either delta.
+    t = 2_000;
+    a.store.update(n.id, { folderId: work.id });
+    await a.client.syncNow();
+    t = 2_100;
+    await b.client.syncNow();
+
+    const folderOf = (s: typeof a.store) => s.getSnapshot().notes.find((x) => x.id === n.id)?.folderId;
+    expect(repo.spaces.get("space-32")?.data.notes.find((x) => x.id === n.id)?.folderId).toBe(work.id);
+    expect(folderOf(a.store)).toBe(work.id);
+    expect(folderOf(b.store)).toBe(work.id);
+  });
+
   test("a 429 retries after the server's Retry-After", async () => {
     const d = await device();
     const timers = new FakeTimers();
@@ -244,6 +334,7 @@ test.describe("sync client", () => {
     });
     await client.enable(KEY);
     expect(client.getSnapshot().state).toBe("error");
+    expect(client.getSnapshot().retryAt).toBeGreaterThan(Date.now() + 6000);
 
     timers.advance(6999);
     await settle();
@@ -251,6 +342,6 @@ test.describe("sync client", () => {
     timers.advance(1);
     await settle();
     expect(calls).toBe(2);
-    expect(client.getSnapshot().state).toBe("idle");
+    expect(client.getSnapshot()).toMatchObject({ state: "idle", retryAt: null });
   });
 });

@@ -113,7 +113,7 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 - **The logic has no React and no DOM.** The reducer, merge, validation,
   highlighter, import parsing and the sync handler are plain functions. The
   store and the sync client get their persistence, clock, ID generator, timers
-  and `fetch` injected. That is why 132 unit tests run in about 3 seconds with no
+  and `fetch` injected. That is why 152 unit tests run in about 3 seconds with no
   browser.
 - **IndexedDB with incremental writes.** The store diffs note references
   between states, collects the changed IDs, and writes only those records plus
@@ -151,10 +151,22 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
   is what the UI shows and sorts by.
 - **Sync without accounts.** The sync key is a random 144-bit bearer secret.
   The server stores data under its SHA-256 hash and never stores the key.
-  Read-merge-write is serialized per space, so concurrent devices don't lose
-  writes. Storage sits behind a two-method `SyncRepository` interface; the
-  JSON-file implementation (atomic temp-file + rename) is fine for a single
-  server, and a Postgres implementation would be one file.
+- **Optimistic concurrency, so it scales out.** Storage sits behind a
+  two-method `SyncRepository`; writes only succeed over the version that was
+  read, and the handler retries with fresh data when another instance won.
+  Postgres (one row per space, used when `DATABASE_URL` is set) makes that
+  safe across instances; JSON files (atomic temp-file + rename) suit one
+  server. Requests are also serialized per space within a process. One
+  contract test runs every repository, Postgres on in-process PGlite.
+- **Delta sync.** The server versions each space and records the version at
+  which every note, folder and tombstone last changed. Clients keep the last
+  version as a cursor: after the first full exchange of a page load, they
+  send only what changed since their last snapshot and receive only what
+  changed after the cursor.
+- **Tombstones expire.** After 90 days they are pruned on the server and on
+  every device. The server remembers the newest pruned deletion (the
+  horizon) and ignores unknown entities older than it from a device that has
+  not synced since, so a long-offline device cannot revive deleted notes.
 - **Data from outside is untrusted.** Storage, backups and API bodies all go
   through the same validators. Malformed entries are dropped, and payloads and
   files are size-limited.
@@ -199,7 +211,8 @@ The sync API runs inside the Next.js server, so no separate service is needed.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `SYNC_DATA_DIR` | `.data/sync` | Where sync spaces are stored (one JSON file each) |
+| `DATABASE_URL` | unset | Postgres connection string. When set, sync spaces live in Postgres (the table is created on first use) and any number of instances can serve sync |
+| `SYNC_DATA_DIR` | `.data/sync` | Without `DATABASE_URL`: where sync spaces are stored (one JSON file each) |
 | `SYNC_DISABLED` | unset | Set to `true` to turn the endpoint off |
 | `SYNC_RATE_LIMIT_IP` | `120` | Sync requests per minute per client IP (`0` turns it off) |
 | `SYNC_RATE_LIMIT_SPACE` | `240` | Sync requests per minute per sync space (`0` turns it off) |
@@ -207,8 +220,20 @@ The sync API runs inside the Next.js server, so no separate service is needed.
 The per-IP limit reads `X-Forwarded-For`, so behind a reverse proxy make sure
 the proxy sets it. Limits are kept in memory, which suits a single server.
 
-On serverless hosts with a read-only file system, implement `SyncRepository`
-for a database.
+On serverless hosts with a read-only file system, set `DATABASE_URL` (for
+example a managed Postgres such as Neon, Supabase or RDS).
+
+### Deploying
+
+1. Create a Postgres database and copy its connection string.
+2. Deploy the app to any Node.js host (`npm run build && npm start`), or to a
+   platform with Next.js support, with `DATABASE_URL` set.
+3. Put it behind HTTPS. If the host does not set `X-Forwarded-For`, the
+   per-IP limit applies to all clients together.
+
+Rate limits and the per-space lock live in each instance's memory, so with
+several instances the limits apply per instance; correctness does not depend
+on them.
 
 ## Scripts
 
@@ -225,11 +250,12 @@ for a database.
 
 ## Testing
 
-- **Unit tests** (`app/**/*.test.ts`, 132 tests) cover the reducer, merge
+- **Unit tests** (`app/**/*.test.ts`, 152 tests) cover the reducer, merge
   properties (commutative, idempotent, tombstones), validation and migration,
   the store (incremental and debounced writes, failures, cross-tab reloads,
   unload journal), the highlighter, import/backup parsing, the sync server
-  (validation, merging, concurrent writes, conflict detection) and the sync
+  (validation, merging, concurrent writes, conflict detection, optimistic
+  retries, deltas, tombstone pruning, every repository including Postgres) and the sync
   client (two devices converging through the handler, concurrent edits
   keeping both texts, debounce, errors, `Retry-After`), the skew-corrected
   clock, the trash, the rate limiter and the security headers. They run on the
@@ -269,7 +295,7 @@ app/
   hooks/         useNotes, useSync, useImport, useDismiss, useMediaQuery
   lib/
     notes/       reducer, merge, storage, persistence, idb, store, welcome
-    sync/        protocol, client, server, conflicts, fileRepository, rateLimit
+    sync/        protocol, client, server, conflicts, space, fileRepository, postgresRepository, rateLimit
     security/    CSP and security headers
     clock, highlight, importExport, markdownActions, textarea, text, templates
   types/         Note, Folder, NotesData
@@ -281,9 +307,8 @@ e2e/             Playwright end-to-end tests
 
 ## Possible next steps
 
-- A Postgres `SyncRepository` and real accounts instead of sync keys
-- Pruning old tombstones
-- Delta sync, so a request carries only what changed since `since`
+- Real accounts instead of sync keys
+- A hosted demo
 - Field-level merge, so two devices editing different fields of a note
   don't overwrite each other
 - Drag and drop of notes between folders

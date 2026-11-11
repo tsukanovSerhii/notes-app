@@ -23,11 +23,19 @@ export type NotesAction =
   /** Deletes notes for good, leaving tombstones for sync. */
   | { type: "purge"; ids: string[]; now: number }
   | { type: "purgeExpired"; now: number; maxAgeMs: number }
+  /** Forgets tombstones old enough that every device has seen them. */
+  | { type: "pruneTombstones"; now: number; maxAgeMs: number }
   | { type: "togglePin"; id: string; now: number }
   | { type: "select"; id: string | null }
   | { type: "createFolder"; folder: Folder }
   | { type: "renameFolder"; id: string; name: string; now: number }
   | { type: "deleteFolder"; id: string; now: number };
+
+/**
+ * How long a tombstone is kept. Long enough that every device in regular use
+ * has synced the deletion; the server guards against older devices.
+ */
+export const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
 /** How long a note stays in the trash before it is deleted for good. */
 export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -235,6 +243,13 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
       const cutoff = action.now - action.maxAgeMs;
       const expired = state.notes.filter((n) => n.trashedAt !== null && n.trashedAt <= cutoff);
       return purge(state, new Set(expired.map((n) => n.id)), action.now);
+    }
+
+    case "pruneTombstones": {
+      const cutoff = action.now - action.maxAgeMs;
+      const entries = Object.entries(state.tombstones);
+      const kept = entries.filter(([, at]) => at >= cutoff);
+      return kept.length === entries.length ? state : { ...state, tombstones: Object.fromEntries(kept) };
     }
 
     case "togglePin":

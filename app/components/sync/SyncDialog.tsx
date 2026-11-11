@@ -6,6 +6,7 @@ import Button from "@/app/components/ui/Button";
 import Icon from "@/app/components/ui/Icon";
 import { CopyButton } from "@/app/components/editor/CodeBlock";
 import type { SyncClient, SyncSnapshot } from "@/app/lib/sync/client";
+import { syncLabel } from "@/app/components/sync/SyncButton";
 
 interface SyncDialogProps {
   open: boolean;
@@ -114,8 +115,10 @@ function SyncStatusLine({ sync }: { sync: SyncSnapshot }) {
       ? "Syncing…"
       : sync.state === "offline"
         ? "Offline — changes will sync when you reconnect."
-        : sync.state === "error"
-          ? `Sync failed: ${sync.error ?? "unknown error"}`
+        : sync.state === "error" && sync.retryAt !== null
+          ? `${syncLabel(sync)}.`
+          : sync.state === "error"
+            ? `Sync failed: ${sync.error ?? "unknown error"}`
           : sync.lastSyncedAt
             ? `Last synced at ${new Date(sync.lastSyncedAt).toLocaleTimeString()}`
             : "Waiting for the first sync…";

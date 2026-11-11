@@ -1,17 +1,29 @@
-import type { NotesData } from "@/app/types/note";
-import { emptyData, mergeData } from "@/app/lib/notes/merge";
+import { mergeData } from "@/app/lib/notes/merge";
 import { parseData } from "@/app/lib/notes/storage";
 import { DEVICE_ID_PATTERN, SYNC_KEY_PATTERN, type SyncResponse } from "@/app/lib/sync/protocol";
 import { conflictCopy, findLostEdits } from "@/app/lib/sync/conflicts";
+import {
+  changedKeys,
+  deltaSince,
+  emptySpace,
+  guardAgainstPruned,
+  pruneTombstones,
+  type StoredSpace,
+} from "@/app/lib/sync/space";
 import type { RateLimiter } from "@/app/lib/sync/rateLimit";
 
 /**
- * Where synced data lives. The file repository is enough for a demo or a
- * single server; a Postgres implementation only needs these two methods.
+ * Where sync spaces live. Writes are conditional on the version that was
+ * read, so several server instances can share one database: a write that
+ * lost a race returns false and the handler retries with fresh data.
  */
 export interface SyncRepository {
-  get(spaceId: string): Promise<NotesData | null>;
-  put(spaceId: string, data: NotesData): Promise<void>;
+  get(spaceId: string): Promise<StoredSpace | null>;
+  /**
+   * Stores `space` only if the stored version is still `expected` (null:
+   * the space must not exist yet). Returns false when another write won.
+   */
+  put(spaceId: string, space: StoredSpace, expected: number | null): Promise<boolean>;
 }
 
 export interface SyncResult {
@@ -21,7 +33,12 @@ export interface SyncResult {
   retryAfterSec?: number;
 }
 
-/** Serializes read-merge-write per space so concurrent devices don't lose writes. */
+const MAX_ATTEMPTS = 5;
+
+/**
+ * Serializes read-merge-write per space within this process, so concurrent
+ * requests rarely reach the repository's version check at all.
+ */
 const locks = new Map<string, Promise<unknown>>();
 function withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
   const previous = locks.get(id) ?? Promise.resolve();
@@ -34,9 +51,42 @@ function withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
   return next;
 }
 
+/** Builds the next stored space from the stored one and a device's replica. */
+function nextSpace(
+  stored: StoredSpace,
+  incomingRaw: ReturnType<typeof parseData>,
+  base: number | null | undefined,
+  device: string | null,
+  at: number
+) {
+  const incoming = guardAgainstPruned(incomingRaw, stored, base);
+  let data = mergeData(stored.data, incoming);
+  // Text that last-write-wins would overwrite is kept as a separate note.
+  const lost = base === undefined ? [] : findLostEdits(incoming, stored.data, base, device);
+  if (lost.length > 0) {
+    data = mergeData(data, { notes: lost.map((n) => conflictCopy(n, at)), folders: [], tombstones: {} });
+  }
+
+  const version = stored.version + 1;
+  const changes = { ...stored.changes };
+  for (const key of changedKeys(stored.data, data)) changes[key] = version;
+  // Forget change records of entities that no longer exist.
+  const alive = new Set([
+    ...data.notes.map((n) => "n:" + n.id),
+    ...data.folders.map((f) => "f:" + f.id),
+    ...Object.keys(data.tombstones).map((id) => "t:" + id),
+  ]);
+  for (const key of Object.keys(changes)) if (!alive.has(key)) delete changes[key];
+
+  const space = pruneTombstones({ version, data, changes, horizon: stored.horizon }, at);
+  return { space, lost };
+}
+
 /**
- * Merges the client's replica into the stored one and returns the result.
- * The key is never stored: data is filed under a hash of it.
+ * Merges the client's replica (all of it, or what changed since its last
+ * sync) into the stored one, and answers with what the client is missing:
+ * everything after its cursor, or the whole space if it has none. The key is
+ * never stored: data is filed under a hash of it.
  */
 export async function handleSyncRequest(
   repo: SyncRepository,
@@ -49,11 +99,12 @@ export async function handleSyncRequest(
   if (typeof body !== "object" || body === null) {
     return { status: 400, body: { error: "Expected a JSON object." } };
   }
-  const { key, data, since, deviceId } = body as {
+  const { key, data, since, deviceId, cursor } = body as {
     key?: unknown;
     data?: unknown;
     since?: unknown;
     deviceId?: unknown;
+    cursor?: unknown;
   };
   if (typeof key !== "string" || !SYNC_KEY_PATTERN.test(key)) {
     return { status: 400, body: { error: "Invalid sync key." } };
@@ -69,44 +120,55 @@ export async function handleSyncRequest(
     };
   }
 
-  const incoming = parseData(data);
-
-  // Older clients send no `since`; they get the plain merge.
+  const incoming = parseData(data, { partial: true });
+  // Older clients send no `since`; they get no conflict copies.
   const base =
     since === null ? null : typeof since === "number" && Number.isFinite(since) ? since : undefined;
   const device =
     typeof deviceId === "string" && DEVICE_ID_PATTERN.test(deviceId) ? deviceId : null;
+  const from = typeof cursor === "number" && Number.isInteger(cursor) && cursor >= 0 ? cursor : null;
 
-  const { merged, conflicts } = await withLock(spaceId, async () => {
-    const stored = (await repo.get(spaceId)) ?? emptyData();
-    let result = mergeData(stored, incoming);
-    // Text that last-write-wins would overwrite is kept as a separate note.
-    const lost = base === undefined ? [] : findLostEdits(incoming, stored, base, device);
-    if (lost.length > 0) {
-      const at = now();
-      const copies = lost.map((n) => conflictCopy(n, at));
-      result = mergeData(result, { notes: copies, folders: [], tombstones: {} });
+  const outcome = await withLock(spaceId, async () => {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const found = await repo.get(spaceId);
+      const stored = found ?? emptySpace();
+      const { space, lost } = nextSpace(stored, incoming, base, device, now());
+      if (await repo.put(spaceId, space, found ? stored.version : null)) return { space, lost };
     }
-    await repo.put(spaceId, result);
-    return { merged: result, conflicts: lost.map((n) => n.title.trim() || "Untitled") };
+    return null;
   });
+  if (!outcome) {
+    return { status: 503, body: { error: "The sync space is busy. Try again shortly." } };
+  }
 
+  const { space, lost } = outcome;
+  // A cursor ahead of the space means the server lost data; resend it all.
+  const full = from === null || from > space.version;
+  const conflicts = lost.map((n) => n.title.trim() || "Untitled");
   return {
     status: 200,
-    body: { data: merged, syncedAt: now(), ...(conflicts.length > 0 && { conflicts }) },
+    body: {
+      data: full ? space.data : deltaSince(space, from),
+      syncedAt: now(),
+      cursor: space.version,
+      ...(conflicts.length > 0 && { conflicts }),
+    },
   };
 }
 
-export function createMemoryRepository(): SyncRepository & { spaces: Map<string, NotesData> } {
-  const spaces = new Map<string, NotesData>();
+export function createMemoryRepository(): SyncRepository & { spaces: Map<string, StoredSpace> } {
+  const spaces = new Map<string, StoredSpace>();
   return {
     spaces,
     async get(id) {
-      const data = spaces.get(id);
-      return data ? structuredClone(data) : null;
+      const space = spaces.get(id);
+      return space ? structuredClone(space) : null;
     },
-    async put(id, data) {
-      spaces.set(id, structuredClone(data));
+    async put(id, space, expected) {
+      const current = spaces.get(id);
+      if ((current?.version ?? null) !== expected) return false;
+      spaces.set(id, structuredClone(space));
+      return true;
     },
   };
 }
