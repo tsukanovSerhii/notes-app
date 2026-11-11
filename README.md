@@ -405,6 +405,10 @@ Unit tests sit next to the code they test as `*.test.ts`.
 - Field-level merge, so two devices editing different fields of a note
   don't overwrite each other
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 [MIT](LICENSE)
