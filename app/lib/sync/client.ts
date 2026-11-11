@@ -20,6 +20,8 @@ export interface SyncSnapshot {
   error: string | null;
   /** Notes whose local text lost to a concurrent edit and was kept as a copy. */
   lastConflict: { titles: string[]; at: number } | null;
+  /** Set while the server is rate limiting this device: when the retry is due. */
+  retryAt: number | null;
 }
 
 export interface SyncClientOptions {
@@ -75,6 +77,7 @@ const OFF: SyncSnapshot = {
   lastSyncedAt: null,
   error: null,
   lastConflict: null,
+  retryAt: null,
 };
 
 const defaultTimers: Timers = {
@@ -179,7 +182,9 @@ export function createSyncClient({
         // Rate limited: come back when the server says so instead of waiting
         // for the next poll or edit.
         const wait = Number(res.headers.get("Retry-After"));
-        retryIn((Number.isFinite(wait) && wait > 0 ? wait : 5) * 1000);
+        const ms = (Number.isFinite(wait) && wait > 0 ? wait : 5) * 1000;
+        retryIn(ms);
+        set({ retryAt: rawNow() + ms });
       }
       if (!res.ok || !json) {
         throw new Error(json?.error ?? `Sync failed (${res.status})`);
@@ -194,6 +199,7 @@ export function createSyncClient({
         : [];
       set({
         state: "idle",
+        retryAt: null,
         lastSyncedAt: json.syncedAt ?? Date.now(),
         ...(conflicts.length > 0 && { lastConflict: { titles: conflicts, at: now() } }),
       });

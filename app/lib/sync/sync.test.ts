@@ -289,6 +289,7 @@ test.describe("sync client", () => {
     });
     await client.enable(KEY);
     expect(client.getSnapshot().state).toBe("error");
+    expect(client.getSnapshot().retryAt).toBeGreaterThan(Date.now() + 6000);
 
     timers.advance(6999);
     await settle();
@@ -296,6 +297,6 @@ test.describe("sync client", () => {
     timers.advance(1);
     await settle();
     expect(calls).toBe(2);
-    expect(client.getSnapshot().state).toBe("idle");
+    expect(client.getSnapshot()).toMatchObject({ state: "idle", retryAt: null });
   });
 });
