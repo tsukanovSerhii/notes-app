@@ -26,6 +26,10 @@ export interface SyncClientOptions {
   debounceMs?: number;
   timers?: Timers;
   isOnline?: () => boolean;
+  /** Reports the server time with the raw local send/receive times of a round trip. */
+  onServerTime?: (serverTime: number, sentAt: number, receivedAt: number) => void;
+  /** Uncorrected local clock, used to time round trips. */
+  rawNow?: () => number;
 }
 
 export interface SyncClient {
@@ -61,6 +65,8 @@ export function createSyncClient({
   debounceMs = 1500,
   timers = defaultTimers,
   isOnline = () => typeof navigator === "undefined" || navigator.onLine,
+  onServerTime,
+  rawNow = Date.now,
 }: SyncClientOptions): SyncClient {
   let loaded = false;
   let snapshot: SyncSnapshot = OFF;
@@ -102,6 +108,7 @@ export function createSyncClient({
     set({ state: "syncing", error: null });
     await store.start();
     try {
+      const sentAt = rawNow();
       const res = await fetchFn(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,6 +126,7 @@ export function createSyncClient({
       if (!res.ok || !json) {
         throw new Error(json?.error ?? `Sync failed (${res.status})`);
       }
+      if (typeof json.syncedAt === "number") onServerTime?.(json.syncedAt, sentAt, rawNow());
       if (snapshot.key !== key) return; // disabled or switched mid-request
       store.merge(parseData(json.data), "sync");
       set({ state: "idle", lastSyncedAt: json.syncedAt ?? Date.now() });

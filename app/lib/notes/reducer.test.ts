@@ -81,6 +81,21 @@ test.describe("notesReducer", () => {
     expect(next.notes[0]).toMatchObject({ title: "Hello", updatedAt: 42 });
   });
 
+  test("changes to a note stamped in the future still win over it", () => {
+    // A device with a fast clock wrote this version "an hour from now".
+    const future = 1_000 + 3_600_000;
+    const state = stateWith([note("a", { updatedAt: future })], "a");
+
+    const edited = notesReducer(state, { type: "update", id: "a", patch: { content: "x" }, now: 1_000 });
+    expect(edited.notes[0].updatedAt).toBe(future + 1);
+
+    const pinned = notesReducer(state, { type: "togglePin", id: "a", now: 1_000 });
+    expect(pinned.notes[0].updatedAt).toBe(future + 1);
+
+    const deleted = notesReducer(state, { type: "delete", id: "a", now: 1_000 });
+    expect(deleted.tombstones.a).toBe(future + 1);
+  });
+
   test("update normalizes tags", () => {
     const next = notesReducer(stateWith([note("a")]), {
       type: "update",

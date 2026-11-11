@@ -144,6 +144,23 @@ test.describe("sync client", () => {
     expect(client.getSnapshot()).toMatchObject({ state: "error", error: "Sync storage failed." });
   });
 
+  test("reports the server time with the round trip's local times", async () => {
+    const d = await device();
+    const seen: number[][] = [];
+    let local = 100;
+    const client = createSyncClient({
+      store: d.store,
+      keyStorage: null,
+      isOnline: () => true,
+      rawNow: () => (local += 50),
+      onServerTime: (...args) => void seen.push(args),
+      fetch: (async () =>
+        new Response(JSON.stringify({ data: data({}), syncedAt: 9_999 }), { status: 200 })) as typeof fetch,
+    });
+    await client.enable(KEY);
+    expect(seen).toEqual([[9_999, 150, 200]]);
+  });
+
   test("a 429 retries after the server's Retry-After", async () => {
     const d = await device();
     const timers = new FakeTimers();

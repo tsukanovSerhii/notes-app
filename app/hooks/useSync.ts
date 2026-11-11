@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { createSyncClient } from "@/app/lib/sync/client";
-import { notesStore } from "@/app/hooks/useNotes";
+import { appClock, notesStore } from "@/app/hooks/useNotes";
 
 const POLL_MS = 30_000;
 
@@ -10,6 +10,7 @@ export const syncClient = createSyncClient({
   store: notesStore,
   fetch: (...args) => fetch(...args),
   keyStorage: typeof window === "undefined" ? null : window.localStorage,
+  onServerTime: appClock.observe,
 });
 
 export function useSync() {

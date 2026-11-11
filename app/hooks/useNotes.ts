@@ -9,6 +9,7 @@ import {
   type NotesPersistence,
 } from "@/app/lib/notes/persistence";
 import { createWelcomeNotes } from "@/app/lib/notes/welcome";
+import { createSkewClock } from "@/app/lib/clock";
 
 let persistence: NotesPersistence | null = null;
 
@@ -21,9 +22,21 @@ function getPersistence(): NotesPersistence | null {
   return persistence;
 }
 
+function getLocalStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Timestamps for every change, corrected towards the sync server's clock. */
+export const appClock = createSkewClock({ storage: getLocalStorage() });
+
 export const notesStore = createNotesStore({
   getPersistence,
   seed: createWelcomeNotes,
+  now: appClock.now,
 });
 
 export function useNotes() {

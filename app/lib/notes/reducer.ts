@@ -89,6 +89,15 @@ function withoutKey(record: Tombstones, key: string): Tombstones {
   return next;
 }
 
+/**
+ * The timestamp for a change to an entity last stamped `previous`. Always
+ * later than `previous`, so an edit beats the version it was made on even if
+ * that version came from a device whose clock ran ahead.
+ */
+export function stamp(previous: number, now: number): number {
+  return Math.max(now, previous + 1);
+}
+
 function sameTags(a: readonly string[], b: readonly string[]) {
   return a.length === b.length && a.every((t, i) => t === b[i]);
 }
@@ -146,7 +155,7 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
           return n;
         }
         changed = true;
-        return { ...next, updatedAt: action.now };
+        return { ...next, updatedAt: stamp(n.updatedAt, action.now) };
       });
       return changed ? { ...state, notes } : state;
     }
@@ -158,7 +167,7 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
       return {
         ...state,
         notes,
-        tombstones: { ...state.tombstones, [action.id]: action.now },
+        tombstones: { ...state.tombstones, [action.id]: stamp(target.updatedAt, action.now) },
         activeId:
           state.activeId === action.id ? pickActive(notes, null) : state.activeId,
         lastDeleted: target,
@@ -176,7 +185,7 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
       const restored = {
         ...note,
         folderId: folderExists ? note.folderId : null,
-        updatedAt: Math.max(note.updatedAt, action.now),
+        updatedAt: stamp(note.updatedAt, action.now),
       };
       return {
         ...state,
@@ -191,7 +200,7 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
       return {
         ...state,
         notes: state.notes.map((n) =>
-          n.id === action.id ? { ...n, pinned: !n.pinned, updatedAt: action.now } : n
+          n.id === action.id ? { ...n, pinned: !n.pinned, updatedAt: stamp(n.updatedAt, action.now) } : n
         ),
       };
 
@@ -212,22 +221,25 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
         ...state,
         folders: state.folders.map((f) =>
           f.id === action.id && f.name !== name
-            ? { ...f, name, updatedAt: action.now }
+            ? { ...f, name, updatedAt: stamp(f.updatedAt, action.now) }
             : f
         ),
       };
     }
 
     case "deleteFolder": {
-      if (!state.folders.some((f) => f.id === action.id)) return state;
+      const folder = state.folders.find((f) => f.id === action.id);
+      if (!folder) return state;
       // Deleting a folder never deletes notes; they move out of it.
       return {
         ...state,
         folders: state.folders.filter((f) => f.id !== action.id),
         notes: state.notes.map((n) =>
-          n.folderId === action.id ? { ...n, folderId: null, updatedAt: action.now } : n
+          n.folderId === action.id
+            ? { ...n, folderId: null, updatedAt: stamp(n.updatedAt, action.now) }
+            : n
         ),
-        tombstones: { ...state.tombstones, [action.id]: action.now },
+        tombstones: { ...state.tombstones, [action.id]: stamp(folder.updatedAt, action.now) },
       };
     }
   }
