@@ -6,7 +6,10 @@ export interface Note {
   tags: string[];
   folderId: string | null;
   createdAt: number;
+  /** Version stamp for sync: bumped by every change, including pin and moves. */
   updatedAt: number;
+  /** When the title or text last changed; what the UI shows and sorts by. */
+  editedAt: number;
 }
 
 export interface Folder {

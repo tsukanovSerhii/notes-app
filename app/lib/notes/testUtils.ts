@@ -10,6 +10,7 @@ export const note = (id: string, overrides: Partial<Note> = {}): Note => ({
   folderId: null,
   createdAt: 0,
   updatedAt: 0,
+  editedAt: 0,
   ...overrides,
 });
 

@@ -17,11 +17,11 @@ const stateWith = (
 ): NotesState => ({ ...initialNotesState, notes, activeId, ...extra });
 
 test.describe("sortNotes", () => {
-  test("puts pinned notes first, then the most recently updated", () => {
+  test("puts pinned notes first, then the most recently edited", () => {
     const sorted = sortNotes([
-      note("old", { updatedAt: 1 }),
-      note("new", { updatedAt: 3 }),
-      note("pinned", { updatedAt: 0, pinned: true }),
+      note("old", { editedAt: 1, updatedAt: 9 }),
+      note("new", { editedAt: 3, updatedAt: 3 }),
+      note("pinned", { editedAt: 0, pinned: true }),
     ]);
     expect(sorted.map((n) => n.id)).toEqual(["pinned", "new", "old"]);
   });
@@ -78,7 +78,27 @@ test.describe("notesReducer", () => {
       patch: { title: "Hello" },
       now: 42,
     });
-    expect(next.notes[0]).toMatchObject({ title: "Hello", updatedAt: 42 });
+    expect(next.notes[0]).toMatchObject({ title: "Hello", updatedAt: 42, editedAt: 42 });
+  });
+
+  test("only title and text changes count as edits", () => {
+    const start = stateWith([note("a", { editedAt: 5, updatedAt: 5 })], "a", {
+      folders: [folder("f")],
+    });
+    const organized = [
+      notesReducer(start, { type: "update", id: "a", patch: { tags: ["x"] }, now: 50 }),
+      notesReducer(start, { type: "update", id: "a", patch: { folderId: "f" }, now: 50 }),
+      notesReducer(start, { type: "togglePin", id: "a", now: 50 }),
+      notesReducer(start, { type: "deleteFolder", id: "f", now: 50 }),
+    ];
+    for (const s of organized) {
+      expect(s.notes[0].editedAt).toBe(5);
+    }
+    // ...but they still bump the sync version (except a no-op folder delete).
+    expect(organized.slice(0, 3).map((s) => s.notes[0].updatedAt)).toEqual([50, 50, 50]);
+
+    const edited = notesReducer(start, { type: "update", id: "a", patch: { content: "new" }, now: 60 });
+    expect(edited.notes[0]).toMatchObject({ editedAt: 60, updatedAt: 60 });
   });
 
   test("changes to a note stamped in the future still win over it", () => {
@@ -119,7 +139,11 @@ test.describe("notesReducer", () => {
 
   test("delete selects the next note and leaves a tombstone", () => {
     const state = stateWith(
-      [note("a", { updatedAt: 1 }), note("b", { updatedAt: 3 }), note("c", { updatedAt: 2 })],
+      [
+        note("a", { updatedAt: 1, editedAt: 1 }),
+        note("b", { updatedAt: 3, editedAt: 3 }),
+        note("c", { updatedAt: 2, editedAt: 2 }),
+      ],
       "b"
     );
     const next = notesReducer(state, { type: "delete", id: "b", now: 9 });
@@ -164,7 +188,7 @@ test.describe("notesReducer", () => {
 
   test("replace keeps a valid activeId and falls back to the top note otherwise", () => {
     const data = {
-      notes: [note("a", { updatedAt: 1 }), note("b", { updatedAt: 2 })],
+      notes: [note("a", { editedAt: 1 }), note("b", { editedAt: 2 })],
       folders: [],
       tombstones: {},
     };

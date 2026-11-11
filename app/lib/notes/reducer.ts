@@ -41,7 +41,7 @@ export interface NoteFilter {
 /** Pinned notes first, then most recently edited. */
 export function sortNotes(notes: readonly Note[]): Note[] {
   return [...notes].sort(
-    (a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt
+    (a, b) => Number(b.pinned) - Number(a.pinned) || b.editedAt - a.editedAt
   );
 }
 
@@ -155,7 +155,9 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
           return n;
         }
         changed = true;
-        return { ...next, updatedAt: stamp(n.updatedAt, action.now) };
+        const updatedAt = stamp(n.updatedAt, action.now);
+        const edited = next.title !== n.title || next.content !== n.content;
+        return { ...next, updatedAt, editedAt: edited ? updatedAt : n.editedAt };
       });
       return changed ? { ...state, notes } : state;
     }

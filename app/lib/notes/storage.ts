@@ -41,10 +41,11 @@ export function normalizeTags(tags: unknown): string[] {
 /** Turns one untrusted stored value into a Note, or null if it is unusable. */
 export function parseNote(value: unknown): Note | null {
   if (!isRecord(value)) return null;
-  const { id, title, content, pinned, tags, folderId, createdAt, updatedAt } = value;
+  const { id, title, content, pinned, tags, folderId, createdAt, updatedAt, editedAt } = value;
   if (typeof id !== "string" || !id) return null;
 
   const created = typeof createdAt === "number" ? createdAt : Date.now();
+  const updated = typeof updatedAt === "number" ? updatedAt : created;
   return {
     id,
     title: typeof title === "string" ? title : "Untitled",
@@ -53,7 +54,9 @@ export function parseNote(value: unknown): Note | null {
     tags: normalizeTags(tags),
     folderId: typeof folderId === "string" && folderId ? folderId : null,
     createdAt: created,
-    updatedAt: typeof updatedAt === "number" ? updatedAt : created,
+    updatedAt: updated,
+    // Notes from earlier builds have no editedAt; their last change is the best guess.
+    editedAt: typeof editedAt === "number" ? editedAt : updated,
   };
 }
 

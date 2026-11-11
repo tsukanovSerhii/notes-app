@@ -56,8 +56,8 @@ function NoteItem({
           </span>
         )}
         <span className="mt-1 flex items-center gap-1.5 overflow-hidden text-[11px] text-text-muted/80">
-          <time dateTime={new Date(note.updatedAt).toISOString()} className="shrink-0">
-            {relativeTime(note.updatedAt)}
+          <time dateTime={new Date(note.editedAt).toISOString()} className="shrink-0">
+            {relativeTime(note.editedAt)}
           </time>
           {note.tags.slice(0, 2).map((tag) => (
             <span key={tag} className="truncate text-accent/80">

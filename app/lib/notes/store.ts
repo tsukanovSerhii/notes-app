@@ -274,6 +274,7 @@ export function createNotesStore({
         folderId: init.folderId ?? null,
         createdAt: t,
         updatedAt: t,
+        editedAt: t,
       };
       dispatch({ type: "create", note });
       return note;
