@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { createNotesStore, defaultCreateId } from "@/features/notes/state/store";
-import { liveNotes, sortNotes, trashedNotes } from "@/features/notes/model/reducer";
+import { liveNotes, sortNotes, trashedNotes, withoutMissingFolders } from "@/features/notes/model/reducer";
 import { createIndexedDbPersistence } from "@/features/notes/persistence/indexedDb";
 import {
   createLocalStoragePersistence,
@@ -82,11 +82,16 @@ export function useNotes() {
     };
   }, []);
 
-  const notes = useMemo(() => sortNotes(liveNotes(snapshot.notes)), [snapshot.notes]);
-  const trash = useMemo(() => trashedNotes(snapshot.notes), [snapshot.notes]);
+  // What the UI sees: a note whose folder is gone counts as unfiled.
+  const visible = useMemo(
+    () => withoutMissingFolders(snapshot.notes, snapshot.folders),
+    [snapshot.notes, snapshot.folders]
+  );
+  const notes = useMemo(() => sortNotes(liveNotes(visible)), [visible]);
+  const trash = useMemo(() => trashedNotes(visible), [visible]);
   const activeNote = useMemo(
-    () => snapshot.notes.find((n) => n.id === snapshot.activeId) ?? null,
-    [snapshot.notes, snapshot.activeId]
+    () => visible.find((n) => n.id === snapshot.activeId) ?? null,
+    [visible, snapshot.activeId]
   );
   const folders = useMemo(
     () => [...snapshot.folders].sort((a, b) => a.name.localeCompare(b.name)),

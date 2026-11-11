@@ -41,6 +41,22 @@ export const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const isTrashed = (note: Note) => note.trashedAt !== null;
+
+/**
+ * Notes whose folder does not exist shown as unfiled. The stored reference is
+ * left alone (the folder may still arrive by sync); objects are reused when
+ * nothing changes, so memoised rows do not re-render.
+ */
+export function withoutMissingFolders(notes: readonly Note[], folders: readonly { id: string }[]): Note[] {
+  const known = new Set(folders.map((f) => f.id));
+  let changed = false;
+  const out = notes.map((n) => {
+    if (n.folderId === null || known.has(n.folderId)) return n;
+    changed = true;
+    return { ...n, folderId: null };
+  });
+  return changed ? out : (notes as Note[]);
+}
 export const liveNotes = (notes: readonly Note[]) => notes.filter((n) => !isTrashed(n));
 /** Trashed notes, most recently deleted first. */
 export const trashedNotes = (notes: readonly Note[]) =>

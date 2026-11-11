@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   collectTags,
+  withoutMissingFolders,
   filterNotes,
   initialNotesState,
   liveNotes,
@@ -306,4 +307,17 @@ test.describe("notesReducer", () => {
     expect(imported.notes[0]).toMatchObject({ id: "a", updatedAt: 99 });
     expect(imported.tombstones).toEqual({});
   });
+});
+
+test("withoutMissingFolders shows notes in a missing folder as unfiled, without touching the rest", () => {
+  const inFolder = note("a", { folderId: "f" });
+  const orphan = note("b", { folderId: "gone" });
+  const unfiled = note("c");
+  const out = withoutMissingFolders([inFolder, orphan, unfiled], [folder("f")]);
+  expect(out.map((n) => n.folderId)).toEqual(["f", null, null]);
+  expect(out[0]).toBe(inFolder);
+  expect(orphan.folderId).toBe("gone");
+
+  const same = [inFolder, unfiled];
+  expect(withoutMissingFolders(same, [folder("f")])).toBe(same);
 });

@@ -117,22 +117,17 @@ export function parseTombstones(value: unknown): Tombstones {
 }
 
 /**
- * Validates untrusted data (storage, backups, the sync API).
- *
- * A complete replica drops folder ids that point nowhere. A sync delta holds
- * only what changed, often a note without its unchanged folder, so with
- * `partial` the ids are kept and the merge, which sees every folder, decides.
+ * Validates untrusted data (storage, backups). Folder ids that point at no
+ * folder are kept: the folder may arrive in another replica, and readers
+ * already show such notes as unfiled.
  */
-export function parseData(value: unknown, { partial = false } = {}): NotesData {
+export function parseData(value: unknown): NotesData {
   if (Array.isArray(value)) {
     return { notes: parseList(value, parseNote), folders: [], tombstones: {} };
   }
   if (!isRecord(value)) return { notes: [], folders: [], tombstones: {} };
   const folders = parseList(value.folders, parseFolder);
-  const folderIds = new Set(folders.map((f) => f.id));
-  const notes = parseList(value.notes, parseNote).map((n) =>
-    !partial && n.folderId && !folderIds.has(n.folderId) ? { ...n, folderId: null } : n
-  );
+  const notes = parseList(value.notes, parseNote);
   return { notes, folders, tombstones: parseTombstones(value.tombstones) };
 }
 

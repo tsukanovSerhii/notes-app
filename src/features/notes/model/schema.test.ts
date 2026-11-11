@@ -75,13 +75,13 @@ test.describe("deserialize", () => {
   });
 });
 
-test("parseData drops invalid entries, duplicates and dangling folder ids", () => {
+test("parseData drops invalid entries and duplicates, and keeps folder ids", () => {
   const result = parseData({
     notes: [null, 42, { title: "no id" }, { id: "a", folderId: "missing" }, { id: "a" }],
     folders: [{ id: "f" }, { id: "g", name: "  Ok  " }],
     tombstones: { x: 1, y: "nope" },
   });
-  expect(result.notes.map((n) => [n.id, n.folderId])).toEqual([["a", null]]);
+  expect(result.notes.map((n) => [n.id, n.folderId])).toEqual([["a", "missing"]]);
   expect(result.folders.map((f) => f.name)).toEqual(["Ok"]);
   expect(result.tombstones).toEqual({ x: 1 });
 });

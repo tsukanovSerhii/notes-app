@@ -51,8 +51,14 @@ export interface Mergeable<N extends Versioned & { folderId: string | null }, F 
 }
 
 /**
- * Merges two replicas of the data. Commutative and idempotent, so the server
- * and every client converge on the same result whatever order syncs arrive in.
+ * Merges two replicas of the data. Commutative, associative and idempotent,
+ * so the server and every client converge on the same result whatever order
+ * syncs arrive in.
+ *
+ * A note may point at a folder this merge cannot see (it arrives in another
+ * replica) or that was deleted. The reference is kept as it is: clearing it
+ * here would be lossy and order-dependent. Readers treat a missing folder as
+ * "no folder"; see `withoutMissingFolders`.
  */
 export function mergeData<
   N extends Versioned & { folderId: string | null } = Note,
@@ -60,10 +66,7 @@ export function mergeData<
 >(a: Mergeable<N, F>, b: Mergeable<N, F>): Mergeable<N, F> {
   const tombstones = mergeTombstones(a.tombstones, b.tombstones);
   const folders = mergeEntities<F>(a.folders, b.folders, tombstones);
-  const folderIds = new Set(folders.map((f) => f.id));
-  const notes = mergeEntities<N>(a.notes, b.notes, tombstones).map((n) =>
-    n.folderId && !folderIds.has(n.folderId) ? { ...n, folderId: null } : n
-  );
+  const notes = mergeEntities<N>(a.notes, b.notes, tombstones);
   return { notes, folders, tombstones };
 }
 
