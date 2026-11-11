@@ -3,14 +3,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { createNotesStore, defaultCreateId } from "@/features/notes/state/store";
 import { liveNotes, sortNotes, trashedNotes } from "@/features/notes/model/reducer";
-import { createIndexedDbPersistence, openDatabase } from "@/features/notes/persistence/indexedDb";
-import {
-  createHistoryRecorder,
-  createIndexedDbHistory,
-  createMemoryHistory,
-  type HistoryRecorder,
-  type HistoryStore,
-} from "@/features/history/history";
+import { createIndexedDbPersistence } from "@/features/notes/persistence/indexedDb";
 import {
   createLocalStoragePersistence,
   type NotesPersistence,
@@ -68,17 +61,6 @@ export const notesStore = createNotesStore({
   now: appClock.now,
   deviceId,
 });
-
-/** Earlier versions of notes, kept on this device only. */
-export const noteHistory: HistoryStore =
-  typeof window !== "undefined" && "indexedDB" in window && window.indexedDB
-    ? createIndexedDbHistory(() => openDatabase(window.indexedDB))
-    : createMemoryHistory();
-
-export const historyRecorder: HistoryRecorder | null =
-  typeof window === "undefined"
-    ? null
-    : createHistoryRecorder({ store: notesStore, history: noteHistory, now: appClock.now });
 
 export function useNotes() {
   const snapshot = useSyncExternalStore(

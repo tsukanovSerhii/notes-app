@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { historyRecorder, useNotes } from "@/features/notes/state/useNotes";
+import { useNotes } from "@/features/notes/state/useNotes";
+import { historyRecorder } from "@/features/history/noteHistory";
 import { useSync } from "@/features/sync/client/useSync";
 import { useImport } from "@/features/transfer/useImport";
 import { useMediaQuery } from "@/shared/hooks/useMediaQuery";

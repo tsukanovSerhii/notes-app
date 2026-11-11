@@ -1,5 +1,6 @@
 import type { Note } from "@/features/notes/model/types";
 import type { NotesStore } from "@/features/notes/state/store";
+import { HISTORY_STORE } from "@/features/notes/persistence/indexedDb";
 
 /** A note's title and text as they were at `at` (when that text was written). */
 export interface NoteVersion {
@@ -38,8 +39,6 @@ export function createMemoryHistory(): HistoryStore & { versions: NoteVersion[] 
     },
   };
 }
-
-export const HISTORY_STORE = "history";
 
 /** Versions in their own IndexedDB object store, indexed by note. */
 export function createIndexedDbHistory(db: () => Promise<IDBDatabase>): HistoryStore {

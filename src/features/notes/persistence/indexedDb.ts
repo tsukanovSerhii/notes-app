@@ -7,7 +7,6 @@ import {
   parseTombstones,
   type PersistedState,
 } from "@/features/notes/model/schema";
-import { HISTORY_STORE } from "@/features/history/history";
 import {
   applyChange,
   type NotesPersistence,
@@ -20,6 +19,8 @@ export const DB_NAME = "notevoid";
 export const DB_VERSION = 2;
 const NOTES = "notes";
 const META = "meta";
+/** Earlier versions of notes, written by the history feature. */
+export const HISTORY_STORE = "history";
 const META_KEY = "state";
 /** Synchronous write-ahead journal for changes made while the page unloads. */
 export const JOURNAL_KEY = "notevoid-journal";

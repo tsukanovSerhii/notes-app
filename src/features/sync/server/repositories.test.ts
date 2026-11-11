@@ -7,7 +7,7 @@ import { createFileRepository } from "@/features/sync/server/fileRepository";
 import { createPostgresRepository } from "@/features/sync/server/postgresRepository";
 import { createMemoryRepository, handleSyncRequest, type SyncRepository } from "@/features/sync/server/handler";
 import { emptySpace, type StoredSpace } from "@/features/sync/server/space";
-import { sealedNote } from "@/features/notes/testing";
+import { sealedNote } from "@/features/sync/testing";
 import { PROTOCOL_VERSION as v } from "@/features/sync/shared/protocol";
 
 const ID = "a".repeat(64);

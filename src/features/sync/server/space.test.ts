@@ -9,7 +9,7 @@ import {
   TOMBSTONE_TTL_MS,
   type StoredSpace,
 } from "@/features/sync/server/space";
-import { sealedNote as note } from "@/features/notes/testing";
+import { sealedNote as note } from "@/features/sync/testing";
 import type { SealedData, SealedFolder } from "@/features/sync/shared/wire";
 
 const folder = (id: string): SealedFolder => ({ id, createdAt: 0, updatedAt: 0, sealed: `sealed${id}` });

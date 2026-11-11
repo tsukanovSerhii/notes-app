@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Note } from "@/features/notes/model/types";
 import type { NoteVersion } from "@/features/history/history";
-import { noteHistory } from "@/features/notes/state/useNotes";
+import { noteHistory } from "@/features/history/noteHistory";
 import Modal from "@/shared/ui/Modal";
 import Button from "@/shared/ui/Button";
 import Icon from "@/shared/ui/Icon";

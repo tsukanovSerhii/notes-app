@@ -6,7 +6,8 @@ import { deriveSyncKeys, sealData } from "@/features/sync/client/crypto";
 import { createRateLimiter } from "@/features/sync/server/rateLimit";
 import { createNotesStore } from "@/features/notes/state/store";
 import { createMemoryPersistence } from "@/features/notes/persistence/persistence";
-import { FakeTimers, note, sealedNote, settle } from "@/features/notes/testing";
+import { FakeTimers, note, settle } from "@/features/notes/testing";
+import { sealedNote } from "@/features/sync/testing";
 import type { SealedData } from "@/features/sync/shared/wire";
 import type { NotesData } from "@/features/notes/model/types";
 

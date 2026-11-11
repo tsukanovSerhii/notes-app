@@ -1,7 +1,8 @@
 import { memo, useContext, useEffect, useState, type ReactNode } from "react";
 import ReactMarkdown, { type Components, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { CopyButton, HighlightedCode } from "@/features/markdown/CodeBlock";
+import { HighlightedCode } from "@/features/markdown/CodeBlock";
+import { CopyButton } from "@/shared/ui/CopyButton";
 import { WikiLinkContext } from "@/features/markdown/wikiLinkContext";
 import { remarkWikiLinks, titleFromHref } from "@/features/markdown/lib/wikiLinks";
 import { useI18n } from "@/shared/i18n";

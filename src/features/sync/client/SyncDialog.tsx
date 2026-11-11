@@ -4,7 +4,7 @@ import { useState } from "react";
 import Modal from "@/shared/ui/Modal";
 import Button from "@/shared/ui/Button";
 import Icon from "@/shared/ui/Icon";
-import { CopyButton } from "@/features/markdown/CodeBlock";
+import { CopyButton } from "@/shared/ui/CopyButton";
 import type { SyncClient, SyncSnapshot } from "@/features/sync/client/syncClient";
 import { syncLabel } from "@/features/sync/client/SyncButton";
 import { useI18n } from "@/shared/i18n";

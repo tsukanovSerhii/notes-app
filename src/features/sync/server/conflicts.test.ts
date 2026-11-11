@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { conflictCopy, findLostEdits } from "@/features/sync/server/conflicts";
-import { sealedNote } from "@/features/notes/testing";
+import { sealedNote } from "@/features/sync/testing";
 import type { SealedData, SealedNote } from "@/features/sync/shared/wire";
 
 const data = (notes: SealedNote[], tombstones: SealedData["tombstones"] = {}): SealedData => ({
