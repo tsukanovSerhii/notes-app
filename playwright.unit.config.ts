@@ -1,12 +1,12 @@
 import { defineConfig } from "@playwright/test";
 
 /**
- * Unit tests for the pure logic in app/lib (reducer, storage, Markdown
+ * Unit tests for the pure logic in src/ (reducer, storage, Markdown
  * transforms...). They reuse the Playwright runner, so the project needs one
  * test runner instead of two; no browser or dev server is started.
  */
 export default defineConfig({
-  testDir: "./app",
+  testDir: "./src",
   testMatch: "**/*.test.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
