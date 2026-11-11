@@ -6,6 +6,7 @@ import type { NoteVersion } from "@/features/history/history";
 import { historyRecorder } from "@/features/history/noteHistory";
 import type { NoteTemplate } from "@/features/editor/lib/templates";
 import { backupFileName, createBackup } from "@/features/transfer/importExport";
+import { findNoteByTitle, renameLinkTarget } from "@/features/markdown/lib/wikiLinks";
 import { downloadText } from "@/shared/lib/download";
 import { useI18n } from "@/shared/i18n";
 import type { ShowToast } from "@/features/workspace/useToast";
@@ -87,6 +88,25 @@ export function useNoteActions({
     store.update(activeNote.id, { content, title: untitled ? t.templates[template.id] : activeNote.title });
   };
 
+  /**
+   * After a note is renamed, retargets the [[links]] to its old title in other
+   * notes. Skipped when another live note still has the old title (those links
+   * stay valid). The versions replaced are kept by the history recorder.
+   */
+  const renameLinks = (renamed: Note, oldTitle: string) => {
+    const others = notes.filter((n) => n.id !== renamed.id);
+    if (findNoteByTitle(others, oldTitle)) return;
+    let updated = 0;
+    for (const n of others) {
+      const content = renameLinkTarget(n.content, oldTitle, renamed.title);
+      if (content !== n.content) {
+        store.update(n.id, { content });
+        updated++;
+      }
+    }
+    if (updated > 0) showToast({ text: t.toast.linksUpdated(count(updated, t.plural.notes)) });
+  };
+
   const restoreVersion = (version: NoteVersion) => {
     const current = notes.find((n) => n.id === version.noteId);
     if (!current) return;
@@ -96,7 +116,17 @@ export function useNoteActions({
     showToast({ text: t.toast.versionRestored });
   };
 
-  return { remove, restore, emptyTrash, moveNote, deleteFolder, downloadBackup, applyTemplate, restoreVersion };
+  return {
+    remove,
+    restore,
+    emptyTrash,
+    moveNote,
+    deleteFolder,
+    downloadBackup,
+    applyTemplate,
+    renameLinks,
+    restoreVersion,
+  };
 }
 
 export type NoteActions = ReturnType<typeof useNoteActions>;

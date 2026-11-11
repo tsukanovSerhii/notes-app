@@ -38,6 +38,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated reports
+    "coverage/**",
+    ".lighthouseci/**",
   ]),
   { files: ["src/features/**"], rules: restrict(ROUTES) },
   {

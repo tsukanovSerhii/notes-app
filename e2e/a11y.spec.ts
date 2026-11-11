@@ -46,6 +46,19 @@ for (const theme of ["dark", "light"] as const) {
 
       await page.getByRole("button", { name: "More actions" }).click();
       await expectAccessible(page, `app menu, ${theme}`);
+      await page.keyboard.press("Escape");
+
+      // The graph, with something to draw.
+      await createNote(page);
+      await titleInput(page).fill("Source");
+      await editor(page).fill("[[Target]]");
+      await createNote(page);
+      await titleInput(page).fill("Target");
+      await page.keyboard.press("Control+Shift+P");
+      await page.keyboard.type("graph");
+      await page.keyboard.press("Enter");
+      await expect(page.locator("[data-graph-node]")).toHaveCount(2);
+      await expectAccessible(page, `note graph, ${theme}`);
     });
   });
 }

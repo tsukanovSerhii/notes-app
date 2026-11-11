@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useRef, useState } from "react";
 import type { Note } from "@/features/notes/model/types";
 import { useNotes } from "@/features/notes/state/useNotes";
 import Sidebar from "@/features/library/Sidebar";
@@ -31,6 +31,9 @@ import { useCommands } from "@/features/workspace/useCommands";
 import { useMediaQuery } from "@/shared/hooks/useMediaQuery";
 import Toast from "@/shared/ui/Toast";
 
+// The graph and its layout load the first time it is opened.
+const GraphDialog = lazy(() => import("@/features/markdown/GraphDialog"));
+
 /**
  * The app shell. It owns the UI state that spans features (which note is
  * open how, which dialog is up) and wires the features together; the
@@ -43,7 +46,7 @@ export default function Workspace() {
   const { toast, showToast, dismissToast, showError, feedback } = useToast();
   const library = useLibraryView({ notes, trash, folders, activeNote, store });
   const actions = useNoteActions({ store, notes, trash, folders, activeNote, showToast });
-  const { importMarkdown, importBackup, importFiles } = useImport(store, library.activeFilter.folderId, feedback);
+  const { importMarkdown, importVault, importBackup, importFiles } = useImport(store, library.activeFilter.folderId, feedback);
   useConflictToasts(sync.client, showToast);
 
   const [viewMode, setViewMode] = useState<ViewMode>("split");
@@ -51,6 +54,7 @@ export default function Workspace() {
   const [syncOpen, setSyncOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [historyFor, setHistoryFor] = useState<Note | null>(null);
+  const [graphOpen, setGraphOpen] = useState(false);
   const exportRef = useRef<ExportActions>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -97,6 +101,7 @@ export default function Workspace() {
     focusSearch,
     cycleViewMode: () => setViewMode(nextViewMode(effectiveMode, isWide)),
     showHistory: () => setHistoryFor(activeNote),
+    openGraph: () => setGraphOpen(true),
     exportPdf: () => exportRef.current?.exportPdf(),
     exportMarkdown: () => exportRef.current?.exportMarkdown(),
     downloadBackup: actions.downloadBackup,
@@ -154,9 +159,11 @@ export default function Workspace() {
         <SyncButton sync={sync} onClick={() => setSyncOpen(true)} />
         <AppMenu
           onImportMarkdown={importMarkdown}
+          onImportFolder={importVault}
           onImportBackup={importBackup}
           onDownloadBackup={actions.downloadBackup}
           onOpenSync={() => setSyncOpen(true)}
+          onOpenGraph={() => setGraphOpen(true)}
         />
         <ExportMenu
           title={activeNote?.title}
@@ -198,6 +205,7 @@ export default function Workspace() {
             onOpen={openNote}
             onShowHistory={() => setHistoryFor(activeNote)}
             onTemplate={actions.applyTemplate}
+            onRenamed={actions.renameLinks}
           />
         ) : (
           <EmptyState onCreate={newNote} />
@@ -215,6 +223,20 @@ export default function Workspace() {
           openNote(id);
         }}
       />
+      <Suspense fallback={null}>
+        {graphOpen && (
+          <GraphDialog
+            open
+            notes={notes}
+            activeId={activeNote?.id ?? null}
+            onClose={() => setGraphOpen(false)}
+            onOpenNote={(id) => {
+              changeFilter(ALL_NOTES);
+              openNote(id);
+            }}
+          />
+        )}
+      </Suspense>
       <HistoryDialog
         note={historyFor}
         onClose={() => setHistoryFor(null)}

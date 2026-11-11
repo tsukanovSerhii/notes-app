@@ -4,6 +4,7 @@ import {
   findNoteByTitle,
   noteHref,
   remarkWikiLinks,
+  renameLinkTarget,
   titleFromHref,
   wikiTargets,
 } from "@/features/markdown/lib/wikiLinks";
@@ -61,4 +62,14 @@ test("the remark plugin turns [[links]] into link nodes, leaving code alone", ()
     { type: "text", value: " now" },
     { type: "inlineCode", value: "[[Plan]]" },
   ]);
+});
+
+test("renameLinkTarget retargets links, keeps shown text, and leaves code alone", () => {
+  const md = "See [[Plan]] and [[plan|the plan]] and [[Other]].\n\n`[[Plan]]`\n\n```\n[[Plan]]\n```\nEnd [[ Plan ]]";
+  expect(renameLinkTarget(md, "Plan", "Roadmap")).toBe(
+    "See [[Roadmap]] and [[Roadmap|the plan]] and [[Other]].\n\n`[[Plan]]`\n\n```\n[[Plan]]\n```\nEnd [[Roadmap]]"
+  );
+  expect(renameLinkTarget(md, "Plan", " plan ")).toBe(md);
+  expect(renameLinkTarget(md, "", "X")).toBe(md);
+  expect(renameLinkTarget(md, "Plan", "")).toBe(md);
 });
