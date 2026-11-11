@@ -4,6 +4,23 @@ All notable changes to NoteVoid. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Property-based tests of the merge, axe accessibility tests, unit-test
+  coverage with thresholds, Lighthouse CI with performance and size budgets,
+  and CodeQL.
+
+### Fixed
+
+- **Merging was not associative:** it cleared a note's folder when it could not
+  see the folder, so the result depended on the order syncs arrived in. Folder
+  references are now kept and a note in a missing folder is shown as unfiled.
+- Task-list checkboxes in the preview had no accessible name.
+- Colour contrast of the note list's time and tags in the light theme, and of
+  links to notes that do not exist yet.
+
 ## [1.0.0] - 2026-11-12
 
 The first release since the portfolio version. The app is installable and
