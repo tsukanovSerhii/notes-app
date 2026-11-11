@@ -120,7 +120,7 @@ export async function handleSyncRequest(
     };
   }
 
-  const incoming = parseData(data);
+  const incoming = parseData(data, { partial: true });
   // Older clients send no `since`; they get no conflict copies.
   const base =
     since === null ? null : typeof since === "number" && Number.isFinite(since) ? since : undefined;

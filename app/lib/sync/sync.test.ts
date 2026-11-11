@@ -268,6 +268,51 @@ test.describe("sync client", () => {
     expect(store.getSnapshot().notes.map((n) => n.title).sort()).toEqual(["new", "old 1", "old 2", "remote"]);
   });
 
+  test("moving a note into an existing folder survives a delta sync", async () => {
+    let t = 1_000;
+    const clock = () => t;
+    const repo = createMemoryRepository();
+    const make = async () => {
+      const store = createNotesStore({
+        getPersistence: () => createMemoryPersistence({ data: data({}), activeId: null }),
+        timers: new FakeTimers(),
+        now: clock,
+      });
+      await store.start();
+      const client = createSyncClient({
+        store,
+        keyStorage: null,
+        isOnline: () => true,
+        timers: new FakeTimers(),
+        now: clock,
+        fetch: (async (_url: string, init: RequestInit) => {
+          const result = await handleSyncRequest(repo, JSON.parse(String(init.body)), hash, clock);
+          return new Response(JSON.stringify(result.body), { status: result.status });
+        }) as typeof fetch,
+      });
+      return { store, client };
+    };
+    const a = await make();
+    const b = await make();
+    const work = a.store.createFolder("Work")!;
+    const n = a.store.create({ title: "Report" });
+    await a.client.enable(KEY);
+    t = 1_100;
+    await b.client.enable(KEY);
+
+    // Only the note changes; the folder is not part of either delta.
+    t = 2_000;
+    a.store.update(n.id, { folderId: work.id });
+    await a.client.syncNow();
+    t = 2_100;
+    await b.client.syncNow();
+
+    const folderOf = (s: typeof a.store) => s.getSnapshot().notes.find((x) => x.id === n.id)?.folderId;
+    expect(repo.spaces.get("space-32")?.data.notes.find((x) => x.id === n.id)?.folderId).toBe(work.id);
+    expect(folderOf(a.store)).toBe(work.id);
+    expect(folderOf(b.store)).toBe(work.id);
+  });
+
   test("a 429 retries after the server's Retry-After", async () => {
     const d = await device();
     const timers = new FakeTimers();

@@ -191,7 +191,7 @@ export function createSyncClient({
       }
       if (typeof json.syncedAt === "number") onServerTime?.(json.syncedAt, sentAt, rawNow());
       if (snapshot.key !== key) return; // disabled or switched mid-request
-      store.merge(parseData(json.data), "sync");
+      store.merge(parseData(json.data, { partial: true }), "sync");
       setBase(snapshotAt);
       cursor = typeof json.cursor === "number" ? json.cursor : null;
       const conflicts = Array.isArray(json.conflicts)
