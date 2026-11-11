@@ -27,13 +27,22 @@ import type { NoteTemplate } from "@/app/lib/templates";
 import { cn } from "@/app/lib/cn";
 import { trashLabel } from "@/app/components/sidebar/NoteItem";
 import type { Note } from "@/app/types/note";
-import { useI18n } from "@/app/lib/i18n";
+import { setLocale, useI18n } from "@/app/lib/i18n";
+import CommandPalette, { type PaletteCommand } from "@/app/components/CommandPalette";
+import { type ExportActions } from "@/app/components/editor/ExportMenu";
+import { useTheme } from "@/app/components/ThemeController";
 import Backlinks from "@/app/components/editor/Backlinks";
 import HistoryDialog from "@/app/components/editor/HistoryDialog";
 import { WikiLinkContext, type WikiLinkTarget } from "@/app/components/editor/wikiLinkContext";
 import { backlinks, findNoteByTitle } from "@/app/lib/wikiLinks";
 
 const isSortMode = (v: unknown): v is SortMode => v === "edited" || v === "created" || v === "title";
+
+/** edit → split → preview → edit; split is skipped on narrow screens. */
+function nextViewMode(mode: ViewMode, allowSplit: boolean): ViewMode {
+  if (mode === "edit") return allowSplit ? "split" : "preview";
+  return mode === "split" ? "preview" : "edit";
+}
 
 function isEditableTarget(target: EventTarget | null): boolean {
   return (
@@ -43,7 +52,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export default function Home() {
-  const { t, count } = useI18n();
+  const { t, count, locale } = useI18n();
   const { notes, trash, folders, activeNote, hydrated, saveStatus, store } = useNotes();
   const sync = useSync();
 
@@ -53,6 +62,9 @@ export default function Home() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [historyFor, setHistoryFor] = useState<Note | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const exportRef = useRef<ExportActions>(null);
+  const [, setTheme] = useTheme();
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -250,6 +262,13 @@ export default function Home() {
       if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === "KeyN") {
         e.preventDefault();
         handleCreate();
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        ((e.shiftKey && e.code === "KeyP") || (!e.shiftKey && e.code === "KeyK" && !isEditableTarget(e.target)))
+      ) {
+        // Ctrl+K inside the editor inserts a link, so there it needs Shift+P.
+        e.preventDefault();
+        setPaletteOpen(true);
       } else if (e.key === "/" && !isEditableTarget(e.target)) {
         e.preventDefault();
         setDrawerOpen(true);
@@ -261,6 +280,39 @@ export default function Home() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleCreate, drawerOpen]);
+
+  const commands: PaletteCommand[] = [
+    { id: "new", label: t.palette.newNote, icon: "plus", run: handleCreate },
+    {
+      id: "search",
+      label: t.palette.search,
+      icon: "search",
+      run: () => {
+        setDrawerOpen(true);
+        requestAnimationFrame(() => searchRef.current?.focus());
+      },
+    },
+    ...(activeNote && !activeTrashed
+      ? ([
+          {
+            id: "view",
+            label: t.palette.toggleView,
+            icon: "columns",
+            run: () => setViewMode(nextViewMode(effectiveMode, isWide)),
+          },
+          { id: "history", label: t.palette.history, icon: "history", run: () => setHistoryFor(activeNote) },
+          { id: "pdf", label: t.palette.exportPdf, icon: "download", run: () => exportRef.current?.exportPdf() },
+          { id: "md", label: t.palette.exportMarkdown, icon: "fileText", run: () => exportRef.current?.exportMarkdown() },
+        ] satisfies PaletteCommand[])
+      : []),
+    { id: "backup", label: t.palette.backup, icon: "database", run: downloadBackup },
+    { id: "sync", label: t.palette.sync, icon: "cloud", run: () => setSyncOpen(true) },
+    { id: "trash", label: t.palette.trash, icon: "trash", run: () => changeFilter({ folderId: null, tag: null, trash: true }) },
+    { id: "light", label: t.palette.themeLight, icon: "eye", run: () => setTheme("light") },
+    { id: "dark", label: t.palette.themeDark, icon: "eye", run: () => setTheme("dark") },
+    { id: "system", label: t.palette.themeSystem, icon: "eye", run: () => setTheme("system") },
+    { id: "language", label: t.palette.language, icon: "more", run: () => setLocale(locale === "uk" ? "en" : "uk") },
+  ];
 
   const sidebar = (
     <Sidebar
@@ -345,6 +397,7 @@ export default function Home() {
             content={activeNote?.content ?? ""}
             disabled={!activeNote}
             onError={showError}
+            ref={exportRef}
           />
         </div>
       </header>
@@ -444,6 +497,16 @@ export default function Home() {
       </main>
 
       <SyncDialog open={syncOpen} onClose={() => setSyncOpen(false)} sync={sync} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        notes={notes}
+        commands={commands}
+        onOpenNote={(id) => {
+          changeFilter({ folderId: null, tag: null, trash: false });
+          handleSelect(id);
+        }}
+      />
       <HistoryDialog
         note={historyFor}
         onClose={() => setHistoryFor(null)}

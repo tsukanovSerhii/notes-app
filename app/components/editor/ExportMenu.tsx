@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import Markdown from "@/app/components/editor/Markdown";
 import Button from "@/app/components/ui/Button";
 import Icon from "@/app/components/ui/Icon";
@@ -14,6 +14,13 @@ interface ExportMenuProps {
   content: string;
   disabled?: boolean;
   onError: (message: string) => void;
+  /** Lets the command palette start an export. */
+  ref?: Ref<ExportActions>;
+}
+
+export interface ExportActions {
+  exportPdf(): void;
+  exportMarkdown(): void;
 }
 
 type Html2Pdf = (typeof import("html2pdf.js"))["default"];
@@ -88,6 +95,7 @@ export default function ExportMenu({
   content,
   disabled,
   onError,
+  ref,
 }: ExportMenuProps) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -141,6 +149,15 @@ export default function ExportMenu({
   };
 
   const busy = pdfJob !== null;
+
+  useImperativeHandle(ref, () => ({
+    exportPdf: () => {
+      if (!disabled && !busy) exportPdf();
+    },
+    exportMarkdown: () => {
+      if (!disabled) exportMarkdown();
+    },
+  }));
 
   return (
     <div className="relative" ref={menuRef}>
