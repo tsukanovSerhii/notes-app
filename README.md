@@ -306,6 +306,27 @@ example a managed Postgres such as Neon, Supabase or RDS).
 3. Put it behind HTTPS. If the host does not set `X-Forwarded-For`, the
    per-IP limit applies to all clients together.
 
+#### Neon
+
+The database for the hosted demo is [Neon](https://neon.com) Postgres. The
+project is described in [`neon.ts`](neon.ts), and the Neon CLI provisions it
+and writes the connection strings to `.env.local`:
+
+```bash
+neon login
+neon deploy      # applies neon.ts and pulls the variables
+```
+
+Use the **pooled** `DATABASE_URL` (PgBouncer) for the app: the sync queries
+need no session state, so they are safe through the pooler. Keep
+`DATABASE_URL_UNPOOLED` for migrations and dumps. The app keeps using the
+`pg` driver, which suits a long-running Node server; on an edge runtime you
+would switch to Neon's serverless driver. The table is created on first use.
+
+`pg` currently treats `sslmode=require` as `verify-full` and prints a warning
+about the semantics changing in its next major version; setting
+`sslmode=verify-full` in the URL keeps today's behaviour and silences it.
+
 Rate limits and the per-space lock live in each instance's memory, so with
 several instances the limits apply per instance; correctness does not depend
 on them.
