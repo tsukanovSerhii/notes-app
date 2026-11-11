@@ -161,6 +161,68 @@ test.describe("sync client", () => {
     expect(seen).toEqual([[9_999, 150, 200]]);
   });
 
+  test("concurrent edits on two devices keep both texts", async () => {
+    let t = 1_000;
+    const clock = () => t;
+    const repo = createMemoryRepository();
+    const make = async (deviceId: string) => {
+      const store = createNotesStore({
+        getPersistence: () => createMemoryPersistence({ data: data({}), activeId: null }),
+        timers: new FakeTimers(),
+        now: clock,
+        deviceId,
+      });
+      await store.start();
+      const client = createSyncClient({
+        store,
+        keyStorage: null,
+        isOnline: () => true,
+        timers: new FakeTimers(),
+        now: clock,
+        deviceId,
+        fetch: (async (_url: string, init: RequestInit) => {
+          const result = await handleSyncRequest(repo, JSON.parse(String(init.body)), hash, clock);
+          return new Response(JSON.stringify(result.body), { status: result.status });
+        }) as typeof fetch,
+      });
+      return { store, client };
+    };
+    const contents = (s: Awaited<ReturnType<typeof make>>["store"]) =>
+      s.getSnapshot().notes.map((n) => `${n.title}: ${n.content}`).sort();
+
+    const phone = await make("phone-device");
+    const laptop = await make("laptop-device");
+    const plan = phone.store.create({ title: "Plan", content: "draft" });
+    await phone.client.enable(KEY);
+    t = 1_100;
+    await laptop.client.enable(KEY);
+
+    // Both edit the same note before either syncs.
+    t = 2_000;
+    phone.store.update(plan.id, { content: "phone edit" });
+    t = 2_100;
+    laptop.store.update(plan.id, { content: "laptop edit" });
+
+    t = 3_000;
+    await phone.client.syncNow(); // server: phone edit
+    t = 3_100;
+    await laptop.client.syncNow(); // laptop edit wins; phone text kept as a copy
+    t = 3_200;
+    await phone.client.syncNow();
+    t = 3_300;
+    await laptop.client.syncNow();
+
+    const expected = ["Plan (conflict copy): phone edit", "Plan: laptop edit"];
+    expect(contents(laptop.store)).toEqual(expected);
+    expect(contents(phone.store)).toEqual(expected);
+    expect(laptop.client.getSnapshot().lastConflict?.titles).toEqual(["Plan"]);
+    // Ordinary syncs afterwards do not invent more copies.
+    t = 4_000;
+    await phone.client.syncNow();
+    await laptop.client.syncNow();
+    expect(contents(phone.store)).toEqual(expected);
+  });
+
   test("a 429 retries after the server's Retry-After", async () => {
     const d = await device();
     const timers = new FakeTimers();

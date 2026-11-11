@@ -7,6 +7,8 @@ import {
 import { parseData } from "@/app/lib/notes/storage";
 
 export const SYNC_KEY_STORAGE = "notevoid-sync-key";
+/** When the last snapshot the server has merged was taken (corrected clock). */
+export const SYNC_BASE_STORAGE = "notevoid-sync-base";
 
 export type SyncState = "off" | "idle" | "syncing" | "error" | "offline";
 
@@ -15,6 +17,8 @@ export interface SyncSnapshot {
   key: string | null;
   lastSyncedAt: number | null;
   error: string | null;
+  /** Notes whose local text lost to a concurrent edit and was kept as a copy. */
+  lastConflict: { titles: string[]; at: number } | null;
 }
 
 export interface SyncClientOptions {
@@ -30,6 +34,10 @@ export interface SyncClientOptions {
   onServerTime?: (serverTime: number, sentAt: number, receivedAt: number) => void;
   /** Uncorrected local clock, used to time round trips. */
   rawNow?: () => number;
+  /** The app's (skew-corrected) clock, the one note timestamps come from. */
+  now?: () => number;
+  /** This device's id, sent so the server can tell whose edits conflict. */
+  deviceId?: string | null;
 }
 
 export interface SyncClient {
@@ -44,7 +52,13 @@ export interface SyncClient {
   scheduleSync(): void;
 }
 
-const OFF: SyncSnapshot = { state: "off", key: null, lastSyncedAt: null, error: null };
+const OFF: SyncSnapshot = {
+  state: "off",
+  key: null,
+  lastSyncedAt: null,
+  error: null,
+  lastConflict: null,
+};
 
 const defaultTimers: Timers = {
   setTimeout: (cb, ms) => setTimeout(cb, ms),
@@ -67,6 +81,8 @@ export function createSyncClient({
   isOnline = () => typeof navigator === "undefined" || navigator.onLine,
   onServerTime,
   rawNow = Date.now,
+  now = Date.now,
+  deviceId = null,
 }: SyncClientOptions): SyncClient {
   let loaded = false;
   let snapshot: SyncSnapshot = OFF;
@@ -75,6 +91,17 @@ export function createSyncClient({
   let timer: unknown = null;
   let unsubscribeData: (() => void) | null = null;
   const listeners = new Set<() => void>();
+  let base: number | null = null;
+
+  const setBase = (value: number | null) => {
+    base = value;
+    try {
+      if (value === null) keyStorage?.removeItem(SYNC_BASE_STORAGE);
+      else keyStorage?.setItem(SYNC_BASE_STORAGE, String(value));
+    } catch {
+      // Without a stored base the next sync is cautious and may keep extra copies.
+    }
+  };
 
   const set = (next: Partial<SyncSnapshot>) => {
     snapshot = { ...snapshot, ...next };
@@ -87,6 +114,8 @@ export function createSyncClient({
     const key = keyStorage.getItem(SYNC_KEY_STORAGE);
     if (key && SYNC_KEY_PATTERN.test(key)) {
       snapshot = { ...OFF, state: "idle", key };
+      const stored = Number(keyStorage.getItem(SYNC_BASE_STORAGE));
+      base = Number.isFinite(stored) && stored > 0 ? stored : null;
       attach();
     }
   };
@@ -108,11 +137,17 @@ export function createSyncClient({
     set({ state: "syncing", error: null });
     await store.start();
     try {
+      const snapshotAt = now();
       const sentAt = rawNow();
       const res = await fetchFn(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key, data: store.getData() }),
+        body: JSON.stringify({
+          key,
+          data: store.getData(),
+          since: base,
+          ...(deviceId && { deviceId }),
+        }),
       });
       const json = (await res.json().catch(() => null)) as
         | (SyncResponse & { error?: string })
@@ -129,7 +164,15 @@ export function createSyncClient({
       if (typeof json.syncedAt === "number") onServerTime?.(json.syncedAt, sentAt, rawNow());
       if (snapshot.key !== key) return; // disabled or switched mid-request
       store.merge(parseData(json.data), "sync");
-      set({ state: "idle", lastSyncedAt: json.syncedAt ?? Date.now() });
+      setBase(snapshotAt);
+      const conflicts = Array.isArray(json.conflicts)
+        ? json.conflicts.filter((t): t is string => typeof t === "string")
+        : [];
+      set({
+        state: "idle",
+        lastSyncedAt: json.syncedAt ?? Date.now(),
+        ...(conflicts.length > 0 && { lastConflict: { titles: conflicts, at: now() } }),
+      });
     } catch (error) {
       if (snapshot.key !== key) return;
       const offline = error instanceof TypeError || !isOnline();
@@ -159,6 +202,7 @@ export function createSyncClient({
         return false;
       }
       keyStorage?.setItem(SYNC_KEY_STORAGE, next);
+      setBase(null);
       loaded = true;
       set({ state: "idle", key: next, error: null, lastSyncedAt: null });
       attach();
@@ -168,6 +212,7 @@ export function createSyncClient({
 
     disable() {
       keyStorage?.removeItem(SYNC_KEY_STORAGE);
+      setBase(null);
       if (timer) timers.clearTimeout(timer);
       timer = null;
       unsubscribeData?.();

@@ -15,7 +15,7 @@ export type NotesAction =
   | { type: "replace"; data: NotesData; activeId: string | null }
   | { type: "merge"; data: NotesData; mode: "sync" | "import"; now: number }
   | { type: "create"; note: Note }
-  | { type: "update"; id: string; patch: NotePatch; now: number }
+  | { type: "update"; id: string; patch: NotePatch; now: number; by?: string | null }
   /** Moves a note to the trash. */
   | { type: "delete"; id: string; now: number }
   | { type: "undoDelete"; now: number }
@@ -199,7 +199,9 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
         changed = true;
         const updatedAt = stamp(n.updatedAt, action.now);
         const edited = next.title !== n.title || next.content !== n.content;
-        return { ...next, updatedAt, editedAt: edited ? updatedAt : n.editedAt };
+        return edited
+          ? { ...next, updatedAt, editedAt: updatedAt, editedBy: action.by ?? null }
+          : { ...next, updatedAt };
       });
       return changed ? { ...state, notes } : state;
     }

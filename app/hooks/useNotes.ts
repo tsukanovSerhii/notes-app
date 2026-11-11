@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { createNotesStore } from "@/app/lib/notes/store";
+import { createNotesStore, defaultCreateId } from "@/app/lib/notes/store";
 import { liveNotes, sortNotes, trashedNotes } from "@/app/lib/notes/reducer";
 import { createIndexedDbPersistence } from "@/app/lib/notes/idb";
 import {
@@ -30,6 +30,26 @@ function getLocalStorage(): Storage | null {
   }
 }
 
+const DEVICE_ID_KEY = "notevoid-device-id";
+
+/** A random id for this browser profile, kept so sync can tell its edits apart. */
+function getDeviceId(): string | null {
+  const storage = getLocalStorage();
+  if (!storage) return null;
+  try {
+    let id = storage.getItem(DEVICE_ID_KEY);
+    if (!id || !/^[A-Za-z0-9_-]{8,64}$/.test(id)) {
+      id = defaultCreateId().replace(/[^A-Za-z0-9_-]/g, "");
+      storage.setItem(DEVICE_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
+export const deviceId = getDeviceId();
+
 /** Timestamps for every change, corrected towards the sync server's clock. */
 export const appClock = createSkewClock({ storage: getLocalStorage() });
 
@@ -37,6 +57,7 @@ export const notesStore = createNotesStore({
   getPersistence,
   seed: createWelcomeNotes,
   now: appClock.now,
+  deviceId,
 });
 
 export function useNotes() {

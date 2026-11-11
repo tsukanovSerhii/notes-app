@@ -38,6 +38,8 @@ export interface NotesStoreOptions {
   /** Injectable so tests can drive the debounce without real waiting. */
   timers?: Timers;
   trashRetentionMs?: number;
+  /** Recorded on each edit so sync can tell this device's edits from others'. */
+  deviceId?: string | null;
 }
 
 export interface NotesStore {
@@ -94,6 +96,7 @@ export function createNotesStore({
   seed,
   timers = realTimers,
   trashRetentionMs = TRASH_RETENTION_MS,
+  deviceId = null,
 }: NotesStoreOptions): NotesStore {
   let snapshot: NotesSnapshot = SERVER_SNAPSHOT;
   let startPromise: Promise<void> | null = null;
@@ -285,13 +288,14 @@ export function createNotesStore({
         createdAt: t,
         updatedAt: t,
         editedAt: t,
+        editedBy: deviceId,
         trashedAt: null,
       };
       dispatch({ type: "create", note });
       return note;
     },
 
-    update: (id, patch) => dispatch({ type: "update", id, patch, now: ts() }),
+    update: (id, patch) => dispatch({ type: "update", id, patch, now: ts(), by: deviceId }),
     remove: (id) => dispatch({ type: "delete", id, now: ts() }),
     undoDelete: () => dispatch({ type: "undoDelete", now: ts() }),
     restore: (id) => dispatch({ type: "restore", id, now: ts() }),

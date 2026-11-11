@@ -99,6 +99,23 @@ export default function Home() {
     () => ({ success: (text: string) => showToast({ text }), error: showError }),
     [showToast, showError]
   );
+  // Tell the user when sync kept their overwritten text as a copy.
+  const syncClient = sync.client;
+  useEffect(() => {
+    let seen = syncClient.getSnapshot().lastConflict?.at;
+    return syncClient.subscribe(() => {
+      const conflict = syncClient.getSnapshot().lastConflict;
+      if (!conflict || conflict.at === seen) return;
+      seen = conflict.at;
+      const [first, ...rest] = conflict.titles;
+      showToast({
+        text: rest.length
+          ? `${conflict.titles.length} notes were edited on another device too. Your versions were kept as copies.`
+          : `“${first}” was edited on another device too. Your version was kept as a copy.`,
+      });
+    });
+  }, [syncClient, showToast]);
+
   const { importMarkdown, importBackup, importFiles } = useImport(
     store,
     activeFilter.folderId,

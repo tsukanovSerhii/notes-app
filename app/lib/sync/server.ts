@@ -1,7 +1,8 @@
 import type { NotesData } from "@/app/types/note";
 import { emptyData, mergeData } from "@/app/lib/notes/merge";
 import { parseData } from "@/app/lib/notes/storage";
-import { SYNC_KEY_PATTERN, type SyncResponse } from "@/app/lib/sync/protocol";
+import { DEVICE_ID_PATTERN, SYNC_KEY_PATTERN, type SyncResponse } from "@/app/lib/sync/protocol";
+import { conflictCopy, findLostEdits } from "@/app/lib/sync/conflicts";
 import type { RateLimiter } from "@/app/lib/sync/rateLimit";
 
 /**
@@ -48,7 +49,12 @@ export async function handleSyncRequest(
   if (typeof body !== "object" || body === null) {
     return { status: 400, body: { error: "Expected a JSON object." } };
   }
-  const { key, data } = body as { key?: unknown; data?: unknown };
+  const { key, data, since, deviceId } = body as {
+    key?: unknown;
+    data?: unknown;
+    since?: unknown;
+    deviceId?: unknown;
+  };
   if (typeof key !== "string" || !SYNC_KEY_PATTERN.test(key)) {
     return { status: 400, body: { error: "Invalid sync key." } };
   }
@@ -65,14 +71,30 @@ export async function handleSyncRequest(
 
   const incoming = parseData(data);
 
-  const merged = await withLock(spaceId, async () => {
+  // Older clients send no `since`; they get the plain merge.
+  const base =
+    since === null ? null : typeof since === "number" && Number.isFinite(since) ? since : undefined;
+  const device =
+    typeof deviceId === "string" && DEVICE_ID_PATTERN.test(deviceId) ? deviceId : null;
+
+  const { merged, conflicts } = await withLock(spaceId, async () => {
     const stored = (await repo.get(spaceId)) ?? emptyData();
-    const result = mergeData(stored, incoming);
+    let result = mergeData(stored, incoming);
+    // Text that last-write-wins would overwrite is kept as a separate note.
+    const lost = base === undefined ? [] : findLostEdits(incoming, stored, base, device);
+    if (lost.length > 0) {
+      const at = now();
+      const copies = lost.map((n) => conflictCopy(n, at));
+      result = mergeData(result, { notes: copies, folders: [], tombstones: {} });
+    }
     await repo.put(spaceId, result);
-    return result;
+    return { merged: result, conflicts: lost.map((n) => n.title.trim() || "Untitled") };
   });
 
-  return { status: 200, body: { data: merged, syncedAt: now() } };
+  return {
+    status: 200,
+    body: { data: merged, syncedAt: now(), ...(conflicts.length > 0 && { conflicts }) },
+  };
 }
 
 export function createMemoryRepository(): SyncRepository & { spaces: Map<string, NotesData> } {
