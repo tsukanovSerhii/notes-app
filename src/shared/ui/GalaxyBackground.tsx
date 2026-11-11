@@ -101,6 +101,9 @@ export default function GalaxyBackground() {
 
     const start = () => {
       stop();
+      // The starfield is hidden in the light theme, so animating it is wasted work.
+      const hidden = document.documentElement.dataset.theme === "light";
+      if (hidden) return;
       if (motionQuery.matches || document.hidden) {
         draw(0);
         return;
@@ -125,9 +128,12 @@ export default function GalaxyBackground() {
     window.addEventListener("resize", resize);
     document.addEventListener("visibilitychange", start);
     motionQuery.addEventListener("change", start);
+    const themeObserver = new MutationObserver(start);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
     return () => {
       stop();
+      themeObserver.disconnect();
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", start);
       motionQuery.removeEventListener("change", start);
