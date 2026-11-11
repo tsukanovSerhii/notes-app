@@ -20,21 +20,21 @@
     "@tailwindcss/typography": "^0.5.19",
     "clsx": "^2.1.1",
     "html2pdf.js": "^0.14.0",
-    "katex": "0.18.11",
-    "mermaid": "^12.2.0",
+    "katex": "0.19.1",
+    "mermaid": "^12.3.0",
     "next": "^16.4.6",
     "pg": "^8.23.1",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-markdown": "^10.1.0",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.10",
+    "@electric-sql/pglite": "^0.5.15",
     "@neon/config": "^1.14.0",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "^4",
     "@types/html2pdf.js": "^0.10.0",
     "@types/node": "^20",
@@ -47,6 +47,6 @@
     "typescript": "^5"
   },
   "overrides": {
-    "katex": "0.18.11"
+    "katex": "0.19.1"
   }
 }
