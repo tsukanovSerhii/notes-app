@@ -69,3 +69,6 @@ next-env.d.ts
 # local sync server data
 /.data/
 .neon
+
+# Lighthouse CI reports
+/.lighthouseci/

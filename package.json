@@ -12,6 +12,7 @@
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "playwright test -c playwright.unit.config.ts",
     "test:coverage": "c8 playwright test -c playwright.unit.config.ts",
+    "lighthouse": "lhci autorun",
     "test:e2e": "playwright test",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
     "@electric-sql/pglite": "^0.5.10",
+    "@lhci/cli": "^0.16.0",
     "@neon/config": "^1.14.0",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
