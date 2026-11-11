@@ -35,6 +35,7 @@ test.describe("deserialize", () => {
         editedAt: 2,
         editedBy: null,
         trashedAt: null,
+        conflictOf: null,
       },
     ]);
   });
@@ -62,6 +63,7 @@ test.describe("deserialize", () => {
             editedAt: 2,
             editedBy: "laptop",
             trashedAt: 3,
+            conflictOf: "orig",
           },
         ],
         folders: [{ id: "f", name: "Work", createdAt: 1, updatedAt: 1 }],
@@ -97,6 +99,7 @@ test("parseNote fills safe defaults for wrongly typed fields", () => {
     editedAt: 5,
     editedBy: null,
     trashedAt: null,
+    conflictOf: null,
   });
 });
 

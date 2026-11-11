@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { readFileSync } from "fs";
+import { readdirSync, readFileSync, statSync } from "fs";
+import path from "path";
 import { gotoFresh, createNote, editor, noteList, titleInput, noteRow } from "./helpers";
 
 test.describe("Import & backup", () => {
@@ -52,6 +53,7 @@ test.describe("Import & backup", () => {
 });
 
 test("syncs notes between two devices through the server", async ({ browser }) => {
+  const startedAt = Date.now();
   const phone = await (await browser.newContext()).newPage();
   const laptop = await (await browser.newContext()).newPage();
 
@@ -102,9 +104,9 @@ test("syncs notes between two devices through the server", async ({ browser }) =
   await phone.keyboard.press("Escape");
   await expect(phone.getByRole("status").filter({ hasText: "edited on another device too" })).toBeVisible();
 
-  const copy = `${phoneTitle} (conflict copy)`;
-  await expect(noteRow(phone, copy)).toBeVisible();
-  await noteRow(phone, copy).click();
+  const copyRow = noteList(phone).locator("li").filter({ hasText: phoneTitle }).filter({ hasText: "conflict copy" });
+  await expect(copyRow).toHaveCount(1);
+  await copyRow.click();
   await expect(editor(phone)).toHaveValue("Phone version");
   await noteList(phone)
     .locator("li")
@@ -112,4 +114,16 @@ test("syncs notes between two devices through the server", async ({ browser }) =
     .filter({ hasNotText: "conflict copy" })
     .click();
   await expect(editor(phone)).toHaveValue("Laptop version");
+
+  // End-to-end encryption: the server's files never contain the notes' text or the key.
+  // (Only files this test wrote: earlier builds may have left plaintext ones.)
+  const dir = path.join(process.cwd(), ".data", "sync");
+  const stored = readdirSync(dir)
+    .filter((f) => statSync(path.join(dir, f)).mtimeMs >= startedAt)
+    .map((f) => readFileSync(path.join(dir, f), "utf8"))
+    .join(" ");
+  expect(stored.length).toBeGreaterThan(0);
+  for (const secret of [phoneTitle, "Phone version", "Laptop version", "Written on the laptop", key]) {
+    expect(stored).not.toContain(secret);
+  }
 });

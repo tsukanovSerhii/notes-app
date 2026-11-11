@@ -1,30 +1,52 @@
 import { expect, test } from "@playwright/test";
 import { createMemoryRepository, handleSyncRequest } from "@/app/lib/sync/server";
 import { createSyncClient, SYNC_KEY_STORAGE } from "@/app/lib/sync/client";
-import { generateSyncKey, SYNC_KEY_PATTERN } from "@/app/lib/sync/protocol";
+import { generateSyncKey, PROTOCOL_VERSION, SYNC_KEY_PATTERN } from "@/app/lib/sync/protocol";
+import { deriveSyncKeys, sealData } from "@/app/lib/sync/crypto";
 import { createRateLimiter } from "@/app/lib/sync/rateLimit";
 import { createNotesStore } from "@/app/lib/notes/store";
 import { createMemoryPersistence } from "@/app/lib/notes/persistence";
-import { FakeTimers, note, settle } from "@/app/lib/notes/testUtils";
+import { FakeTimers, note, sealedNote, settle } from "@/app/lib/notes/testUtils";
+import type { SealedData } from "@/app/lib/sync/wire";
 import type { NotesData } from "@/app/types/note";
 
 const KEY = "k".repeat(32);
 const hash = (key: string) => `space-${key.length}`;
 const data = (d: Partial<NotesData>): NotesData => ({ notes: [], folders: [], tombstones: {}, ...d });
+const sealed = (d: Partial<SealedData>): SealedData => ({ notes: [], folders: [], tombstones: {}, ...d });
+const v = PROTOCOL_VERSION;
+/** The space the client-side tests' key lands in: hash() of its 43-char token. */
+const CLIENT_SPACE = "space-43";
 
 test.describe("sync server", () => {
   test("rejects malformed requests", async () => {
     const repo = createMemoryRepository();
     expect((await handleSyncRequest(repo, null, hash)).status).toBe(400);
-    expect((await handleSyncRequest(repo, { key: "short", data: {} }, hash)).status).toBe(400);
+    expect((await handleSyncRequest(repo, { v, key: "short", data: {} }, hash)).status).toBe(400);
+  });
+
+  test("turns away earlier, unencrypted clients instead of mixing their data in", async () => {
+    const repo = createMemoryRepository();
+    const res = await handleSyncRequest(repo, { key: KEY, data: data({ notes: [note("a")] }) }, hash);
+    expect(res.status).toBe(426);
+    expect(repo.spaces.size).toBe(0);
+  });
+
+  test("erases the plaintext space an upgrading device names", async () => {
+    const repo = createMemoryRepository();
+    const legacy = "f".repeat(64);
+    await repo.put(legacy, { version: 1, data: sealed({}), changes: {}, horizon: 0 }, null);
+    await handleSyncRequest(repo, { v, key: KEY, data: sealed({}), forgetLegacy: legacy }, hash);
+    expect(repo.spaces.has(legacy)).toBe(false);
+    expect(repo.spaces.has("space-32")).toBe(true);
   });
 
   test("merges every device's replica and files it under the key hash", async () => {
     const repo = createMemoryRepository();
-    await handleSyncRequest(repo, { key: KEY, data: data({ notes: [note("a")] }) }, hash);
+    await handleSyncRequest(repo, { v, key: KEY, data: sealed({ notes: [sealedNote("a")] }) }, hash);
     const second = await handleSyncRequest(
       repo,
-      { key: KEY, data: data({ notes: [note("b")] }) },
+      { v, key: KEY, data: sealed({ notes: [sealedNote("b")] }) },
       hash,
       () => 42
     );
@@ -39,7 +61,7 @@ test.describe("sync server", () => {
     const repo = createMemoryRepository();
     await Promise.all(
       ["a", "b", "c", "d"].map((id) =>
-        handleSyncRequest(repo, { key: KEY, data: data({ notes: [note(id)] }) }, hash)
+        handleSyncRequest(repo, { v, key: KEY, data: sealed({ notes: [sealedNote(id)] }) }, hash)
       )
     );
     expect(repo.spaces.get("space-32")?.data.notes).toHaveLength(4);
@@ -48,7 +70,7 @@ test.describe("sync server", () => {
   test("a rate-limited space is refused before any storage work", async () => {
     const repo = createMemoryRepository();
     const limiter = createRateLimiter({ perMinute: 1, now: () => 0 });
-    const body = { key: KEY, data: data({ notes: [note("a")] }) };
+    const body = { v, key: KEY, data: sealed({ notes: [sealedNote("a")] }) };
     expect((await handleSyncRequest(repo, body, hash, () => 0, limiter)).status).toBe(200);
     repo.spaces.clear();
     const refused = await handleSyncRequest(repo, body, hash, () => 0, limiter);
@@ -109,6 +131,59 @@ test.describe("sync client", () => {
     expect(laptop.client.getSnapshot()).toMatchObject({ state: "idle", key: KEY });
   });
 
+  test("the server only ever holds ciphertext, and never the key", async () => {
+    const d = await device();
+    d.store.create({ title: "Secret title", content: "secret text", tags: ["private"] });
+    d.store.createFolder("Hidden folder");
+    await d.client.enable(KEY);
+    const stored = JSON.stringify([...d.repo.spaces.values()]);
+    for (const secret of ["Secret title", "secret text", "private", "Hidden folder", KEY]) {
+      expect(stored).not.toContain(secret);
+    }
+    expect([...d.repo.spaces.keys()]).toEqual([CLIENT_SPACE]);
+  });
+
+  test("entities sealed with another key are skipped and reported", async () => {
+    const owner = await device();
+    owner.store.create({ title: "Mine" });
+    await owner.client.enable(KEY);
+    // Data under the same space token but sealed with a different key.
+    const wrong = await deriveSyncKeys("w".repeat(32));
+    const right = await deriveSyncKeys(KEY);
+    const forged = await sealData(wrong, data({ notes: [note("x", { title: "Forged" })] }));
+    await handleSyncRequest(owner.repo, { v, key: right.spaceToken, data: forged }, hash);
+    await owner.client.syncNow();
+    expect(owner.store.getSnapshot().notes.map((n) => n.title)).toEqual(["Mine"]);
+    expect(owner.client.getSnapshot()).toMatchObject({
+      state: "error",
+      error: expect.stringContaining("could not be decrypted"),
+    });
+  });
+
+  test("asks once to erase the plaintext space of earlier builds", async () => {
+    const forgets: unknown[] = [];
+    const d = await device();
+    const client = createSyncClient({
+      store: d.store,
+      keyStorage: {
+        getItem: (k) => d.storage.get(k) ?? null,
+        setItem: (k, val) => void d.storage.set(k, val),
+        removeItem: (k) => void d.storage.delete(k),
+      },
+      isOnline: () => true,
+      fetch: (async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(String(init.body));
+        forgets.push(body.forgetLegacy);
+        const result = await handleSyncRequest(d.repo, body, hash);
+        return new Response(JSON.stringify(result.body), { status: result.status });
+      }) as typeof fetch,
+    });
+    await client.enable(KEY); // joining with an existing key
+    await client.syncNow();
+    expect(forgets[0]).toMatch(/^[a-f0-9]{64}$/);
+    expect(forgets[1]).toBeUndefined();
+  });
+
   test("a local edit schedules a debounced sync", async () => {
     const d = await device();
     await d.client.enable(KEY);
@@ -117,8 +192,7 @@ test.describe("sync client", () => {
     d.store.create();
     expect(d.requests()).toBe(before);
     d.timers.advance(1500);
-    await settle();
-    expect(d.requests()).toBe(before + 1);
+    await expect.poll(() => d.requests()).toBe(before + 1);
   });
 
   test("rejects malformed keys and can be turned off", async () => {
@@ -188,7 +262,7 @@ test.describe("sync client", () => {
       return { store, client };
     };
     const contents = (s: Awaited<ReturnType<typeof make>>["store"]) =>
-      s.getSnapshot().notes.map((n) => `${n.title}: ${n.content}`).sort();
+      s.getSnapshot().notes.map((n) => `${n.title}${n.conflictOf ? " [copy]" : ""}: ${n.content}`).sort();
 
     const phone = await make("phone-device");
     const laptop = await make("laptop-device");
@@ -212,15 +286,20 @@ test.describe("sync client", () => {
     t = 3_300;
     await laptop.client.syncNow();
 
-    const expected = ["Plan (conflict copy): phone edit", "Plan: laptop edit"];
+    const expected = ["Plan [copy]: phone edit", "Plan: laptop edit"];
     expect(contents(laptop.store)).toEqual(expected);
     expect(contents(phone.store)).toEqual(expected);
     expect(laptop.client.getSnapshot().lastConflict?.titles).toEqual(["Plan"]);
-    // Ordinary syncs afterwards do not invent more copies.
-    t = 4_000;
-    await phone.client.syncNow();
-    await laptop.client.syncNow();
-    expect(contents(phone.store)).toEqual(expected);
+    // Ordinary syncs afterwards (deltas that send the copy back) do not invent more copies.
+    for (const at of [4_000, 4_100, 4_200, 4_300]) {
+      t = at;
+      phone.store.create({ title: `filler ${at}` });
+      await phone.client.syncNow();
+      await laptop.client.syncNow();
+    }
+    const copies = (s: typeof phone.store) => s.getSnapshot().notes.filter((n) => n.conflictOf).length;
+    expect(copies(phone.store)).toBe(1);
+    expect(copies(laptop.store)).toBe(1);
   });
 
   test("after the first full exchange only changes travel, both ways", async () => {
@@ -229,6 +308,7 @@ test.describe("sync client", () => {
     const repo = createMemoryRepository();
     const bodies: { cursor: unknown; notes: string[] }[] = [];
     const replies: string[][] = [];
+    const titleOf = (id: string) => store.getSnapshot().notes.find((n) => n.id === id)?.title ?? id;
     const store = createNotesStore({
       getPersistence: () => createMemoryPersistence({ data: data({}), activeId: null }),
       timers: new FakeTimers(),
@@ -243,9 +323,9 @@ test.describe("sync client", () => {
       now: clock,
       fetch: (async (_url: string, init: RequestInit) => {
         const body = JSON.parse(String(init.body));
-        bodies.push({ cursor: body.cursor, notes: body.data.notes.map((n: { title: string }) => n.title) });
+        bodies.push({ cursor: body.cursor, notes: body.data.notes.map((n: { id: string }) => n.id) });
         const result = await handleSyncRequest(repo, body, hash, clock);
-        if ("data" in result.body) replies.push(result.body.data.notes.map((n) => n.title));
+        if ("data" in result.body) replies.push(result.body.data.notes.map((n) => n.id));
         return new Response(JSON.stringify(result.body), { status: result.status });
       }) as typeof fetch,
     });
@@ -255,16 +335,20 @@ test.describe("sync client", () => {
     t = 2_000;
     await client.enable(KEY); // full: no cursor yet
     // Another device adds a note directly on the server.
-    await handleSyncRequest(repo, { key: KEY, data: data({ notes: [note("x", { title: "remote" })] }) }, hash, clock);
+    const keys = await deriveSyncKeys(KEY);
+    const remote = await sealData(keys, data({ notes: [note("x", { title: "remote" })] }));
+    await handleSyncRequest(repo, { v, key: keys.spaceToken, data: remote }, hash, clock);
 
     t = 3_000;
     store.create({ title: "new" });
     await client.syncNow();
 
-    expect(bodies[0]).toEqual({ cursor: null, notes: expect.arrayContaining(["old 1", "old 2"]) });
-    expect(bodies[1]).toEqual({ cursor: 1, notes: ["new"] });
+    expect(bodies[0].cursor).toBeNull();
+    expect(bodies[0].notes.map(titleOf).sort()).toEqual(["old 1", "old 2"]);
+    expect(bodies[1].cursor).toBe(1);
+    expect(bodies[1].notes.map(titleOf)).toEqual(["new"]);
     // The reply carries what changed after cursor 1: the remote note and our own new one.
-    expect(replies[1].sort()).toEqual(["new", "remote"]);
+    expect(replies[1].map(titleOf).sort()).toEqual(["new", "remote"]);
     expect(store.getSnapshot().notes.map((n) => n.title).sort()).toEqual(["new", "old 1", "old 2", "remote"]);
   });
 
@@ -308,7 +392,7 @@ test.describe("sync client", () => {
     await b.client.syncNow();
 
     const folderOf = (s: typeof a.store) => s.getSnapshot().notes.find((x) => x.id === n.id)?.folderId;
-    expect(repo.spaces.get("space-32")?.data.notes.find((x) => x.id === n.id)?.folderId).toBe(work.id);
+    expect(repo.spaces.get(CLIENT_SPACE)?.data.notes.find((x) => x.id === n.id)?.folderId).toBe(work.id);
     expect(folderOf(a.store)).toBe(work.id);
     expect(folderOf(b.store)).toBe(work.id);
   });
@@ -340,8 +424,8 @@ test.describe("sync client", () => {
     await settle();
     expect(calls).toBe(1);
     timers.advance(1);
-    await settle();
-    expect(calls).toBe(2);
-    expect(client.getSnapshot()).toMatchObject({ state: "idle", retryAt: null });
+    await expect.poll(() => calls).toBe(2);
+    await expect.poll(() => client.getSnapshot().state).toBe("idle");
+    expect(client.getSnapshot().retryAt).toBeNull();
   });
 });

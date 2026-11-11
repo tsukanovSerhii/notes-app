@@ -1,6 +1,5 @@
-import type { NotesData, Tombstones } from "@/app/types/note";
-import { emptyData } from "@/app/lib/notes/merge";
-import { parseData } from "@/app/lib/notes/storage";
+import type { Tombstones } from "@/app/types/note";
+import { emptySealedData, parseSealedData, type SealedData } from "@/app/lib/sync/wire";
 import { TOMBSTONE_TTL_MS } from "@/app/lib/notes/reducer";
 
 /**
@@ -14,28 +13,24 @@ import { TOMBSTONE_TTL_MS } from "@/app/lib/notes/reducer";
  */
 export interface StoredSpace {
   version: number;
-  data: NotesData;
+  data: SealedData;
   changes: Record<string, number>;
   horizon: number;
 }
 
 export const emptySpace = (): StoredSpace => ({
   version: 0,
-  data: emptyData(),
+  data: emptySealedData(),
   changes: {},
   horizon: 0,
 });
 
 export { TOMBSTONE_TTL_MS };
 
-/** Validates a stored space, accepting the bare NotesData of earlier builds. */
+/** Validates a stored space. */
 export function parseSpace(value: unknown): StoredSpace {
-  if (typeof value !== "object" || value === null) return emptySpace();
+  if (typeof value !== "object" || value === null || !("data" in value)) return emptySpace();
   const v = value as Record<string, unknown>;
-  if (!("data" in v)) {
-    // Earlier builds stored the NotesData itself.
-    return { ...emptySpace(), data: parseData(value) };
-  }
   const changes: Record<string, number> = {};
   if (typeof v.changes === "object" && v.changes !== null) {
     for (const [k, n] of Object.entries(v.changes)) {
@@ -44,14 +39,14 @@ export function parseSpace(value: unknown): StoredSpace {
   }
   return {
     version: typeof v.version === "number" && v.version >= 0 ? Math.floor(v.version) : 0,
-    data: parseData(v.data),
+    data: parseSealedData(v.data),
     changes,
     horizon: typeof v.horizon === "number" && Number.isFinite(v.horizon) ? v.horizon : 0,
   };
 }
 
 /** Keys of every entity that differs between two versions of the data. */
-export function changedKeys(before: NotesData, after: NotesData): string[] {
+export function changedKeys(before: SealedData, after: SealedData): string[] {
   const keys: string[] = [];
   const diff = <T extends { id: string }>(prefix: string, a: readonly T[], b: readonly T[]) => {
     const old = new Map(a.map((x) => [x.id, x]));
@@ -69,7 +64,7 @@ export function changedKeys(before: NotesData, after: NotesData): string[] {
 }
 
 /** The entities that changed after `cursor`. */
-export function deltaSince(space: StoredSpace, cursor: number): NotesData {
+export function deltaSince(space: StoredSpace, cursor: number): SealedData {
   const after = (key: string) => (space.changes[key] ?? 0) > cursor;
   const tombstones: Tombstones = {};
   for (const [id, at] of Object.entries(space.data.tombstones)) {
@@ -115,10 +110,10 @@ export function pruneTombstones(space: StoredSpace, now: number, ttlMs = TOMBSTO
  * (`since` null) uploads everything.
  */
 export function guardAgainstPruned(
-  incoming: NotesData,
+  incoming: SealedData,
   stored: StoredSpace,
   since: number | null | undefined
-): NotesData {
+): SealedData {
   if (typeof since !== "number" || since >= stored.horizon) return incoming;
   const notes = new Set(stored.data.notes.map((n) => n.id));
   const folders = new Set(stored.data.folders.map((f) => f.id));

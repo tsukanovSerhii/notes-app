@@ -44,7 +44,10 @@ export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
             </span>
           </div>
           <p className="text-xs text-text-muted">
-            Anyone with this key can read and change these notes. Keep it private.
+            Notes are encrypted on this device with this key before they are
+            sent, so the server cannot read them. Anyone with the key can read
+            and change them: keep it private, and keep a copy, since without it
+            the synced notes cannot be recovered.
           </p>
           <SyncStatusLine sync={sync} />
           <div className="flex flex-wrap justify-end gap-2">
@@ -64,8 +67,9 @@ export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
       ) : (
         <div className="space-y-5 text-sm">
           <p className="text-text-secondary">
-            Notes stay on this device until you turn sync on. Sync merges changes
-            from every device; the most recent edit of a note wins.
+            Notes stay on this device until you turn sync on. Sync is end-to-end
+            encrypted and merges changes from every device; when two devices
+            edit the same note, both versions are kept.
           </p>
           <Button
             variant="primary"

@@ -7,14 +7,15 @@ import { createFileRepository } from "@/app/lib/sync/fileRepository";
 import { createPostgresRepository } from "@/app/lib/sync/postgresRepository";
 import { createMemoryRepository, handleSyncRequest, type SyncRepository } from "@/app/lib/sync/server";
 import { emptySpace, type StoredSpace } from "@/app/lib/sync/space";
-import { note } from "@/app/lib/notes/testUtils";
+import { sealedNote } from "@/app/lib/notes/testUtils";
+import { PROTOCOL_VERSION as v } from "@/app/lib/sync/protocol";
 
 const ID = "a".repeat(64);
 const KEY = "k".repeat(32);
-const at = (version: number, title = `v${version}`): StoredSpace => ({
+const at = (version: number, text = `v${version}`): StoredSpace => ({
   ...emptySpace(),
   version,
-  data: { notes: [note("n", { title })], folders: [], tombstones: {} },
+  data: { notes: [sealedNote("n", { textHash: `texthash-${text}` })], folders: [], tombstones: {} },
 });
 
 /** The contract every repository must keep. */
@@ -35,7 +36,16 @@ function contract(name: string, make: () => Promise<{ repo: SyncRepository; done
       expect(await repo.put(ID, at(2, "first"), 1)).toBe(true);
       expect(await repo.put(ID, at(2, "second"), 1)).toBe(false);
       expect(await repo.put(ID, at(1), null)).toBe(false);
-      expect((await repo.get(ID))?.data.notes[0].title).toBe("first");
+      expect((await repo.get(ID))?.data.notes[0].textHash).toBe("texthash-first");
+      await done();
+    });
+
+    test("deletes a space", async () => {
+      const { repo, done } = await make();
+      await repo.put(ID, at(1), null);
+      await repo.delete(ID);
+      expect(await repo.get(ID)).toBeNull();
+      await repo.delete(ID); // deleting what is gone is fine
       await done();
     });
   });
@@ -53,13 +63,12 @@ contract("postgres repository (PGlite)", async () => {
   return { repo: createPostgresRepository(db), done: () => db.close() };
 });
 
-test("the file repository reads spaces stored by earlier builds", async () => {
+test("a plaintext space from earlier builds reads as empty and can be overwritten", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "notevoid-"));
-  const legacy = { notes: [note("old")], folders: [], tombstones: {} };
+  const legacy = { notes: [{ id: "old", title: "Plain", content: "text" }], folders: [], tombstones: {} };
   await writeFile(path.join(dir, `${ID}.json`), JSON.stringify(legacy));
   const repo = createFileRepository(dir);
-  expect(await repo.get(ID)).toMatchObject({ version: 0, data: legacy });
-  // ...and upgrades them on the next write.
+  expect(await repo.get(ID)).toEqual(emptySpace());
   expect(await repo.put(ID, at(1), 0)).toBe(true);
   await rm(dir, { recursive: true, force: true });
 });
@@ -69,16 +78,18 @@ test("the handler retries when another instance wrote in between", async () => {
   let interfere = true;
   const repo: SyncRepository = {
     get: (id) => inner.get(id),
+    delete: (id) => inner.delete(id),
     async put(id, space, expected) {
       if (interfere) {
         interfere = false;
         // Another server instance commits first.
-        await inner.put(id, { ...emptySpace(), version: 1, data: { notes: [note("theirs")], folders: [], tombstones: {} } }, null);
+        const theirs = { notes: [sealedNote("theirs")], folders: [], tombstones: {} };
+        await inner.put(id, { ...emptySpace(), version: 1, data: theirs }, null);
       }
       return inner.put(id, space, expected);
     },
   };
-  const res = await handleSyncRequest(repo, { key: KEY, data: { notes: [note("mine")] } }, () => ID);
+  const res = await handleSyncRequest(repo, { v, key: KEY, data: { notes: [sealedNote("mine")] } }, () => ID);
   expect(res.status).toBe(200);
   const stored = await inner.get(ID);
   expect(stored?.data.notes.map((n) => n.id).sort()).toEqual(["mine", "theirs"]);
@@ -86,16 +97,16 @@ test("the handler retries when another instance wrote in between", async () => {
 });
 
 test("the handler gives up with 503 when the space never settles", async () => {
-  const repo: SyncRepository = { get: async () => null, put: async () => false };
-  const res = await handleSyncRequest(repo, { key: KEY, data: {} }, () => ID);
+  const repo: SyncRepository = { get: async () => null, put: async () => false, delete: async () => {} };
+  const res = await handleSyncRequest(repo, { v, key: KEY, data: {} }, () => ID);
   expect(res.status).toBe(503);
 });
 
 test("a full sync through Postgres converges two devices", async () => {
   const db = new PGlite();
   const repo = createPostgresRepository(db);
-  await handleSyncRequest(repo, { key: KEY, data: { notes: [note("a")] } }, () => ID);
-  const res = await handleSyncRequest(repo, { key: KEY, data: { notes: [note("b")] } }, () => ID);
+  await handleSyncRequest(repo, { v, key: KEY, data: { notes: [sealedNote("a")] } }, () => ID);
+  const res = await handleSyncRequest(repo, { v, key: KEY, data: { notes: [sealedNote("b")] } }, () => ID);
   if (!("data" in res.body)) throw new Error(res.body.error);
   expect(res.body.data.notes.map((n) => n.id).sort()).toEqual(["a", "b"]);
   expect(res.body.cursor).toBe(2);

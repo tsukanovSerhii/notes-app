@@ -21,13 +21,17 @@ test.describe("Offline", () => {
     context,
   }) => {
     await gotoFresh(page);
-    await page.evaluate(async () => {
-      await navigator.serviceWorker.ready;
-      // Wait until the worker controls the page, so the shell is cached.
-      if (!navigator.serviceWorker.controller) {
-        await new Promise((r) => navigator.serviceWorker.addEventListener("controllerchange", r));
-      }
-    });
+    // Wait until the worker is active and controls the page, so the shell is
+    // cached. Polling, not the one-off controllerchange event, which a slow
+    // run can miss; a page loaded before activation is reloaded once.
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    const controlled = () => page.evaluate(() => navigator.serviceWorker.controller !== null);
+    try {
+      await expect.poll(controlled, { timeout: 5_000 }).toBe(true);
+    } catch {
+      await page.reload();
+      await expect.poll(controlled, { timeout: 10_000 }).toBe(true);
+    }
 
     await createNote(page);
     await titleInput(page).fill("Written online");

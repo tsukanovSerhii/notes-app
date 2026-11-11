@@ -41,8 +41,20 @@ export function normalizeTags(tags: unknown): string[] {
 /** Turns one untrusted stored value into a Note, or null if it is unusable. */
 export function parseNote(value: unknown): Note | null {
   if (!isRecord(value)) return null;
-  const { id, title, content, pinned, tags, folderId, createdAt, updatedAt, editedAt, editedBy, trashedAt } =
-    value;
+  const {
+    id,
+    title,
+    content,
+    pinned,
+    tags,
+    folderId,
+    createdAt,
+    updatedAt,
+    editedAt,
+    editedBy,
+    trashedAt,
+    conflictOf,
+  } = value;
   if (typeof id !== "string" || !id) return null;
 
   const created = typeof createdAt === "number" ? createdAt : Date.now();
@@ -60,6 +72,7 @@ export function parseNote(value: unknown): Note | null {
     editedAt: typeof editedAt === "number" ? editedAt : updated,
     editedBy: typeof editedBy === "string" && editedBy ? editedBy.slice(0, 64) : null,
     trashedAt: typeof trashedAt === "number" && Number.isFinite(trashedAt) ? trashedAt : null,
+    conflictOf: typeof conflictOf === "string" && conflictOf ? conflictOf.slice(0, 200) : null,
   };
 }
 

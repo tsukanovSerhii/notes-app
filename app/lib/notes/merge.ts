@@ -43,15 +43,25 @@ export function mergeEntities<T extends Versioned>(
   );
 }
 
+/** The shape mergeData works on: plain notes on devices, sealed ones on the server. */
+export interface Mergeable<N extends Versioned & { folderId: string | null }, F extends Versioned> {
+  notes: N[];
+  folders: F[];
+  tombstones: Tombstones;
+}
+
 /**
  * Merges two replicas of the data. Commutative and idempotent, so the server
  * and every client converge on the same result whatever order syncs arrive in.
  */
-export function mergeData(a: NotesData, b: NotesData): NotesData {
+export function mergeData<
+  N extends Versioned & { folderId: string | null } = Note,
+  F extends Versioned = Folder,
+>(a: Mergeable<N, F>, b: Mergeable<N, F>): Mergeable<N, F> {
   const tombstones = mergeTombstones(a.tombstones, b.tombstones);
-  const folders = mergeEntities<Folder>(a.folders, b.folders, tombstones);
+  const folders = mergeEntities<F>(a.folders, b.folders, tombstones);
   const folderIds = new Set(folders.map((f) => f.id));
-  const notes = mergeEntities<Note>(a.notes, b.notes, tombstones).map((n) =>
+  const notes = mergeEntities<N>(a.notes, b.notes, tombstones).map((n) =>
     n.folderId && !folderIds.has(n.folderId) ? { ...n, folderId: null } : n
   );
   return { notes, folders, tombstones };

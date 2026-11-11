@@ -1,6 +1,11 @@
 import { mergeData } from "@/app/lib/notes/merge";
-import { parseData } from "@/app/lib/notes/storage";
-import { DEVICE_ID_PATTERN, SYNC_KEY_PATTERN, type SyncResponse } from "@/app/lib/sync/protocol";
+import {
+  DEVICE_ID_PATTERN,
+  PROTOCOL_VERSION,
+  SYNC_KEY_PATTERN,
+  type SyncResponse,
+} from "@/app/lib/sync/protocol";
+import { parseSealedData, type SealedData, type SealedFolder, type SealedNote } from "@/app/lib/sync/wire";
 import { conflictCopy, findLostEdits } from "@/app/lib/sync/conflicts";
 import {
   changedKeys,
@@ -24,6 +29,8 @@ export interface SyncRepository {
    * the space must not exist yet). Returns false when another write won.
    */
   put(spaceId: string, space: StoredSpace, expected: number | null): Promise<boolean>;
+  /** Removes a space; used to drop plaintext spaces left by earlier builds. */
+  delete(spaceId: string): Promise<void>;
 }
 
 export interface SyncResult {
@@ -54,17 +61,20 @@ function withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
 /** Builds the next stored space from the stored one and a device's replica. */
 function nextSpace(
   stored: StoredSpace,
-  incomingRaw: ReturnType<typeof parseData>,
+  incomingRaw: SealedData,
   base: number | null | undefined,
   device: string | null,
   at: number
 ) {
   const incoming = guardAgainstPruned(incomingRaw, stored, base);
-  let data = mergeData(stored.data, incoming);
+  const merge = (a: SealedData, b: SealedData) => mergeData<SealedNote, SealedFolder>(a, b);
+  let data = merge(stored.data, incoming);
   // Text that last-write-wins would overwrite is kept as a separate note.
-  const lost = base === undefined ? [] : findLostEdits(incoming, stored.data, base, device);
+  // The server cannot read text; it compares the devices' keyed text hashes.
+  const lost =
+    base === undefined ? [] : findLostEdits(incoming, stored.data, base, device, (n) => n.textHash);
   if (lost.length > 0) {
-    data = mergeData(data, { notes: lost.map((n) => conflictCopy(n, at)), folders: [], tombstones: {} });
+    data = merge(data, { notes: lost.map((n) => conflictCopy(n, at)), folders: [], tombstones: {} });
   }
 
   const version = stored.version + 1;
@@ -99,13 +109,20 @@ export async function handleSyncRequest(
   if (typeof body !== "object" || body === null) {
     return { status: 400, body: { error: "Expected a JSON object." } };
   }
-  const { key, data, since, deviceId, cursor } = body as {
+  const { v, key, data, since, deviceId, cursor, forgetLegacy } = body as {
+    v?: unknown;
     key?: unknown;
     data?: unknown;
     since?: unknown;
     deviceId?: unknown;
     cursor?: unknown;
+    forgetLegacy?: unknown;
   };
+  // Earlier builds sent the sync key itself and plaintext notes. Merging
+  // those with sealed data would corrupt both, so they are turned away.
+  if (v !== PROTOCOL_VERSION) {
+    return { status: 426, body: { error: "This version of NoteVoid is out of date. Reload the page." } };
+  }
   if (typeof key !== "string" || !SYNC_KEY_PATTERN.test(key)) {
     return { status: 400, body: { error: "Invalid sync key." } };
   }
@@ -120,7 +137,7 @@ export async function handleSyncRequest(
     };
   }
 
-  const incoming = parseData(data, { partial: true });
+  const incoming = parseSealedData(data);
   // Older clients send no `since`; they get no conflict copies.
   const base =
     since === null ? null : typeof since === "number" && Number.isFinite(since) ? since : undefined;
@@ -141,10 +158,18 @@ export async function handleSyncRequest(
     return { status: 503, body: { error: "The sync space is busy. Try again shortly." } };
   }
 
+  // A device upgrading from plaintext sync asks, once, for its old space to
+  // be erased. It proves it knew the old key by naming the space's id (a
+  // hash of that key), which only the server stored; the key is never sent.
+  if (typeof forgetLegacy === "string" && /^[a-f0-9]{64}$/.test(forgetLegacy) && forgetLegacy !== spaceId) {
+    await repo.delete(forgetLegacy);
+  }
+
   const { space, lost } = outcome;
   // A cursor ahead of the space means the server lost data; resend it all.
   const full = from === null || from > space.version;
-  const conflicts = lost.map((n) => n.title.trim() || "Untitled");
+  // Ids, not titles: the server cannot read titles. Devices look them up.
+  const conflicts = lost.map((n) => n.id);
   return {
     status: 200,
     body: {
@@ -169,6 +194,9 @@ export function createMemoryRepository(): SyncRepository & { spaces: Map<string,
       if ((current?.version ?? null) !== expected) return false;
       spaces.set(id, structuredClone(space));
       return true;
+    },
+    async delete(id) {
+      spaces.delete(id);
     },
   };
 }
