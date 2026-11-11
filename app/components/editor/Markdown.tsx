@@ -1,9 +1,12 @@
-import { memo, type ReactNode } from "react";
+import { memo, useContext, type ReactNode } from "react";
 import ReactMarkdown, { type Components, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CopyButton, HighlightedCode } from "@/app/components/editor/CodeBlock";
+import { WikiLinkContext } from "@/app/components/editor/wikiLinkContext";
+import { remarkWikiLinks, titleFromHref } from "@/app/lib/wikiLinks";
+import { useI18n } from "@/app/lib/i18n";
 
-const remarkPlugins: Options["remarkPlugins"] = [remarkGfm];
+const remarkPlugins: Options["remarkPlugins"] = [remarkGfm, remarkWikiLinks];
 
 function languageOf(className: string | undefined): string | null {
   return /language-([\w+-]+)/.exec(className ?? "")?.[1] ?? null;
@@ -15,7 +18,31 @@ function textOf(children: ReactNode): string {
   return "";
 }
 
+/** A `[[Title]]` link: opens the note, or offers to create it. */
+function WikiLink({ title, children }: { title: string; children: ReactNode }) {
+  const target = useContext(WikiLinkContext);
+  const { t } = useI18n();
+  if (!target) return <span>{children}</span>;
+  const exists = target.exists(title);
+  return (
+    <a
+      href={`#note=${encodeURIComponent(title)}`}
+      data-wiki-link={exists ? "found" : "missing"}
+      title={exists ? undefined : t.links.missing(title)}
+      onClick={(e) => {
+        e.preventDefault();
+        target.open(title);
+      }}
+      className={exists ? undefined : "opacity-70 decoration-dashed"}
+    >
+      {children}
+    </a>
+  );
+}
+
 const link: Components["a"] = ({ href, title, children }) => {
+  const wiki = titleFromHref(href);
+  if (wiki !== null) return <WikiLink title={wiki}>{children}</WikiLink>;
   const external = !!href && /^https?:\/\//i.test(href);
   return (
     <a

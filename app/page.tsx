@@ -27,6 +27,9 @@ import { cn } from "@/app/lib/cn";
 import { trashLabel } from "@/app/components/sidebar/NoteItem";
 import type { Note } from "@/app/types/note";
 import { useI18n } from "@/app/lib/i18n";
+import Backlinks from "@/app/components/editor/Backlinks";
+import { WikiLinkContext, type WikiLinkTarget } from "@/app/components/editor/wikiLinkContext";
+import { backlinks, findNoteByTitle } from "@/app/lib/wikiLinks";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   return (
@@ -72,6 +75,7 @@ export default function Home() {
   );
   const activeTrashed = activeNote?.trashedAt != null;
   const tags = useMemo(() => collectTags(notes), [notes]);
+  const linkedFrom = useMemo(() => (activeNote ? backlinks(notes, activeNote) : []), [notes, activeNote]);
   const folderCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const n of notes) if (n.folderId) counts.set(n.folderId, (counts.get(n.folderId) ?? 0) + 1);
@@ -142,6 +146,19 @@ export default function Home() {
       setDrawerOpen(false);
     },
     [store]
+  );
+
+  // [[Title]] links in the preview open that note, or create it.
+  const wikiTarget = useMemo<WikiLinkTarget>(
+    () => ({
+      exists: (title) => findNoteByTitle(notes, title) !== null,
+      open: (title) => {
+        const found = findNoteByTitle(notes, title);
+        if (found) store.select(found.id);
+        else store.create({ title, folderId: activeFilter.folderId });
+      },
+    }),
+    [notes, store, activeFilter.folderId]
   );
 
   const handleDelete = useCallback(
@@ -385,12 +402,18 @@ export default function Home() {
                     onTemplate={applyTemplate}
                   />
                 </div>
+                <Backlinks notes={linkedFrom} onOpen={handleSelect} />
               </section>
             )}
 
             {effectiveMode !== "edit" && (
-              <section className="min-w-0 flex-1 bg-bg-surface/35">
-                <Preview content={activeNote.content} />
+              <section className="flex min-w-0 flex-1 flex-col bg-bg-surface/35">
+                <div className="min-h-0 flex-1">
+                  <WikiLinkContext.Provider value={wikiTarget}>
+                    <Preview content={activeNote.content} />
+                  </WikiLinkContext.Provider>
+                </div>
+                {effectiveMode === "preview" && <Backlinks notes={linkedFrom} onOpen={handleSelect} />}
               </section>
             )}
           </>
