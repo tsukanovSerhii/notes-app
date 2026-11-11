@@ -16,6 +16,7 @@ export const uk: Messages = {
   plural: {
     notes: { one: "нотатка", few: "нотатки", many: "нотаток", other: "нотатки" },
     files: { one: "файл", few: "файли", many: "файлів", other: "файлу" },
+    folders: { one: "папка", few: "папки", many: "папок", other: "папки" },
     items: { one: "запис", few: "записи", many: "записів", other: "запису" },
     words: { one: "слово", few: "слова", many: "слів", other: "слова" },
     days: { one: "день", few: "дні", many: "днів", other: "дня" },
@@ -26,6 +27,7 @@ export const uk: Messages = {
   },
   menu: {
     importMarkdown: "Імпортувати Markdown-файли…",
+    importFolder: "Імпортувати теку нотаток…",
     restoreBackup: "Відновити з резервної копії…",
     downloadBackup: "Завантажити резервну копію (.json)",
     syncSettings: "Налаштування синхронізації…",
@@ -153,6 +155,8 @@ export const uk: Messages = {
     imported: (count) => `Імпортовано: ${count}`,
     skipped: (count) => `, пропущено: ${count}`,
     noMarkdown: "Немає Markdown-файлів для імпорту (.md, .markdown або .txt, до 5 МБ).",
+    vaultImported: (notes, folders) => `Імпортовано: ${notes} та ${folders}`,
+    vaultEmpty: "У цій теці немає Markdown-нотаток.",
     backupTooLarge: "Резервна копія більша за 5 МБ.",
     backupUnreadable: "Не вдалося прочитати файл резервної копії.",
     notABackup: "Цей файл не є резервною копією NoteVoid.",

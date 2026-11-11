@@ -17,6 +17,7 @@ export const en = {
   plural: {
     notes: { one: "note", other: "notes" } as Plural,
     files: { one: "file", other: "files" } as Plural,
+    folders: { one: "folder", other: "folders" } as Plural,
     items: { one: "item", other: "items" } as Plural,
     words: { one: "word", other: "words" } as Plural,
     days: { one: "day", other: "days" } as Plural,
@@ -27,6 +28,7 @@ export const en = {
   },
   menu: {
     importMarkdown: "Import Markdown files…",
+    importFolder: "Import a notes folder…",
     restoreBackup: "Restore from backup…",
     downloadBackup: "Download backup (.json)",
     syncSettings: "Sync settings…",
@@ -154,6 +156,8 @@ export const en = {
     imported: (count: string) => `Imported ${count}`,
     skipped: (count: string) => `, skipped ${count}`,
     noMarkdown: "No Markdown files to import (.md, .markdown or .txt, up to 5 MB).",
+    vaultImported: (notes: string, folders: string) => `Imported ${notes} and ${folders}`,
+    vaultEmpty: "No Markdown notes found in that folder.",
     backupTooLarge: "The backup is larger than 5 MB.",
     backupUnreadable: "Could not read the backup file.",
     notABackup: "This file is not a NoteVoid backup.",

@@ -43,7 +43,7 @@ export default function Workspace() {
   const { toast, showToast, dismissToast, showError, feedback } = useToast();
   const library = useLibraryView({ notes, trash, folders, activeNote, store });
   const actions = useNoteActions({ store, notes, trash, folders, activeNote, showToast });
-  const { importMarkdown, importBackup, importFiles } = useImport(store, library.activeFilter.folderId, feedback);
+  const { importMarkdown, importVault, importBackup, importFiles } = useImport(store, library.activeFilter.folderId, feedback);
   useConflictToasts(sync.client, showToast);
 
   const [viewMode, setViewMode] = useState<ViewMode>("split");
@@ -154,6 +154,7 @@ export default function Workspace() {
         <SyncButton sync={sync} onClick={() => setSyncOpen(true)} />
         <AppMenu
           onImportMarkdown={importMarkdown}
+          onImportFolder={importVault}
           onImportBackup={importBackup}
           onDownloadBackup={actions.downloadBackup}
           onOpenSync={() => setSyncOpen(true)}
