@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { readdirSync, readFileSync, statSync } from "fs";
-import path from "path";
+import { readFileSync } from "fs";
+import { storedSyncData } from "./syncStorage";
 import { gotoFresh, createNote, editor, noteList, titleInput, noteRow } from "./helpers";
 
 test.describe("Import & backup", () => {
@@ -115,13 +115,8 @@ test("syncs notes between two devices through the server", async ({ browser }) =
     .click();
   await expect(editor(phone)).toHaveValue("Laptop version");
 
-  // End-to-end encryption: the server's files never contain the notes' text or the key.
-  // (Only files this test wrote: earlier builds may have left plaintext ones.)
-  const dir = path.join(process.cwd(), ".data", "sync");
-  const stored = readdirSync(dir)
-    .filter((f) => statSync(path.join(dir, f)).mtimeMs >= startedAt)
-    .map((f) => readFileSync(path.join(dir, f), "utf8"))
-    .join(" ");
+  // End-to-end encryption: what the server stored never contains the notes' text or the key.
+  const stored = await storedSyncData(startedAt);
   expect(stored.length).toBeGreaterThan(0);
   for (const secret of [phoneTitle, "Phone version", "Laptop version", "Written on the laptop", key]) {
     expect(stored).not.toContain(secret);
