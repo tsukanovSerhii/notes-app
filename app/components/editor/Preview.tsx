@@ -21,7 +21,7 @@ export default function Preview({ content }: PreviewProps) {
         id="preview-content"
         aria-label={t.editor.preview}
         aria-busy={stale}
-        className="prose prose-invert max-w-none transition-opacity
+        className="prose dark:prose-invert max-w-none transition-opacity
           prose-headings:text-text-primary
           prose-p:text-text-secondary
           prose-li:text-text-secondary

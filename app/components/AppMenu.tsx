@@ -5,6 +5,7 @@ import Icon, { type IconName } from "@/app/components/ui/Icon";
 import { useDismiss } from "@/app/hooks/useDismiss";
 import { cn } from "@/app/lib/cn";
 import { LOCALES, LOCALE_NAMES, setLocale, useI18n } from "@/app/lib/i18n";
+import { useTheme } from "@/app/components/ThemeController";
 
 interface AppMenuProps {
   onImportMarkdown: (files: File[]) => void;
@@ -20,6 +21,7 @@ export default function AppMenu({
   onOpenSync,
 }: AppMenuProps) {
   const { t, locale } = useI18n();
+  const [theme, setTheme] = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const mdInput = useRef<HTMLInputElement>(null);
@@ -55,6 +57,23 @@ export default function AppMenu({
           <div className="my-1 h-px bg-border" />
           <MenuItem icon="cloud" label={t.menu.syncSettings} onSelect={onOpenSync} close={close} />
           <div className="my-1 border-t border-border" role="separator" />
+          <div role="group" aria-label={t.menu.theme} className="flex gap-1 px-1.5 py-1">
+            {(["system", "light", "dark"] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="menuitemradio"
+                aria-checked={theme === c}
+                onClick={() => setTheme(c)}
+                className={cn(
+                  "flex-1 rounded px-2 py-1 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none",
+                  theme === c ? "bg-accent-glow text-accent" : "text-text-muted hover:text-text-primary"
+                )}
+              >
+                {t.menu[c === "system" ? "themeSystem" : c === "light" ? "themeLight" : "themeDark"]}
+              </button>
+            ))}
+          </div>
           <div role="group" aria-label={t.menu.language} className="flex gap-1 px-1.5 py-1">
             {LOCALES.map((l) => (
               <button
