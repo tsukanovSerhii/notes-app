@@ -91,6 +91,13 @@ test.describe("mergeData", () => {
   });
 });
 
+test("reviveImported takes notes back out of the local trash", () => {
+  const local = data({ notes: [note("a", { trashedAt: 50, updatedAt: 50 })] });
+  const backup = data({ notes: [note("a", { content: "saved", updatedAt: 10 })] });
+  const merged = reviveImported(local, backup, 20);
+  expect(merged.notes).toEqual([note("a", { content: "saved", updatedAt: 51 })]);
+});
+
 test("reviveImported restores locally deleted notes with a fresh timestamp", () => {
   const local = data({ tombstones: { a: 10 } });
   const result = reviveImported(local, data({ notes: [note("a", { updatedAt: 1 })] }), 20);

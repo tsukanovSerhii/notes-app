@@ -59,8 +59,9 @@ export function mergeData(a: NotesData, b: NotesData): NotesData {
 
 /**
  * Prepares imported data (e.g. a backup) so it is restored even where the
- * user deleted those notes locally: revived entries get a fresh `updatedAt`
- * and their local tombstones are lifted.
+ * user deleted those notes locally, for good or into the trash: revived
+ * entries get an `updatedAt` newer than both the local copy and `now`, and
+ * their local tombstones are lifted.
  */
 export function reviveImported(
   local: NotesData,
@@ -68,10 +69,15 @@ export function reviveImported(
   now: number
 ): NotesData {
   const tombstones = { ...local.tombstones };
+  const trashed = new Map(
+    local.notes.filter((n) => n.trashedAt !== null).map((n) => [n.id, n.updatedAt])
+  );
   const revive = <T extends Versioned>(item: T): T => {
-    if (!(item.id in tombstones)) return item;
+    const deleted = item.id in tombstones;
+    if (!deleted && !trashed.has(item.id)) return item;
+    const localVersion = deleted ? tombstones[item.id] : trashed.get(item.id)!;
     delete tombstones[item.id];
-    return { ...item, updatedAt: Math.max(item.updatedAt, now) };
+    return { ...item, updatedAt: Math.max(item.updatedAt, now, localVersion + 1) };
   };
   return mergeData(
     { ...local, tombstones },

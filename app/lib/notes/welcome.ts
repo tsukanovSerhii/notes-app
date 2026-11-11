@@ -48,6 +48,7 @@ export function createWelcomeNotes(now: number): Note[] {
       createdAt: now,
       updatedAt: now,
       editedAt: now,
+      trashedAt: null,
     },
   ];
 }

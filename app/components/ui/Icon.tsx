@@ -9,6 +9,12 @@ const PATHS = {
     </>
   ),
   x: <path d="M18 6 6 18M6 6l12 12" />,
+  restore: (
+    <>
+      <path d="M3 7v6h6" />
+      <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
+    </>
+  ),
   trash: (
     <>
       <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />

@@ -11,6 +11,7 @@ export const note = (id: string, overrides: Partial<Note> = {}): Note => ({
   createdAt: 0,
   updatedAt: 0,
   editedAt: 0,
+  trashedAt: null,
   ...overrides,
 });
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { createNotesStore } from "@/app/lib/notes/store";
-import { sortNotes } from "@/app/lib/notes/reducer";
+import { liveNotes, sortNotes, trashedNotes } from "@/app/lib/notes/reducer";
 import { createIndexedDbPersistence } from "@/app/lib/notes/idb";
 import {
   createLocalStoragePersistence,
@@ -59,7 +59,8 @@ export function useNotes() {
     };
   }, []);
 
-  const notes = useMemo(() => sortNotes(snapshot.notes), [snapshot.notes]);
+  const notes = useMemo(() => sortNotes(liveNotes(snapshot.notes)), [snapshot.notes]);
+  const trash = useMemo(() => trashedNotes(snapshot.notes), [snapshot.notes]);
   const activeNote = useMemo(
     () => snapshot.notes.find((n) => n.id === snapshot.activeId) ?? null,
     [snapshot.notes, snapshot.activeId]
@@ -71,6 +72,7 @@ export function useNotes() {
 
   return {
     notes,
+    trash,
     folders,
     activeNote,
     lastDeleted: snapshot.lastDeleted,

@@ -8,6 +8,8 @@ import { cn } from "@/app/lib/cn";
 export interface LibraryFilter {
   folderId: string | null;
   tag: string | null;
+  /** Shows the trash instead of the library; folder and tag are ignored. */
+  trash: boolean;
 }
 
 interface LibraryNavProps {
@@ -15,6 +17,7 @@ interface LibraryNavProps {
   folderCounts: Map<string, number>;
   tags: { tag: string; count: number }[];
   totalCount: number;
+  trashCount: number;
   filter: LibraryFilter;
   onFilterChange: (filter: LibraryFilter) => void;
   onCreateFolder: (name: string) => void;
@@ -27,6 +30,7 @@ export default function LibraryNav({
   folderCounts,
   tags,
   totalCount,
+  trashCount,
   filter,
   onFilterChange,
   onCreateFolder,
@@ -43,8 +47,8 @@ export default function LibraryNav({
           icon="fileText"
           label="All notes"
           count={totalCount}
-          active={!filter.folderId}
-          onClick={() => onFilterChange({ ...filter, folderId: null })}
+          active={!filter.folderId && !filter.trash}
+          onClick={() => onFilterChange({ ...filter, folderId: null, trash: false })}
         />
         {folders.map((folder) =>
           editingId === folder.id ? (
@@ -65,8 +69,8 @@ export default function LibraryNav({
               icon="folder"
               label={folder.name}
               count={folderCounts.get(folder.id) ?? 0}
-              active={filter.folderId === folder.id}
-              onClick={() => onFilterChange({ ...filter, folderId: folder.id })}
+              active={filter.folderId === folder.id && !filter.trash}
+              onClick={() => onFilterChange({ ...filter, folderId: folder.id, trash: false })}
               actions={
                 <>
                   <RowAction label={`Rename ${folder.name}`} icon="pencil" onClick={() => setEditingId(folder.id)} />
@@ -83,6 +87,13 @@ export default function LibraryNav({
             />
           )
         )}
+        <NavRow
+          icon="trash"
+          label="Trash"
+          count={trashCount}
+          active={filter.trash}
+          onClick={() => onFilterChange({ folderId: null, tag: null, trash: true })}
+        />
         <li>
           {creating ? (
             <NameInput
@@ -120,7 +131,7 @@ export default function LibraryNav({
                   key={tag}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => onFilterChange({ ...filter, tag: active ? null : tag })}
+                  onClick={() => onFilterChange({ ...filter, tag: active ? null : tag, trash: false })}
                   className={cn(
                     "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
                     "focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none",

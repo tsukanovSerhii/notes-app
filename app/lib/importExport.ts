@@ -71,6 +71,7 @@ export function noteFromMarkdown(
     createdAt: now,
     updatedAt: now,
     editedAt: now,
+    trashedAt: null,
   };
 }
 

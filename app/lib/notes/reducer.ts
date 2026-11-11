@@ -16,13 +16,27 @@ export type NotesAction =
   | { type: "merge"; data: NotesData; mode: "sync" | "import"; now: number }
   | { type: "create"; note: Note }
   | { type: "update"; id: string; patch: NotePatch; now: number }
+  /** Moves a note to the trash. */
   | { type: "delete"; id: string; now: number }
   | { type: "undoDelete"; now: number }
+  | { type: "restore"; id: string; now: number }
+  /** Deletes notes for good, leaving tombstones for sync. */
+  | { type: "purge"; ids: string[]; now: number }
+  | { type: "purgeExpired"; now: number; maxAgeMs: number }
   | { type: "togglePin"; id: string; now: number }
   | { type: "select"; id: string | null }
   | { type: "createFolder"; folder: Folder }
   | { type: "renameFolder"; id: string; name: string; now: number }
   | { type: "deleteFolder"; id: string; now: number };
+
+/** How long a note stays in the trash before it is deleted for good. */
+export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+export const isTrashed = (note: Note) => note.trashedAt !== null;
+export const liveNotes = (notes: readonly Note[]) => notes.filter((n) => !isTrashed(n));
+/** Trashed notes, most recently deleted first. */
+export const trashedNotes = (notes: readonly Note[]) =>
+  notes.filter(isTrashed).sort((a, b) => b.trashedAt! - a.trashedAt!);
 
 export const initialNotesState: NotesState = {
   notes: [],
@@ -76,17 +90,45 @@ export function toData(state: NotesState): NotesData {
   return { notes: state.notes, folders: state.folders, tombstones: state.tombstones };
 }
 
+/** Keeps `preferred` if it still exists, else the top note outside the trash. */
 function pickActive(notes: readonly Note[], preferred: string | null): string | null {
   return notes.some((n) => n.id === preferred)
     ? preferred
-    : (sortNotes(notes)[0]?.id ?? null);
+    : (sortNotes(liveNotes(notes))[0]?.id ?? null);
 }
 
-function withoutKey(record: Tombstones, key: string): Tombstones {
-  if (!(key in record)) return record;
-  const next = { ...record };
-  delete next[key];
-  return next;
+function purge(state: NotesState, ids: ReadonlySet<string>, now: number): NotesState {
+  const doomed = state.notes.filter((n) => ids.has(n.id));
+  if (doomed.length === 0) return state;
+  const notes = state.notes.filter((n) => !ids.has(n.id));
+  const tombstones = { ...state.tombstones };
+  for (const n of doomed) tombstones[n.id] = stamp(n.updatedAt, now);
+  return {
+    ...state,
+    notes,
+    tombstones,
+    activeId: state.activeId && ids.has(state.activeId) ? pickActive(notes, null) : state.activeId,
+    lastDeleted: state.lastDeleted && ids.has(state.lastDeleted.id) ? null : state.lastDeleted,
+  };
+}
+
+function restore(state: NotesState, id: string, now: number): NotesState {
+  const note = state.notes.find((n) => n.id === id);
+  if (!note || !isTrashed(note)) return state;
+  const folderExists = !note.folderId || state.folders.some((f) => f.id === note.folderId);
+  // A fresh updatedAt makes the restore win over the trashing on other devices.
+  const restored: Note = {
+    ...note,
+    trashedAt: null,
+    folderId: folderExists ? note.folderId : null,
+    updatedAt: stamp(note.updatedAt, now),
+  };
+  return {
+    ...state,
+    notes: state.notes.map((n) => (n.id === id ? restored : n)),
+    activeId: id,
+    lastDeleted: state.lastDeleted?.id === id ? null : state.lastDeleted,
+  };
 }
 
 /**
@@ -164,38 +206,33 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
 
     case "delete": {
       const target = state.notes.find((n) => n.id === action.id);
-      if (!target) return state;
-      const notes = state.notes.filter((n) => n.id !== action.id);
+      if (!target || isTrashed(target)) return state;
+      const at = stamp(target.updatedAt, action.now);
+      const trashed: Note = { ...target, trashedAt: at, updatedAt: at };
+      const notes = state.notes.map((n) => (n.id === action.id ? trashed : n));
       return {
         ...state,
         notes,
-        tombstones: { ...state.tombstones, [action.id]: stamp(target.updatedAt, action.now) },
-        activeId:
-          state.activeId === action.id ? pickActive(notes, null) : state.activeId,
-        lastDeleted: target,
+        activeId: state.activeId === action.id ? pickActive(liveNotes(notes), null) : state.activeId,
+        lastDeleted: trashed,
       };
     }
 
-    case "undoDelete": {
-      const note = state.lastDeleted;
-      if (!note || state.notes.some((n) => n.id === note.id)) {
-        return { ...state, lastDeleted: null };
-      }
-      const folderExists =
-        !note.folderId || state.folders.some((f) => f.id === note.folderId);
-      // A fresh updatedAt makes the restore win over the tombstone on other devices.
-      const restored = {
-        ...note,
-        folderId: folderExists ? note.folderId : null,
-        updatedAt: stamp(note.updatedAt, action.now),
-      };
-      return {
-        ...state,
-        notes: [...state.notes, restored],
-        tombstones: withoutKey(state.tombstones, note.id),
-        activeId: note.id,
-        lastDeleted: null,
-      };
+    case "undoDelete":
+      return state.lastDeleted
+        ? { ...restore(state, state.lastDeleted.id, action.now), lastDeleted: null }
+        : state;
+
+    case "restore":
+      return restore(state, action.id, action.now);
+
+    case "purge":
+      return purge(state, new Set(action.ids), action.now);
+
+    case "purgeExpired": {
+      const cutoff = action.now - action.maxAgeMs;
+      const expired = state.notes.filter((n) => n.trashedAt !== null && n.trashedAt <= cutoff);
+      return purge(state, new Set(expired.map((n) => n.id)), action.now);
     }
 
     case "togglePin":

@@ -3,6 +3,7 @@ import {
   initialNotesState,
   notesReducer,
   toData,
+  TRASH_RETENTION_MS,
   type NotesAction,
   type NotesState,
 } from "@/app/lib/notes/reducer";
@@ -36,6 +37,7 @@ export interface NotesStoreOptions {
   seed?: (now: number) => Note[];
   /** Injectable so tests can drive the debounce without real waiting. */
   timers?: Timers;
+  trashRetentionMs?: number;
 }
 
 export interface NotesStore {
@@ -49,8 +51,13 @@ export interface NotesStore {
   getData(): NotesData;
   create(init?: Partial<Pick<Note, "title" | "content" | "folderId" | "tags">>): Note;
   update(id: string, patch: NotePatch): void;
+  /** Moves a note to the trash. */
   remove(id: string): void;
   undoDelete(): void;
+  restore(id: string): void;
+  /** Deletes a trashed note for good. */
+  purge(id: string): void;
+  emptyTrash(): void;
   togglePin(id: string): void;
   select(id: string | null): void;
   createFolder(name: string): Folder | null;
@@ -86,6 +93,7 @@ export function createNotesStore({
   createId = defaultCreateId,
   seed,
   timers = realTimers,
+  trashRetentionMs = TRASH_RETENTION_MS,
 }: NotesStoreOptions): NotesStore {
   let snapshot: NotesSnapshot = SERVER_SNAPSHOT;
   let startPromise: Promise<void> | null = null;
@@ -240,6 +248,8 @@ export function createNotesStore({
         markDirty(initialNotesState, state);
         void write();
       }
+      // Notes that sat in the trash past the retention period go for good.
+      dispatch({ type: "purgeExpired", now: now(), maxAgeMs: trashRetentionMs });
       persistence.subscribe?.(() => void reloadExternal());
       emit();
     })();
@@ -275,6 +285,7 @@ export function createNotesStore({
         createdAt: t,
         updatedAt: t,
         editedAt: t,
+        trashedAt: null,
       };
       dispatch({ type: "create", note });
       return note;
@@ -283,6 +294,14 @@ export function createNotesStore({
     update: (id, patch) => dispatch({ type: "update", id, patch, now: ts() }),
     remove: (id) => dispatch({ type: "delete", id, now: ts() }),
     undoDelete: () => dispatch({ type: "undoDelete", now: ts() }),
+    restore: (id) => dispatch({ type: "restore", id, now: ts() }),
+    purge: (id) => dispatch({ type: "purge", ids: [id], now: ts() }),
+    emptyTrash: () =>
+      dispatch({
+        type: "purge",
+        ids: snapshot.notes.filter((n) => n.trashedAt !== null).map((n) => n.id),
+        now: ts(),
+      }),
     togglePin: (id) => dispatch({ type: "togglePin", id, now: ts() }),
     select: (id) => dispatch({ type: "select", id }),
 
