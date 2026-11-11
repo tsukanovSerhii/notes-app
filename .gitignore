@@ -44,6 +44,10 @@ CLAUDE.md
 AGENTS.md
 .cursorrules
 .github/copilot-instructions.md
+/.claude/
+
+# personal planning notes
+/IMPROVEMENT_PLAN.md
 
 # debug
 npm-debug.log*
