@@ -87,6 +87,7 @@ export default function Sidebar({
                 onDelete={onDelete}
                 onTogglePin={onTogglePin}
                 onRestore={onRestore}
+                query={searchQuery}
               />
             ))}
           </ul>

@@ -4,7 +4,7 @@ import { memo } from "react";
 import type { Note } from "@/app/types/note";
 import Icon from "@/app/components/ui/Icon";
 import { cn } from "@/app/lib/cn";
-import { excerpt, relativeTime } from "@/app/lib/text";
+import { excerpt, highlight, relativeTime, searchSnippet } from "@/app/lib/text";
 import { TRASH_RETENTION_MS } from "@/app/lib/notes/reducer";
 import type { I18n } from "@/app/lib/i18n";
 import { useI18n } from "@/app/lib/i18n";
@@ -16,6 +16,25 @@ interface NoteItemProps {
   onDelete: (id: string) => void;
   onTogglePin: (id: string) => void;
   onRestore: (id: string) => void;
+  /** The active search, to highlight in the title and show text around a match. */
+  query?: string;
+}
+
+/** Text with the parts that match `query` marked. */
+function Highlighted({ text, query }: { text: string; query: string }) {
+  return (
+    <>
+      {highlight(text, query).map((seg, i) =>
+        seg.match ? (
+          <mark key={i} className="rounded-sm bg-accent/25 px-px text-inherit">
+            {seg.text}
+          </mark>
+        ) : (
+          seg.text
+        )
+      )}
+    </>
+  );
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -36,11 +55,13 @@ function NoteItem({
   onDelete,
   onTogglePin,
   onRestore,
+  query = "",
 }: NoteItemProps) {
   const i18n = useI18n();
   const { t } = i18n;
   const title = note.title.trim() || t.common.untitled;
-  const preview = excerpt(note.content, 80, title);
+  // While searching, show where the text matched instead of how it starts.
+  const preview = (query && searchSnippet(note.content, query)) || excerpt(note.content, 80, title);
   const trashed = note.trashedAt !== null;
 
   return (
@@ -67,11 +88,13 @@ function NoteItem({
           {note.pinned && (
             <Icon name="pin" size={12} className="shrink-0 text-accent" />
           )}
-          <span className="truncate">{title}</span>
+          <span className="truncate">
+            <Highlighted text={title} query={query} />
+          </span>
         </span>
         {preview && (
           <span className="mt-0.5 block truncate text-xs text-text-muted">
-            {preview}
+            <Highlighted text={preview} query={query} />
           </span>
         )}
         <span className="mt-1 flex items-center gap-1.5 overflow-hidden text-[11px] text-text-muted/80">
