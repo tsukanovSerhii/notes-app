@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type RefObject } from "react";
 import type { Note } from "@/features/notes/model/types";
 import Modal from "@/shared/ui/Modal";
 import Icon, { type IconName } from "@/shared/ui/Icon";
@@ -30,24 +30,25 @@ const MAX_NOTES = 8;
 /** Jump to any note or run any command from the keyboard. */
 export default function CommandPalette(props: CommandPaletteProps) {
   const { t } = useI18n();
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <Modal open={props.open} onClose={props.onClose} title={t.palette.label}>
+    <Modal open={props.open} onClose={props.onClose} title={t.palette.label} initialFocus={inputRef}>
       {/* Mounted only while open, so every opening starts empty. */}
-      {props.open && <PaletteBody {...props} />}
+      {props.open && <PaletteBody {...props} inputRef={inputRef} />}
     </Modal>
   );
 }
 
-function PaletteBody({ onClose, notes, commands, onOpenNote }: CommandPaletteProps) {
+function PaletteBody({
+  onClose,
+  notes,
+  commands,
+  onOpenNote,
+  inputRef,
+}: CommandPaletteProps & { inputRef: RefObject<HTMLInputElement | null> }) {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  // showModal() moves focus to the dialog's first button after mount; take it back.
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  }, []);
 
   const items = useMemo<Item[]>(() => {
     const live = notes.filter((n) => n.trashedAt === null);

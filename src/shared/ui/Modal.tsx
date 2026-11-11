@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import Icon from "@/shared/ui/Icon";
 import { useI18n } from "@/shared/i18n";
 
@@ -11,22 +11,30 @@ interface ModalProps {
   children: ReactNode;
   /** A wider dialog, for side-by-side content. */
   wide?: boolean;
+  /**
+   * Gets focus as the dialog opens. showModal() otherwise focuses the first
+   * button (Close), and focusing later loses keys typed in between.
+   */
+  initialFocus?: RefObject<HTMLElement | null>;
 }
 
 /**
  * Built on the native <dialog>: showModal() gives focus trapping, Escape to
  * close, an inert background and the top layer without extra code.
  */
-export default function Modal({ open, title, onClose, children, wide = false }: ModalProps) {
+export default function Modal({ open, title, onClose, children, wide = false, initialFocus }: ModalProps) {
   const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      initialFocus?.current?.focus();
+    }
     if (!open && dialog.open) dialog.close();
-  }, [open]);
+  }, [open, initialFocus]);
 
   return (
     <dialog
