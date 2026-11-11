@@ -105,7 +105,7 @@ function NoteItem({
             <Highlighted text={preview} query={query} />
           </span>
         )}
-        <span className="mt-1 flex items-center gap-1.5 overflow-hidden text-[11px] text-text-muted/80">
+        <span className="mt-1 flex items-center gap-1.5 overflow-hidden text-[11px] text-text-muted">
           {trashed ? (
             <span className="shrink-0">{trashLabel(note.trashedAt!, i18n)}</span>
           ) : (
@@ -117,7 +117,7 @@ function NoteItem({
             <span className="shrink-0 rounded bg-amber-400/15 px-1 text-amber-300">{t.note.conflictCopy}</span>
           )}
           {note.tags.slice(0, 2).map((tag) => (
-            <span key={tag} className="truncate text-accent/80">
+            <span key={tag} className="truncate text-accent">
               #{tag}
             </span>
           ))}
