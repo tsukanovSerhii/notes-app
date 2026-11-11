@@ -89,6 +89,11 @@ export function createSyncClient({
     unsubscribeData ??= store.subscribeData(() => client.scheduleSync());
   };
 
+  const retryIn = (ms: number) => {
+    if (timer) timers.clearTimeout(timer);
+    timer = timers.setTimeout(() => void client.syncNow(), ms);
+  };
+
   const round = async (key: string) => {
     if (!isOnline()) {
       set({ state: "offline" });
@@ -105,6 +110,12 @@ export function createSyncClient({
       const json = (await res.json().catch(() => null)) as
         | (SyncResponse & { error?: string })
         | null;
+      if (res.status === 429) {
+        // Rate limited: come back when the server says so instead of waiting
+        // for the next poll or edit.
+        const wait = Number(res.headers.get("Retry-After"));
+        retryIn((Number.isFinite(wait) && wait > 0 ? wait : 5) * 1000);
+      }
       if (!res.ok || !json) {
         throw new Error(json?.error ?? `Sync failed (${res.status})`);
       }
@@ -181,8 +192,7 @@ export function createSyncClient({
 
     scheduleSync() {
       if (!snapshot.key) return;
-      if (timer) timers.clearTimeout(timer);
-      timer = timers.setTimeout(() => void client.syncNow(), debounceMs);
+      retryIn(debounceMs);
     },
   };
 
