@@ -5,6 +5,7 @@ import type { Folder, Note } from "@/features/notes/model/types";
 import { collectTags, filterNotes, sortNotes, type SortMode } from "@/features/notes/model/reducer";
 import type { NotesStore } from "@/features/notes/state/store";
 import type { LibraryFilter } from "@/features/library/LibraryNav";
+import { useNoteSearch } from "@/features/library/search/useNoteSearch";
 import { usePreference } from "@/shared/hooks/usePreference";
 import { useI18n } from "@/shared/i18n";
 
@@ -45,13 +46,18 @@ export function useLibraryView({
     [filter, folders, notes]
   );
 
-  const visibleNotes = useMemo(
-    () =>
-      activeFilter.trash
-        ? filterNotes(trash, { query: searchQuery }) // the trash keeps deletion order
-        : sortNotes(filterNotes(notes, { query: searchQuery, ...activeFilter }), sortMode),
-    [notes, trash, searchQuery, activeFilter, sortMode]
-  );
+  // Ranked results from the search worker; null until it has answered.
+  const ranked = useNoteSearch(notes, activeFilter.trash ? "" : searchQuery);
+  const visibleNotes = useMemo(() => {
+    if (activeFilter.trash) return filterNotes(trash, { query: searchQuery }); // the trash keeps deletion order
+    if (ranked) {
+      // Best match first, still narrowed by the folder and tag filter.
+      const byId = new Map(notes.map((n) => [n.id, n]));
+      const hits = ranked.flatMap((id) => byId.get(id) ?? []);
+      return filterNotes(hits, { folderId: activeFilter.folderId, tag: activeFilter.tag });
+    }
+    return sortNotes(filterNotes(notes, { query: searchQuery, ...activeFilter }), sortMode);
+  }, [notes, trash, searchQuery, activeFilter, sortMode, ranked]);
   const tags = useMemo(() => collectTags(notes), [notes]);
   const folderCounts = useMemo(() => {
     const counts = new Map<string, number>();
