@@ -49,6 +49,12 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 - **Sync** (optional): turn it on, copy the sync key, paste it on another
   device. Changes merge in both directions.
 
+**Offline and security**
+- **Installable PWA** that opens and works without a network after the first
+  visit (service worker caches the app shell; notes are already local).
+- **Nonce-based Content Security Policy** plus hardening headers, and a
+  rate-limited sync endpoint.
+
 **Quality**
 - Responsive layout (the notes list is a drawer on phones). Semantic markup,
   labelled controls, focus rings, WCAG AA contrast, `prefers-reduced-motion`.
@@ -100,7 +106,7 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 - **The logic has no React and no DOM.** The reducer, merge, validation,
   highlighter, import parsing and the sync handler are plain functions. The
   store and the sync client get their persistence, clock, ID generator, timers
-  and `fetch` injected. That is why 92 unit tests run in about 3 seconds with no
+  and `fetch` injected. That is why 107 unit tests run in about 3 seconds with no
   browser.
 - **IndexedDB with incremental writes.** The store diffs note references
   between states, collects the changed IDs, and writes only those records plus
@@ -133,6 +139,20 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
   memoised per block and skipped for huge blocks, merges keep object identity
   for unchanged notes (memoised rows don't re-render), and the PDF tree and
   `html2pdf.js` load only during export.
+- **Offline without a library.** A small hand-written service worker
+  (`public/sw.js`) serves navigations network-first with a 3 s timeout and a
+  cached fallback, and hashed `/_next/static` files cache-first. It precaches
+  the page and everything it references on install, and the page hands over
+  chunks it loaded before the worker took control, so the first visit is
+  already complete offline. It is registered only in production builds.
+- **Defence in depth against XSS.** The sync key sits in `localStorage`, so
+  `proxy.ts` sends a per-request nonce CSP with `'strict-dynamic'`: only
+  scripts Next.js stamped can run, lazily loaded chunks still work, and
+  injected inline handlers are blocked. The root layout renders per request
+  so the nonce can be applied.
+- **Rate limiting before work.** Token buckets limit sync requests per IP
+  before the body is read and per space before any storage access, and
+  return `429` with `Retry-After`, which the sync client honours.
 
 ---
 
@@ -155,6 +175,11 @@ The sync API runs inside the Next.js server, so no separate service is needed.
 | --- | --- | --- |
 | `SYNC_DATA_DIR` | `.data/sync` | Where sync spaces are stored (one JSON file each) |
 | `SYNC_DISABLED` | unset | Set to `true` to turn the endpoint off |
+| `SYNC_RATE_LIMIT_IP` | `120` | Sync requests per minute per client IP (`0` turns it off) |
+| `SYNC_RATE_LIMIT_SPACE` | `240` | Sync requests per minute per sync space (`0` turns it off) |
+
+The per-IP limit reads `X-Forwarded-For`, so behind a reverse proxy make sure
+the proxy sets it. Limits are kept in memory, which suits a single server.
 
 On serverless hosts with a read-only file system, implement `SyncRepository`
 for a database.
@@ -174,17 +199,21 @@ for a database.
 
 ## Testing
 
-- **Unit tests** (`app/**/*.test.ts`, 92 tests) cover the reducer, merge
+- **Unit tests** (`app/**/*.test.ts`, 107 tests) cover the reducer, merge
   properties (commutative, idempotent, tombstones), validation and migration,
   the store (incremental and debounced writes, failures, cross-tab reloads,
   unload journal), the highlighter, import/backup parsing, the sync server
   (validation, merging, concurrent writes) and the sync client (two devices
-  converging through the handler, debounce, errors). They run on the
+  converging through the handler, debounce, errors, `Retry-After`), the rate
+  limiter and the security headers. They run on the
   Playwright runner without a browser.
-- **End-to-end tests** (`e2e/`, 33 tests) cover the whole app, including
+- **End-to-end tests** (`e2e/`, 38 tests) cover the whole app, including
   folders, tags, highlighting, IndexedDB storage, migration from
   localStorage, Markdown import, backup and restore, and **two browser
-  contexts syncing through the real API route**.
+  contexts syncing through the real API route**, the CSP (every script is
+  nonced, no violations, injected handlers are blocked) and **opening and
+  editing notes offline**. The offline tests need the production build, so
+  they run in CI or locally with `npm run build && CI=1 npm run test:e2e`.
 
 ```bash
 npx playwright install chromium   # first run only
@@ -208,13 +237,17 @@ app/
     sidebar/     Sidebar, LibraryNav, NoteItem, SearchBar
     sync/        SyncButton, SyncDialog
     ui/          Button, Icon, Modal, Toast, GalaxyBackground, FloatingElements
-    AppMenu, DropOverlay
+    AppMenu, DropOverlay, ServiceWorker
   hooks/         useNotes, useSync, useImport, useDismiss, useMediaQuery
   lib/
     notes/       reducer, merge, storage, persistence, idb, store, welcome
-    sync/        protocol, client, server, fileRepository
+    sync/        protocol, client, server, fileRepository, rateLimit
+    security/    CSP and security headers
     highlight, importExport, markdownActions, textarea, text, templates
   types/         Note, Folder, NotesData
+  manifest.ts    Web app manifest
+public/          Service worker and app icons
+proxy.ts         Per-request CSP nonce
 e2e/             Playwright end-to-end tests
 ```
 
@@ -225,3 +258,7 @@ e2e/             Playwright end-to-end tests
 - Field-level merge, so two devices editing different fields of a note
   don't overwrite each other
 - Drag and drop of notes between folders
+
+## License
+
+[MIT](LICENSE)
