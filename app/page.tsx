@@ -19,7 +19,8 @@ import SyncDialog from "@/app/components/sync/SyncDialog";
 import Button from "@/app/components/ui/Button";
 import Icon from "@/app/components/ui/Icon";
 import Toast, { type ToastMessage } from "@/app/components/ui/Toast";
-import { collectTags, filterNotes } from "@/app/lib/notes/reducer";
+import { collectTags, filterNotes, sortNotes, type SortMode } from "@/app/lib/notes/reducer";
+import { usePreference } from "@/app/hooks/usePreference";
 import { backupFileName, createBackup } from "@/app/lib/importExport";
 import { downloadText } from "@/app/lib/download";
 import type { NoteTemplate } from "@/app/lib/templates";
@@ -30,6 +31,8 @@ import { useI18n } from "@/app/lib/i18n";
 import Backlinks from "@/app/components/editor/Backlinks";
 import { WikiLinkContext, type WikiLinkTarget } from "@/app/components/editor/wikiLinkContext";
 import { backlinks, findNoteByTitle } from "@/app/lib/wikiLinks";
+
+const isSortMode = (v: unknown): v is SortMode => v === "edited" || v === "created" || v === "title";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   return (
@@ -66,12 +69,13 @@ export default function Home() {
     [filter, folders, notes]
   );
 
+  const [sortMode, setSortMode] = usePreference<SortMode>("notevoid-sort", "edited", isSortMode);
   const visibleNotes = useMemo(
     () =>
       activeFilter.trash
-        ? filterNotes(trash, { query: searchQuery })
-        : filterNotes(notes, { query: searchQuery, ...activeFilter }),
-    [notes, trash, searchQuery, activeFilter]
+        ? filterNotes(trash, { query: searchQuery }) // the trash keeps deletion order
+        : sortNotes(filterNotes(notes, { query: searchQuery, ...activeFilter }), sortMode),
+    [notes, trash, searchQuery, activeFilter, sortMode]
   );
   const activeTrashed = activeNote?.trashedAt != null;
   const tags = useMemo(() => collectTags(notes), [notes]);
@@ -179,6 +183,17 @@ export default function Home() {
     [notes, trash, store, showToast, t]
   );
 
+  const handleDropNote = (id: string, target: { folderId: string | null } | "trash") => {
+    if (target === "trash") return handleDelete(id);
+    const note = notes.find((n) => n.id === id);
+    if (!note || note.folderId === target.folderId) return;
+    store.update(id, { folderId: target.folderId });
+    const folder = folders.find((f) => f.id === target.folderId);
+    showToast({
+      text: t.toast.movedToFolder(note.title.trim() || t.common.untitled, folder?.name ?? t.sidebar.allNotes),
+    });
+  };
+
   const handleRestore = useCallback(
     (id: string) => {
       const note = trash.find((n) => n.id === id);
@@ -279,6 +294,7 @@ export default function Home() {
           }}
           onRenameFolder={store.renameFolder}
           onDeleteFolder={handleDeleteFolder}
+          onDropNote={handleDropNote}
         />
       }
       onSearchChange={setSearchQuery}
@@ -287,6 +303,8 @@ export default function Home() {
       onTogglePin={store.togglePin}
       onRestore={handleRestore}
       onCreate={handleCreate}
+      sortMode={activeFilter.trash ? undefined : sortMode}
+      onSortChange={setSortMode}
     />
   );
 

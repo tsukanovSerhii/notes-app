@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Folder } from "@/app/types/note";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
+import { NOTE_DRAG_TYPE } from "@/app/components/sidebar/NoteItem";
 import { cn } from "@/app/lib/cn";
 import { useI18n } from "@/app/lib/i18n";
 
@@ -24,6 +25,8 @@ interface LibraryNavProps {
   onCreateFolder: (name: string) => void;
   onRenameFolder: (id: string, name: string) => void;
   onDeleteFolder: (id: string) => void;
+  /** A note dropped on a row: into a folder (or out of folders with null), or the trash. */
+  onDropNote: (noteId: string, target: { folderId: string | null } | "trash") => void;
 }
 
 export default function LibraryNav({
@@ -37,6 +40,7 @@ export default function LibraryNav({
   onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
+  onDropNote,
 }: LibraryNavProps) {
   const { t } = useI18n();
   const [creating, setCreating] = useState(false);
@@ -51,6 +55,7 @@ export default function LibraryNav({
           count={totalCount}
           active={!filter.folderId && !filter.trash}
           onClick={() => onFilterChange({ ...filter, folderId: null, trash: false })}
+          onDropNote={(id) => onDropNote(id, { folderId: null })}
         />
         {folders.map((folder) =>
           editingId === folder.id ? (
@@ -73,6 +78,7 @@ export default function LibraryNav({
               count={folderCounts.get(folder.id) ?? 0}
               active={filter.folderId === folder.id && !filter.trash}
               onClick={() => onFilterChange({ ...filter, folderId: folder.id, trash: false })}
+              onDropNote={(id) => onDropNote(id, { folderId: folder.id })}
               actions={
                 <>
                   <RowAction label={t.library.rename(folder.name)} icon="pencil" onClick={() => setEditingId(folder.id)} />
@@ -95,6 +101,7 @@ export default function LibraryNav({
           count={trashCount}
           active={filter.trash}
           onClick={() => onFilterChange({ folderId: null, tag: null, trash: true })}
+          onDropNote={(id) => onDropNote(id, "trash")}
         />
         <li>
           {creating ? (
@@ -160,6 +167,7 @@ function NavRow({
   active,
   onClick,
   actions,
+  onDropNote,
 }: {
   icon: IconName;
   label: string;
@@ -167,17 +175,36 @@ function NavRow({
   active: boolean;
   onClick: () => void;
   actions?: React.ReactNode;
+  onDropNote?: (noteId: string) => void;
 }) {
+  const [over, setOver] = useState(false);
+  const accepts = (e: React.DragEvent) => !!onDropNote && e.dataTransfer.types.includes(NOTE_DRAG_TYPE);
   return (
     <li className="group relative">
       <button
         type="button"
         onClick={onClick}
+        onDragOver={(e) => {
+          if (!accepts(e)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          setOver(false);
+          if (!accepts(e)) return;
+          e.preventDefault();
+          const id = e.dataTransfer.getData(NOTE_DRAG_TYPE);
+          if (id) onDropNote!(id);
+        }}
+        data-drop-over={over || undefined}
         aria-current={active ? "true" : undefined}
         className={cn(
           "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
           "focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none",
-          active ? "bg-accent-glow text-accent" : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
+          active ? "bg-accent-glow text-accent" : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary",
+          over && "ring-2 ring-inset ring-accent"
         )}
       >
         <Icon name={icon} size={14} className="shrink-0" />

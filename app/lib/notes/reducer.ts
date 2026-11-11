@@ -60,11 +60,18 @@ export interface NoteFilter {
   tag?: string | null;
 }
 
-/** Pinned notes first, then most recently edited. */
-export function sortNotes(notes: readonly Note[]): Note[] {
-  return [...notes].sort(
-    (a, b) => Number(b.pinned) - Number(a.pinned) || b.editedAt - a.editedAt
-  );
+export type SortMode = "edited" | "created" | "title";
+
+const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+
+/** Pinned notes first, then by `mode` (default: most recently edited). */
+export function sortNotes(notes: readonly Note[], mode: SortMode = "edited"): Note[] {
+  const by: Record<SortMode, (a: Note, b: Note) => number> = {
+    edited: (a, b) => b.editedAt - a.editedAt,
+    created: (a, b) => b.createdAt - a.createdAt,
+    title: (a, b) => collator.compare(a.title.trim(), b.title.trim()) || b.editedAt - a.editedAt,
+  };
+  return [...notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || by[mode](a, b));
 }
 
 export function filterNotes(

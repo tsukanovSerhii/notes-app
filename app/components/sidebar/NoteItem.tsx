@@ -20,6 +20,9 @@ interface NoteItemProps {
   query?: string;
 }
 
+/** The drag type of a note being moved inside the app (files use "Files"). */
+export const NOTE_DRAG_TYPE = "application/x-notevoid-note";
+
 /** Text with the parts that match `query` marked. */
 function Highlighted({ text, query }: { text: string; query: string }) {
   return (
@@ -75,6 +78,11 @@ function NoteItem({
     >
       <button
         type="button"
+        draggable={!trashed}
+        onDragStart={(e) => {
+          e.dataTransfer.setData(NOTE_DRAG_TYPE, note.id);
+          e.dataTransfer.effectAllowed = "move";
+        }}
         onClick={() => onSelect(note.id)}
         aria-current={active ? "true" : undefined}
         className="block w-full rounded-md py-2.5 pl-3 pr-16 text-left focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"

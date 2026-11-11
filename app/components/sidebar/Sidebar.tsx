@@ -2,6 +2,7 @@
 
 import type { ReactNode, Ref } from "react";
 import type { Note } from "@/app/types/note";
+import type { SortMode } from "@/app/lib/notes/reducer";
 import SearchBar from "@/app/components/sidebar/SearchBar";
 import NoteItem from "@/app/components/sidebar/NoteItem";
 import Button from "@/app/components/ui/Button";
@@ -24,6 +25,8 @@ interface SidebarProps {
   onCreate: () => void;
   /** Extra control next to the list title, e.g. "Empty trash". */
   listAction?: ReactNode;
+  sortMode?: SortMode;
+  onSortChange?: (mode: SortMode) => void;
 }
 
 export default function Sidebar({
@@ -41,6 +44,8 @@ export default function Sidebar({
   onRestore,
   onCreate,
   listAction,
+  sortMode,
+  onSortChange,
 }: SidebarProps) {
   const { t } = useI18n();
   return (
@@ -68,6 +73,19 @@ export default function Sidebar({
           <span className="truncate">{listTitle}</span>
           <span className="flex items-center gap-1.5">
             {listAction}
+            {sortMode && onSortChange && (
+              <select
+                value={sortMode}
+                onChange={(e) => onSortChange(e.target.value as SortMode)}
+                aria-label={t.sidebar.sortBy}
+                title={t.sidebar.sortBy}
+                className="cursor-pointer rounded bg-transparent text-[10px] font-medium normal-case tracking-normal text-text-muted outline-none hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent/60"
+              >
+                <option value="edited" className="bg-bg-elevated">{t.sidebar.sortEdited}</option>
+                <option value="created" className="bg-bg-elevated">{t.sidebar.sortCreated}</option>
+                <option value="title" className="bg-bg-elevated">{t.sidebar.sortTitle}</option>
+              </select>
+            )}
             <span className="rounded-full bg-bg-elevated px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal">
               {notes.length}
             </span>
