@@ -114,17 +114,43 @@ backed by Postgres. Encryption uses the built-in Web Crypto API.
                  └─────────────────────────────────────────────────┘     └► mergeData ► SyncRepository
 ```
 
-| Layer | File | Responsibility |
+### Layers
+
+The code is organised by feature, not by kind of file. Everything a
+feature needs (components, hooks, pure logic and its tests) sits in one
+folder, so a change to sync, say, stays inside `src/features/sync`.
+
+| Layer | Folder | What belongs there |
 | --- | --- | --- |
-| Model | [`app/types/note.ts`](app/types/note.ts) | `Note`, `Folder`, `Tombstones`, `NotesData` |
-| Reducer | [`app/lib/notes/reducer.ts`](app/lib/notes/reducer.ts) | Pure transitions: notes, folders, tags, delete/undo, merge |
-| Merge | [`app/lib/notes/merge.ts`](app/lib/notes/merge.ts) | Last-write-wins merge with tombstones, shared by client and server |
-| Validation | [`app/lib/notes/storage.ts`](app/lib/notes/storage.ts) | Parses untrusted data (storage, backups, the API); reads legacy formats |
-| Persistence | [`idb.ts`](app/lib/notes/idb.ts), [`persistence.ts`](app/lib/notes/persistence.ts) | IndexedDB with incremental writes, an unload journal and migration; localStorage and in-memory implementations |
-| Store | [`app/lib/notes/store.ts`](app/lib/notes/store.ts) | Async hydration, dirty tracking, debounced saves, save status, cross-tab reloads |
-| Sync | [`app/lib/sync/`](app/lib/sync/) | Client (debounce, no overlapping requests, offline and error states), server handler, file repository |
-| API | [`app/api/sync/route.ts`](app/api/sync/route.ts) | Size limits and validation, then the shared handler |
-| Highlighter | [`app/lib/highlight.ts`](app/lib/highlight.ts) | Sticky-regex tokenizer that returns tokens rendered as React spans |
+| Routes | [`src/app/`](src/app/) | Next.js routes only: the layout, the page (one `<Workspace />`), the manifest and the `/api/sync` route |
+| Features | [`src/features/`](src/features/) | One folder per feature, listed below |
+| Shared | [`src/shared/`](src/shared/) | Building blocks that know nothing about notes: UI primitives, hooks, text and clock helpers, translations, security headers |
+
+The dependency rules are enforced by ESLint (`no-restricted-imports` in
+[`eslint.config.mjs`](eslint.config.mjs)), so `npm run lint` fails when one
+is broken:
+
+- `shared` imports neither features nor routes;
+- features never import routes;
+- `notes`, the core model, depends on no other feature;
+- browser code never imports the sync server, so server code cannot end up
+  in the client bundle.
+
+### Features
+
+| Feature | Responsibility | Key files |
+| --- | --- | --- |
+| [`notes`](src/features/notes/) | The core: model, pure reducer and merge, validation, the store, IndexedDB/localStorage persistence | `model/types`, `model/reducer`, `model/merge`, `model/schema`, `state/store`, `persistence/indexedDb` |
+| [`library`](src/features/library/) | The sidebar: folders, tags, trash, the note list | `Sidebar`, `LibraryNav`, `NoteItem` |
+| [`editor`](src/features/editor/) | Writing: textarea, toolbar, shortcuts, folder and tag field, templates | `Editor`, `Toolbar`, `lib/markdownActions` |
+| [`markdown`](src/features/markdown/) | Rendering: preview, syntax highlighting, wiki links and backlinks, KaTeX, Mermaid | `Markdown`, `lib/highlight`, `lib/wikiLinks`, `lib/extras` |
+| [`history`](src/features/history/) | Local version history and its dialog | `history`, `noteHistory`, `HistoryDialog` |
+| [`sync`](src/features/sync/) | Encrypted sync, split into `shared` (protocol, wire format), `client` (sync client, crypto, UI) and `server` (handler, conflicts, repositories, rate limits) | `client/syncClient`, `client/crypto`, `server/handler` |
+| [`transfer`](src/features/transfer/) | Import, backup and export | `importExport`, `ExportMenu`, `DropOverlay` |
+| [`palette`](src/features/palette/) | The command palette and fuzzy matching | `CommandPalette`, `fuzzy` |
+| [`theme`](src/features/theme/) | Light, dark and system themes | `theme`, `ThemeController` |
+| [`offline`](src/features/offline/) | Service worker registration | `ServiceWorker` |
+| [`workspace`](src/features/workspace/) | The app shell that wires features together and owns cross-feature UI state | `Workspace`, `useLibraryView`, `useNoteActions`, `useCommands`, `NotePane` |
 
 ### Design decisions
 
@@ -292,14 +318,14 @@ on them.
 | `npm run build` / `npm start` | Production build and server |
 | `npm run lint` | ESLint (Next.js core-web-vitals + TypeScript rules) |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run test:unit` | Unit tests for `app/lib` |
+| `npm run test:unit` | Unit tests (`src/**/*.test.ts`) |
 | `npm run test:e2e` | Playwright end-to-end tests |
 | `npm test` | Unit tests, then end-to-end tests |
 | `npm run check` | Lint, typecheck and unit tests |
 
 ## Testing
 
-- **Unit tests** (`app/**/*.test.ts`, 187 tests) cover the reducer, merge
+- **Unit tests** (`src/**/*.test.ts`, 187 tests) cover the reducer, merge
   properties (commutative, idempotent, tombstones), validation and migration,
   the store (incremental and debounced writes, failures, cross-tab reloads,
   unload journal), the highlighter, import/backup parsing, the sync server
@@ -338,30 +364,36 @@ and the production build, then runs the end-to-end suite against
 ## Project structure
 
 ```
-app/
-  api/sync/      Sync Route Handler
-  components/
-    editor/      Editor, Toolbar, NoteMeta, StatusBar, Preview, Markdown,
-                 CodeBlock, ExportMenu, ViewModeToggle, MarkdownCheatsheet,
-                 Backlinks, HistoryDialog, MermaidDiagram
-    sidebar/     Sidebar, LibraryNav, NoteItem, SearchBar
-    sync/        SyncButton, SyncDialog
-    ui/          Button, Icon, Modal, Toast, GalaxyBackground, FloatingElements
-    AppMenu, DropOverlay, ServiceWorker, CommandPalette, ThemeController
-  hooks/         useNotes, useSync, useImport, useDismiss, useMediaQuery
-  lib/
-    notes/       reducer, merge, storage, persistence, idb, store, history, welcome
-    sync/        protocol, client, server, conflicts, crypto, wire, space, fileRepository, postgresRepository, rateLimit
-    security/    CSP and security headers
-    i18n/        typed dictionaries (en, uk), useI18n, plural rules
-    clock, fuzzy, highlight, importExport, markdownActions, markdownExtras,
-    textarea, text, templates, theme, wikiLinks
-  types/         Note, Folder, NotesData
-  manifest.ts    Web app manifest
-public/          Service worker and app icons
-proxy.ts         Per-request CSP nonce
-e2e/             Playwright end-to-end tests
+src/
+  app/                 Next.js routes
+    layout.tsx         HTML shell, theme boot script, service worker
+    page.tsx           renders <Workspace />
+    manifest.ts        web app manifest
+    api/sync/route.ts  sync endpoint: limits, then the sync handler
+  proxy.ts             per-request CSP nonce
+  features/
+    notes/             model/ state/ persistence/ testing.ts
+    library/           sidebar
+    editor/            editor and toolbar (+ lib/)
+    markdown/          preview and rendering (+ lib/)
+    history/           version history
+    sync/              shared/ client/ server/ testing.ts
+    transfer/          import, backup, export
+    palette/           command palette
+    theme/             themes
+    offline/           service worker registration
+    workspace/         app shell
+  shared/
+    ui/                Button, Icon, Modal, Toast, CopyButton, backgrounds
+    hooks/             useDismiss, useMediaQuery, usePreference
+    lib/               cn, text, clock, download
+    i18n/              en.ts, uk.ts, useI18n, plural rules
+    security/          CSP and security headers
+public/                service worker (sw.js) and app icons
+e2e/                   Playwright end-to-end tests
 ```
+
+Unit tests sit next to the code they test as `*.test.ts`.
 
 ## Possible next steps
 

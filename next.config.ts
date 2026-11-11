@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { STATIC_SECURITY_HEADERS } from "./app/lib/security/headers";
+import { STATIC_SECURITY_HEADERS } from "./src/shared/security/headers";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
