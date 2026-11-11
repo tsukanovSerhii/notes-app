@@ -211,6 +211,13 @@ test.describe("notesReducer", () => {
     expect(notesReducer(next, { type: "purgeExpired", now, maxAgeMs: TRASH_RETENTION_MS })).toBe(next);
   });
 
+  test("pruneTombstones forgets only tombstones past the TTL", () => {
+    const state = stateWith([], null, { tombstones: { old: 1, recent: 95 } });
+    const next = notesReducer(state, { type: "pruneTombstones", now: 100, maxAgeMs: 10 });
+    expect(next.tombstones).toEqual({ recent: 95 });
+    expect(notesReducer(next, { type: "pruneTombstones", now: 100, maxAgeMs: 10 })).toBe(next);
+  });
+
   test("trashing syncs: a newer restore on another device wins, a newer trash too", () => {
     const trashed = note("a", { trashedAt: 5, updatedAt: 5 });
     const restoredElsewhere = note("a", { trashedAt: null, updatedAt: 6 });

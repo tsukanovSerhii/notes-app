@@ -11,6 +11,11 @@ export interface SyncRequest {
   since?: number | null;
   /** Lets the server tell this device's edits from other devices'. */
   deviceId?: string;
+  /**
+   * The space version this device last received. With a cursor, `data` may
+   * hold only what changed locally and the reply only what changed remotely.
+   */
+  cursor?: number | null;
 }
 
 export interface SyncResponse {
@@ -18,6 +23,8 @@ export interface SyncResponse {
   syncedAt: number;
   /** Titles of notes whose overwritten text was kept as a conflict copy. */
   conflicts?: string[];
+  /** The space version this reply brings the device up to. */
+  cursor?: number;
 }
 
 export const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;

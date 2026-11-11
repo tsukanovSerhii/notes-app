@@ -1,4 +1,5 @@
 import type { NotesStore, Timers } from "@/app/lib/notes/store";
+import type { NotesData } from "@/app/types/note";
 import {
   SYNC_KEY_PATTERN,
   generateSyncKey,
@@ -52,6 +53,22 @@ export interface SyncClient {
   scheduleSync(): void;
 }
 
+/**
+ * The entities changed at or after `since`. Every local change is stamped by
+ * a clock that never runs backwards within a session, so anything changed
+ * after the last snapshot is included; things received from the server may
+ * be sent back too, which the merge makes harmless.
+ */
+export function changedSince(data: NotesData, since: number): NotesData {
+  const tombstones: NotesData["tombstones"] = {};
+  for (const [id, at] of Object.entries(data.tombstones)) if (at >= since) tombstones[id] = at;
+  return {
+    notes: data.notes.filter((n) => n.updatedAt >= since),
+    folders: data.folders.filter((f) => f.updatedAt >= since),
+    tombstones,
+  };
+}
+
 const OFF: SyncSnapshot = {
   state: "off",
   key: null,
@@ -92,6 +109,11 @@ export function createSyncClient({
   let unsubscribeData: (() => void) | null = null;
   const listeners = new Set<() => void>();
   let base: number | null = null;
+  /**
+   * The space version last received. Kept in memory only, so the first sync
+   * after a page load is always a full exchange in both directions.
+   */
+  let cursor: number | null = null;
 
   const setBase = (value: number | null) => {
     base = value;
@@ -144,8 +166,9 @@ export function createSyncClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           key,
-          data: store.getData(),
+          data: cursor === null || base === null ? store.getData() : changedSince(store.getData(), base),
           since: base,
+          cursor,
           ...(deviceId && { deviceId }),
         }),
       });
@@ -165,6 +188,7 @@ export function createSyncClient({
       if (snapshot.key !== key) return; // disabled or switched mid-request
       store.merge(parseData(json.data), "sync");
       setBase(snapshotAt);
+      cursor = typeof json.cursor === "number" ? json.cursor : null;
       const conflicts = Array.isArray(json.conflicts)
         ? json.conflicts.filter((t): t is string => typeof t === "string")
         : [];
@@ -203,6 +227,7 @@ export function createSyncClient({
       }
       keyStorage?.setItem(SYNC_KEY_STORAGE, next);
       setBase(null);
+      cursor = null;
       loaded = true;
       set({ state: "idle", key: next, error: null, lastSyncedAt: null });
       attach();
@@ -213,6 +238,7 @@ export function createSyncClient({
     disable() {
       keyStorage?.removeItem(SYNC_KEY_STORAGE);
       setBase(null);
+      cursor = null;
       if (timer) timers.clearTimeout(timer);
       timer = null;
       unsubscribeData?.();

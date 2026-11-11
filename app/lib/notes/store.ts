@@ -3,6 +3,7 @@ import {
   initialNotesState,
   notesReducer,
   toData,
+  TOMBSTONE_TTL_MS,
   TRASH_RETENTION_MS,
   type NotesAction,
   type NotesState,
@@ -253,6 +254,7 @@ export function createNotesStore({
       }
       // Notes that sat in the trash past the retention period go for good.
       dispatch({ type: "purgeExpired", now: now(), maxAgeMs: trashRetentionMs });
+      dispatch({ type: "pruneTombstones", now: now(), maxAgeMs: TOMBSTONE_TTL_MS });
       persistence.subscribe?.(() => void reloadExternal());
       emit();
     })();
