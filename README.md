@@ -51,10 +51,11 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 - **Backup**: download every note and folder as JSON, and restore it later,
   including notes deleted since the backup.
 - **Export** a note as a PDF or a `.md` file.
-- **Sync** (optional): turn it on, copy the sync key, paste it on another
-  device. Changes merge in both directions, and when two devices edit the
-  same note between syncs **neither text is lost**: the overwritten one is
-  kept as a "(conflict copy)" note.
+- **Sync** (optional, **end-to-end encrypted**): turn it on, copy the sync
+  key, paste it on another device. The server only ever sees ciphertext.
+  Changes merge in both directions, and when two devices edit the same note
+  between syncs **neither text is lost**: the overwritten one is kept as a
+  note marked "conflict copy".
 
 **Offline and security**
 - **Installable PWA** that opens and works without a network after the first
@@ -113,7 +114,7 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 - **The logic has no React and no DOM.** The reducer, merge, validation,
   highlighter, import parsing and the sync handler are plain functions. The
   store and the sync client get their persistence, clock, ID generator, timers
-  and `fetch` injected. That is why 152 unit tests run in about 3 seconds with no
+  and `fetch` injected. That is why 167 unit tests run in about 3 seconds with no
   browser.
 - **IndexedDB with incremental writes.** The store diffs note references
   between states, collects the changed IDs, and writes only those records plus
@@ -140,8 +141,8 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
   last merged snapshot, and a device id; notes record `editedBy`. Before
   merging, the server finds text that last-write-wins would drop: the
   device's own edits made after `since`, or other devices' edits it has not
-  seen. It keeps each as a "(conflict copy)" note whose id derives from the
-  lost version, so retries cannot duplicate it. `editedBy` rules out false
+  seen. It keeps each as a copy marked with `conflictOf`, whose id derives
+  from the lost version, so retries cannot duplicate it. `editedBy` rules out false
   alarms from text the device merely received and sent back, or its own
   earlier text from a reply that never arrived.
 - **A synced soft-delete.** Deleting sets `trashedAt`, which syncs like any
@@ -149,8 +150,21 @@ only `react-markdown`, `remark-gfm` and `html2pdf.js` at runtime.
 - **`updatedAt` versus `editedAt`.** `updatedAt` is the sync version and
   moves on every change; `editedAt` moves only when title or text change and
   is what the UI shows and sorts by.
-- **Sync without accounts.** The sync key is a random 144-bit bearer secret.
-  The server stores data under its SHA-256 hash and never stores the key.
+- **End-to-end encryption.** The sync key, a random 144-bit secret, never
+  leaves the device. HKDF-SHA256 derives three keys from it: a space token
+  sent in its place (the server files data under the token's SHA-256), an
+  AES-GCM-256 key that seals titles, text, tags and folder names with a
+  fresh IV, and an HMAC key for a hash of each note's text. Every blob is
+  bound to its entity's id as AES-GCM additional data, so the server cannot
+  move one note's text onto another. Ids, timestamps, pin, folder and trash
+  state stay readable, because the server merges and detects conflicts with
+  them; it compares texts only through their keyed hashes. A conflict copy
+  is marked with `conflictOf` rather than renamed, since the server cannot
+  rename what it cannot read. Earlier, unencrypted clients get `426`, and a
+  device's first encrypted sync erases its old plaintext space, naming it by
+  the hash of the key it was stored under so the key is not sent again.
+  Lose the key and the synced copy cannot be recovered; each device keeps
+  its own local copy regardless.
 - **Optimistic concurrency, so it scales out.** Storage sits behind a
   two-method `SyncRepository`; writes only succeed over the version that was
   read, and the handler retries with fresh data when another instance won.
@@ -250,20 +264,23 @@ on them.
 
 ## Testing
 
-- **Unit tests** (`app/**/*.test.ts`, 152 tests) cover the reducer, merge
+- **Unit tests** (`app/**/*.test.ts`, 167 tests) cover the reducer, merge
   properties (commutative, idempotent, tombstones), validation and migration,
   the store (incremental and debounced writes, failures, cross-tab reloads,
   unload journal), the highlighter, import/backup parsing, the sync server
   (validation, merging, concurrent writes, conflict detection, optimistic
   retries, deltas, tombstone pruning, every repository including Postgres) and the sync
   client (two devices converging through the handler, concurrent edits
-  keeping both texts, debounce, errors, `Retry-After`), the skew-corrected
+  keeping both texts, debounce, errors, `Retry-After`), encryption (key
+  derivation, sealing, wrong keys, tampering, moved blobs, the server never
+  holding plaintext or the key), the skew-corrected
   clock, the trash, the rate limiter and the security headers. They run on the
   Playwright runner without a browser.
 - **End-to-end tests** (`e2e/`, 41 tests) cover the whole app, including
   folders, tags, highlighting, IndexedDB storage, migration from
   localStorage, Markdown import, backup and restore, and **two browser
-  contexts syncing through the real API route** (concurrent edits included),
+  contexts syncing through the real API route** (concurrent edits included,
+  and a check that the server's files hold no plaintext),
   the trash, the CSP (every script is
   nonced, no violations, injected handlers are blocked) and **opening and
   editing notes offline**. The offline tests need the production build, so
@@ -295,7 +312,7 @@ app/
   hooks/         useNotes, useSync, useImport, useDismiss, useMediaQuery
   lib/
     notes/       reducer, merge, storage, persistence, idb, store, welcome
-    sync/        protocol, client, server, conflicts, space, fileRepository, postgresRepository, rateLimit
+    sync/        protocol, client, server, conflicts, crypto, wire, space, fileRepository, postgresRepository, rateLimit
     security/    CSP and security headers
     clock, highlight, importExport, markdownActions, textarea, text, templates
   types/         Note, Folder, NotesData
