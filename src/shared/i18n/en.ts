@@ -21,6 +21,7 @@ export const en = {
     items: { one: "item", other: "items" } as Plural,
     words: { one: "word", other: "words" } as Plural,
     days: { one: "day", other: "days" } as Plural,
+    links: { one: "link", other: "links" } as Plural,
   },
   header: {
     openList: "Open notes list",
@@ -29,6 +30,7 @@ export const en = {
   menu: {
     importMarkdown: "Import Markdown files…",
     importFolder: "Import a notes folder…",
+    graph: "Note graph",
     restoreBackup: "Restore from backup…",
     downloadBackup: "Download backup (.json)",
     syncSettings: "Sync settings…",
@@ -215,6 +217,12 @@ export const en = {
     themeSystem: "Follow the system theme",
     language: "Switch language to Українська",
     history: "Show note history",
+    graph: "Open the note graph",
+  },
+  graph: {
+    title: "Note graph",
+    empty: "No links between notes yet. Link notes with [[Note title]] and they appear here.",
+    isolated: (count: string) => `Not shown, because they have no links: ${count}.`,
   },
   history: {
     title: "Note history",

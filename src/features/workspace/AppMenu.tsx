@@ -13,6 +13,7 @@ interface AppMenuProps {
   onImportBackup: (file: File) => void;
   onDownloadBackup: () => void;
   onOpenSync: () => void;
+  onOpenGraph: () => void;
 }
 
 export default function AppMenu({
@@ -21,6 +22,7 @@ export default function AppMenu({
   onImportBackup,
   onDownloadBackup,
   onOpenSync,
+  onOpenGraph,
 }: AppMenuProps) {
   const { t, locale } = useI18n();
   const [theme, setTheme] = useTheme();
@@ -59,6 +61,7 @@ export default function AppMenu({
           <MenuItem icon="database" label={t.menu.restoreBackup} onSelect={() => backupInput.current?.click()} close={close} />
           <MenuItem icon="download" label={t.menu.downloadBackup} onSelect={onDownloadBackup} close={close} />
           <div className="my-1 h-px bg-border" />
+          <MenuItem icon="link" label={t.menu.graph} onSelect={onOpenGraph} close={close} />
           <MenuItem icon="cloud" label={t.menu.syncSettings} onSelect={onOpenSync} close={close} />
           <div className="my-1 border-t border-border" role="separator" />
           <div role="group" aria-label={t.menu.theme} className="flex gap-1 px-1.5 py-1">

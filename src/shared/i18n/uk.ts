@@ -20,6 +20,7 @@ export const uk: Messages = {
     items: { one: "запис", few: "записи", many: "записів", other: "запису" },
     words: { one: "слово", few: "слова", many: "слів", other: "слова" },
     days: { one: "день", few: "дні", many: "днів", other: "дня" },
+    links: { one: "посилання", few: "посилання", many: "посилань", other: "посилання" },
   },
   header: {
     openList: "Відкрити список нотаток",
@@ -28,6 +29,7 @@ export const uk: Messages = {
   menu: {
     importMarkdown: "Імпортувати Markdown-файли…",
     importFolder: "Імпортувати теку нотаток…",
+    graph: "Граф нотаток",
     restoreBackup: "Відновити з резервної копії…",
     downloadBackup: "Завантажити резервну копію (.json)",
     syncSettings: "Налаштування синхронізації…",
@@ -214,6 +216,12 @@ export const uk: Messages = {
     themeSystem: "Тема як у системі",
     language: "Switch language to English",
     history: "Історія нотатки",
+    graph: "Відкрити граф нотаток",
+  },
+  graph: {
+    title: "Граф нотаток",
+    empty: "Між нотатками ще немає посилань. Зв'язуйте їх через [[Назва нотатки]], і вони з'являться тут.",
+    isolated: (count) => `Не показано, бо без посилань: ${count}.`,
   },
   history: {
     title: "Історія нотатки",
