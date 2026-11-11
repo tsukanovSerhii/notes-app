@@ -25,13 +25,12 @@ test.describe("Security headers", () => {
     expect(headers["x-frame-options"]).toBe("DENY");
     expect(headers["x-powered-by"]).toBeUndefined();
 
-    // Every script Next.js rendered carries the nonce from the header.
+    // Every script in the server-rendered HTML carries the nonce from the
+    // header. (Scripts the runtime adds later are trusted via 'strict-dynamic'.)
     const nonce = /'nonce-([^']+)'/.exec(csp)![1];
-    const scripts = await page.locator("script").evaluateAll((els) =>
-      els.map((el) => (el as HTMLScriptElement).nonce)
-    );
-    expect(scripts.length).toBeGreaterThan(0);
-    expect(new Set(scripts)).toEqual(new Set([nonce]));
+    const tags = (await response!.text()).match(/<script\b[^>]*>/g) ?? [];
+    expect(tags.length).toBeGreaterThan(0);
+    for (const tag of tags) expect(tag).toContain(`nonce="${nonce}"`);
   });
 
   test("the app runs without CSP violations, PDF export included", async ({ page }) => {
