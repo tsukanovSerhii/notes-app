@@ -6,6 +6,12 @@ import { useI18n } from "@/shared/i18n";
 
 export type ViewMode = "edit" | "split" | "preview";
 
+/** edit → split → preview → edit; split is skipped on narrow screens. */
+export function nextViewMode(mode: ViewMode, allowSplit: boolean): ViewMode {
+  if (mode === "edit") return allowSplit ? "split" : "preview";
+  return mode === "split" ? "preview" : "edit";
+}
+
 const MODES: { mode: ViewMode; icon: IconName }[] = [
   { mode: "edit", icon: "pencil" },
   { mode: "split", icon: "columns" },
