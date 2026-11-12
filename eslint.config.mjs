@@ -44,7 +44,7 @@ const eslintConfig = defineConfig([
   ]),
   { files: ["src/features/**"], rules: restrict(ROUTES) },
   {
-    files: ["src/features/**/*.tsx", "src/features/**/client/**", "src/features/sync/shared/**", "src/features/sharing/shared/**"],
+    files: ["src/features/**/*.tsx", "src/features/**/client/**", "src/features/sync/shared/**", "src/features/sharing/shared/**", "src/features/recovery/shared/**"],
     ignores: ["**/*.test.ts"],
     rules: restrict(ROUTES, SYNC_SERVER),
   },
