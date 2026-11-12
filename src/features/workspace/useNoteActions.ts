@@ -6,6 +6,8 @@ import type { NoteVersion } from "@/features/history/history";
 import { historyRecorder } from "@/features/history/noteHistory";
 import type { NoteTemplate } from "@/features/editor/lib/templates";
 import { backupFileName, createBackup } from "@/features/transfer/importExport";
+import { collectBackupAttachments } from "@/features/transfer/backupAttachments";
+import { attachmentStore } from "@/features/attachments/localAttachments";
 import { findNoteByTitle, renameLinkTarget } from "@/features/markdown/lib/wikiLinks";
 import { canMoveFolder, folderPath } from "@/features/notes/model/folders";
 import { downloadText } from "@/shared/lib/download";
@@ -83,8 +85,9 @@ export function useNoteActions({
     });
   };
 
-  const downloadBackup = () => {
-    const backup = createBackup(store.getData());
+  const downloadBackup = async () => {
+    const data = store.getData();
+    const backup = createBackup(data, new Date(), await collectBackupAttachments(data.notes, attachmentStore));
     downloadText(backupFileName(), JSON.stringify(backup, null, 2), "application/json");
     showToast({ text: t.toast.backupDownloaded(count(backup.notes.length, t.plural.notes)) });
   };

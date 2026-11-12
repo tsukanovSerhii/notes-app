@@ -13,6 +13,7 @@ import SyncButton from "@/features/sync/client/SyncButton";
 import SyncDialog from "@/features/sync/client/SyncDialog";
 import { useImport } from "@/features/transfer/useImport";
 import { useAttachFiles } from "@/features/workspace/useAttachFiles";
+import { useAttachmentCleanup } from "@/features/attachments/useAttachmentCleanup";
 import ExportMenu, { type ExportActions } from "@/features/transfer/ExportMenu";
 import DropOverlay from "@/features/transfer/DropOverlay";
 import CommandPalette from "@/features/palette/CommandPalette";
@@ -49,6 +50,7 @@ export default function Workspace() {
   const actions = useNoteActions({ store, notes, trash, folders, activeNote, showToast });
   const { importMarkdown, importVault, importBackup, importFiles } = useImport(store, library.activeFilter.folderId, feedback);
   const { attachFiles, dropFiles } = useAttachFiles({ store, activeNote, feedback, importFiles });
+  useAttachmentCleanup(hydrated, () => store.getData().notes);
   useConflictToasts(sync.client, showToast);
 
   const [viewMode, setViewMode] = useState<ViewMode>("split");

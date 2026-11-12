@@ -11,6 +11,12 @@ import {
   parseBackup,
 } from "@/features/transfer/importExport";
 import { MAX_VAULT_FILE_BYTES, parseVault } from "@/features/transfer/importVault";
+import {
+  MAX_BACKUP_BYTES,
+  parseBackupAttachments,
+  restoreBackupAttachments,
+} from "@/features/transfer/backupAttachments";
+import { attachmentStore } from "@/features/attachments/localAttachments";
 import type { Note } from "@/features/notes/model/types";
 import { useI18n } from "@/shared/i18n";
 
@@ -107,8 +113,10 @@ export function useImport(store: NotesStore, folderId: string | null, feedback: 
   const importBackup = useCallback(
     async (file: File) => {
       try {
-        if (file.size > MAX_IMPORT_BYTES) throw new ImportError(t.toast.backupTooLarge);
-        const data = parseBackup(await file.text());
+        if (file.size > MAX_BACKUP_BYTES) throw new ImportError(t.toast.backupTooLarge);
+        const text = await file.text();
+        const data = parseBackup(text);
+        await restoreBackupAttachments(parseBackupAttachments(text), attachmentStore, Date.now());
         store.merge(data, "import");
         feedback.success(t.toast.restoredBackup(count(data.notes.length, t.plural.notes)));
       } catch (error) {
