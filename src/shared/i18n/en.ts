@@ -35,6 +35,7 @@ export const en = {
     shortcuts: "Keyboard shortcuts",
     restoreBackup: "Restore from backup…",
     downloadBackup: "Download backup (.json)",
+    exportZip: "Export all notes (.zip)",
     syncSettings: "Sync settings…",
     language: "Language",
     theme: "Theme",
@@ -181,6 +182,7 @@ export const en = {
     deletedManyForever: (count: string) => `Deleted ${count} forever`,
     restored: (title: string) => `Restored “${title}”`,
     folderDeleted: (name: string) => `Deleted folder “${name}”. What was in it was kept.`,
+    archiveDownloaded: (notes: string) => `Exported ${notes} as a ZIP of Markdown files`,
     tagRenamed: (from: string, to: string, notes: string) => `Renamed #${from} to #${to} in ${notes}`,
     tagMerged: (from: string, to: string, notes: string) => `Merged #${from} into #${to} in ${notes}`,
     tagDeleted: (tag: string, notes: string) => `Removed #${tag} from ${notes}`,
@@ -253,6 +255,7 @@ export const en = {
     graph: "Open the note graph",
     shortcuts: "Show keyboard shortcuts",
     manageTags: "Manage tags",
+    exportZip: "Export all notes as a ZIP of Markdown files",
   },
   graph: {
     title: "Note graph",

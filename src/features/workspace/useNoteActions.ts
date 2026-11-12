@@ -5,14 +5,15 @@ import type { NotesStore } from "@/features/notes/state/store";
 import type { NoteVersion } from "@/features/history/history";
 import { historyRecorder } from "@/features/history/noteHistory";
 import type { NoteTemplate } from "@/features/editor/lib/templates";
-import { backupFileName, createBackup } from "@/features/transfer/importExport";
+import { archiveFileName, backupFileName, createBackup } from "@/features/transfer/importExport";
 import { collectBackupAttachments } from "@/features/transfer/backupAttachments";
 import { attachmentStore } from "@/features/attachments/localAttachments";
 import { findNoteByTitle, renameLinkTarget } from "@/features/markdown/lib/wikiLinks";
 import { retag } from "@/features/library/lib/tagOps";
 import { normalizeTag } from "@/features/notes/model/schema";
 import { canMoveFolder, folderPath } from "@/features/notes/model/folders";
-import { downloadText } from "@/shared/lib/download";
+import { downloadBlob, downloadText } from "@/shared/lib/download";
+import { buildArchive } from "@/features/transfer/exportAll";
 import { useI18n } from "@/shared/i18n";
 import type { ShowToast } from "@/features/workspace/useToast";
 
@@ -103,6 +104,13 @@ export function useNoteActions({
     showToast({ text: t.toast.tagDeleted(tag, count(patches.length, t.plural.notes)) });
   };
 
+  const exportZip = async () => {
+    const data = store.getData();
+    const { zip, notes: exported } = await buildArchive(data.notes, data.folders, attachmentStore);
+    downloadBlob(archiveFileName(), zip as BlobPart, "application/zip");
+    showToast({ text: t.toast.archiveDownloaded(count(exported, t.plural.notes)) });
+  };
+
   const downloadBackup = async () => {
     const data = store.getData();
     const backup = createBackup(data, new Date(), await collectBackupAttachments(data.notes, attachmentStore));
@@ -157,6 +165,7 @@ export function useNoteActions({
     renameTag,
     deleteTag,
     downloadBackup,
+    exportZip,
     applyTemplate,
     renameLinks,
     restoreVersion,

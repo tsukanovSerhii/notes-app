@@ -34,6 +34,7 @@ export const uk: Messages = {
     shortcuts: "Гарячі клавіші",
     restoreBackup: "Відновити з резервної копії…",
     downloadBackup: "Завантажити резервну копію (.json)",
+    exportZip: "Експортувати всі нотатки (.zip)",
     syncSettings: "Налаштування синхронізації…",
     language: "Мова",
     theme: "Тема",
@@ -180,6 +181,7 @@ export const uk: Messages = {
     deletedManyForever: (count) => `Назавжди видалено: ${count}`,
     restored: (title) => `«${title}» відновлено`,
     folderDeleted: (name) => `Папку «${name}» видалено. Її вміст збережено.`,
+    archiveDownloaded: (notes) => `Експортовано ZIP-архівом: ${notes}`,
     tagRenamed: (from, to, notes) => `Тег #${from} перейменовано на #${to}: ${notes}`,
     tagMerged: (from, to, notes) => `Тег #${from} об'єднано з #${to}: ${notes}`,
     tagDeleted: (tag, notes) => `Тег #${tag} прибрано: ${notes}`,
@@ -252,6 +254,7 @@ export const uk: Messages = {
     graph: "Відкрити граф нотаток",
     shortcuts: "Показати гарячі клавіші",
     manageTags: "Керувати тегами",
+    exportZip: "Експортувати всі нотатки ZIP-архівом Markdown-файлів",
   },
   graph: {
     title: "Граф нотаток",

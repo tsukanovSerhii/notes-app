@@ -116,6 +116,7 @@ export default function Workspace() {
     exportPdf: () => exportRef.current?.exportPdf(),
     exportMarkdown: () => exportRef.current?.exportMarkdown(),
     downloadBackup: actions.downloadBackup,
+    exportZip: actions.exportZip,
     openSync: () => setSyncOpen(true),
     openTrash: () => changeFilter(TRASH),
     setTheme,
@@ -175,6 +176,7 @@ export default function Workspace() {
           onImportFolder={importVault}
           onImportBackup={importBackup}
           onDownloadBackup={actions.downloadBackup}
+          onExportZip={actions.exportZip}
           onOpenSync={() => setSyncOpen(true)}
           onOpenGraph={() => setGraphOpen(true)}
           onOpenShortcuts={() => setShortcutsOpen(true)}

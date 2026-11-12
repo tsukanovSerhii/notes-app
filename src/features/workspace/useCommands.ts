@@ -17,6 +17,7 @@ export function useCommands({
   exportPdf,
   exportMarkdown,
   downloadBackup,
+  exportZip,
   openSync,
   openTrash,
   setTheme,
@@ -32,6 +33,7 @@ export function useCommands({
   exportPdf: () => void;
   exportMarkdown: () => void;
   downloadBackup: () => void;
+  exportZip: () => void;
   openSync: () => void;
   openTrash: () => void;
   setTheme: (theme: ThemeChoice) => void;
@@ -51,6 +53,7 @@ export function useCommands({
     { id: "tags", label: t.palette.manageTags, icon: "tag", run: manageTags },
     { id: "shortcuts", label: t.palette.shortcuts, icon: "keyboard", run: openShortcuts },
     { id: "backup", label: t.palette.backup, icon: "database", run: downloadBackup },
+    { id: "zip", label: t.palette.exportZip, icon: "fileText", run: exportZip },
     { id: "sync", label: t.palette.sync, icon: "cloud", run: openSync },
     { id: "trash", label: t.palette.trash, icon: "trash", run: openTrash },
     { id: "light", label: t.palette.themeLight, icon: "eye", run: () => setTheme("light") },
