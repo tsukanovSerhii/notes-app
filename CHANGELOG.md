@@ -8,12 +8,20 @@ All notable changes to NoteVoid. The format follows
 
 ### Added
 
+- **Nested folders**, with drag and drop; a folder shows its subfolders' notes.
+- **Note graph** of the `[[links]]` between notes.
+- **Ranked search** with prefixes and typo tolerance, in a Web Worker.
+- **Import a folder** from Obsidian or Notion (folders, tags, links).
+- Renaming a note updates the `[[links]]` to it in other notes.
+
 - Property-based tests of the merge, axe accessibility tests, unit-test
   coverage with thresholds, Lighthouse CI with performance and size budgets,
   and CodeQL.
 
 ### Fixed
 
+- A stale `close` event could close a dialog that had just been reopened,
+  which made the command palette drop keystrokes.
 - **Merging was not associative:** it cleared a note's folder when it could not
   see the folder, so the result depended on the order syncs arrived in. Folder
   references are now kept and a note in a missing folder is shown as unfiled.
