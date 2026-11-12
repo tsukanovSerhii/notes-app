@@ -37,6 +37,18 @@ All notable changes to NoteVoid. The format follows
   coverage with thresholds, Lighthouse CI with performance and size budgets,
   and CodeQL.
 
+### Performance
+
+- A library of thousands of notes stays responsive: the note list is windowed
+  (3,000 notes: 52,923 DOM nodes to 969, 55 s to type 45 characters at 4x CPU
+  slowdown to 2 s), per-keystroke work no longer scans every note, and the
+  preview follows typing at most every 150 ms.
+- A first sync of thousands of notes is split into several requests (it used
+  to exceed the server's 5 MB limit), and a poll that changes nothing no
+  longer rewrites the stored space.
+- Sync, share, tags, shortcuts and history dialogs load on first use.
+- `npm run perf` measures a large library.
+
 ### Changed
 
 - The first-load script budget is 400 KiB (was 330) because the editor is
