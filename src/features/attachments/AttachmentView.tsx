@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { isInlineImage, type Attachment } from "@/features/attachments/attachments";
-import { attachmentStore } from "@/features/attachments/localAttachments";
+import type { AttachmentStore } from "@/features/attachments/attachmentStore";
+import { attachmentStore as deviceStore } from "@/features/attachments/localAttachments";
 import { useI18n } from "@/shared/i18n";
 
 type State =
   | { status: "loading" }
   | { status: "missing" }
   | { status: "ready"; url: string; attachment: Attachment };
+
+/**
+ * Where pictures are read from. By default the files stored on this device;
+ * the page a share link opens supplies the pictures sealed in the link.
+ */
+export const AttachmentStoreContext = createContext<AttachmentStore | null>(null);
 
 /** Object URLs shared between every place that shows the same file. */
 const urls = new Map<string, { url: string; users: number }>();
@@ -42,6 +49,7 @@ function releaseUrl(id: string) {
  */
 export function useAttachment(id: string): State {
   const [state, setState] = useState<State>({ status: "loading" });
+  const attachmentStore = useContext(AttachmentStoreContext) ?? deviceStore;
 
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +72,7 @@ export function useAttachment(id: string): State {
       off();
       if (held) releaseUrl(id);
     };
-  }, [id]);
+  }, [id, attachmentStore]);
 
   return state;
 }

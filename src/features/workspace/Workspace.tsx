@@ -21,6 +21,7 @@ import { useTheme } from "@/features/theme/ThemeController";
 import AppMenu from "@/features/workspace/AppMenu";
 import Header from "@/features/workspace/Header";
 import MobileDrawer from "@/features/workspace/MobileDrawer";
+import ShareDialog from "@/features/sharing/client/ShareDialog";
 import TagsDialog from "@/features/library/TagsDialog";
 import ShortcutsDialog from "@/features/editor/ShortcutsDialog";
 import { TEMPLATES } from "@/features/editor/lib/templates";
@@ -69,6 +70,7 @@ export default function Workspace() {
   const [graphOpen, setGraphOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
+  const [shareFor, setShareFor] = useState<Note | null>(null);
   const exportRef = useRef<ExportActions>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -130,6 +132,7 @@ export default function Workspace() {
     focusSearch,
     cycleViewMode: () => setViewMode(nextViewMode(effectiveMode, isWide)),
     showHistory: () => setHistoryFor(activeNote),
+    shareNote: () => setShareFor(activeNote),
     openGraph: () => setGraphOpen(true),
     openShortcuts: () => setShortcutsOpen(true),
     manageTags: () => setTagsOpen(true),
@@ -241,6 +244,7 @@ export default function Workspace() {
             titleRef={titleRef}
             onOpen={openNote}
             onShowHistory={() => setHistoryFor(activeNote)}
+            onShare={() => setShareFor(activeNote)}
             templates={templates}
             onTemplate={actions.applyTemplate}
             onSaveTemplate={actions.saveAsTemplate}
@@ -263,6 +267,7 @@ export default function Workspace() {
           openNote(id);
         }}
       />
+      <ShareDialog note={shareFor} onClose={() => setShareFor(null)} />
       <TagsDialog
         open={tagsOpen}
         tags={library.tags}

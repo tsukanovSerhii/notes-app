@@ -27,6 +27,7 @@ export default function NotePane({
   titleRef,
   onOpen,
   onShowHistory,
+  onShare,
   templates,
   onTemplate,
   onSaveTemplate,
@@ -46,6 +47,7 @@ export default function NotePane({
   titleRef: Ref<HTMLInputElement>;
   onOpen: (id: string) => void;
   onShowHistory: () => void;
+  onShare: () => void;
   templates: NoteTemplate[];
   onTemplate: (template: NoteTemplate) => void;
   onSaveTemplate: () => void;
@@ -98,6 +100,7 @@ export default function NotePane({
             allTags={allTags}
             onChange={(patch) => store.update(note.id, patch)}
             onShowHistory={onShowHistory}
+            onShare={onShare}
           />
           <div className="min-h-0 flex-1">
             <Editor

@@ -12,6 +12,7 @@ export function useCommands({
   focusSearch,
   cycleViewMode,
   showHistory,
+  shareNote,
   openGraph,
   openShortcuts,
   manageTags,
@@ -29,6 +30,7 @@ export function useCommands({
   focusSearch: () => void;
   cycleViewMode: () => void;
   showHistory: () => void;
+  shareNote: () => void;
   openGraph: () => void;
   openShortcuts: () => void;
   manageTags: () => void;
@@ -44,6 +46,7 @@ export function useCommands({
   const forNote: PaletteCommand[] = [
     { id: "view", label: t.palette.toggleView, icon: "columns", run: cycleViewMode },
     { id: "history", label: t.palette.history, icon: "history", run: showHistory },
+    { id: "share", label: t.palette.share, icon: "share", run: shareNote },
     { id: "pdf", label: t.palette.exportPdf, icon: "download", run: exportPdf },
     { id: "md", label: t.palette.exportMarkdown, icon: "fileText", run: exportMarkdown },
   ];
