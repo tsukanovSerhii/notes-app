@@ -5,6 +5,8 @@ import Icon, { type IconName } from "@/shared/ui/Icon";
 import { useDismiss } from "@/shared/hooks/useDismiss";
 import { cn } from "@/shared/lib/cn";
 import { LOCALES, LOCALE_NAMES, setLocale, useI18n } from "@/shared/i18n";
+import { usePreference } from "@/shared/hooks/usePreference";
+import { VIM_PREFERENCE, isVimSetting } from "@/features/editor/lib/vimSetting";
 import { useTheme } from "@/features/theme/ThemeController";
 
 interface AppMenuProps {
@@ -31,6 +33,7 @@ export default function AppMenu({
   const { t, locale } = useI18n();
   const [theme, setTheme] = useTheme();
   const [open, setOpen] = useState(false);
+  const [vim, setVim] = usePreference(VIM_PREFERENCE, "off", isVimSetting);
   const ref = useRef<HTMLDivElement>(null);
   const mdInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
@@ -67,6 +70,14 @@ export default function AppMenu({
           <MenuItem icon="fileText" label={t.menu.exportZip} onSelect={onExportZip} close={close} />
           <div className="my-1 h-px bg-border" />
           <MenuItem icon="link" label={t.menu.graph} onSelect={onOpenGraph} close={close} />
+          <MenuItem
+            icon="code"
+            label={t.menu.vim}
+            onSelect={() => setVim(vim === "on" ? "off" : "on")}
+            close={close}
+            role="menuitemcheckbox"
+            checked={vim === "on"}
+          />
           <MenuItem icon="keyboard" label={t.menu.shortcuts} onSelect={onOpenShortcuts} close={close} />
           <MenuItem icon="cloud" label={t.menu.syncSettings} onSelect={onOpenSync} close={close} />
           <div className="my-1 border-t border-border" role="separator" />
@@ -156,16 +167,21 @@ function MenuItem({
   label,
   onSelect,
   close,
+  role = "menuitem",
+  checked,
 }: {
   icon: IconName;
   label: string;
   onSelect: () => void;
   close: () => void;
+  role?: "menuitem" | "menuitemcheckbox";
+  checked?: boolean;
 }) {
   return (
     <button
       type="button"
-      role="menuitem"
+      role={role}
+      aria-checked={role === "menuitemcheckbox" ? checked : undefined}
       onClick={() => {
         close();
         onSelect();

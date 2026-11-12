@@ -7,6 +7,7 @@ import {
   preview,
   emptyState,
   noteRow,
+  expectEditorValue,
 } from "./helpers";
 
 test.describe("Notes CRUD, search & persistence", () => {
@@ -91,7 +92,7 @@ test.describe("Notes CRUD, search & persistence", () => {
     await page.reload();
 
     await expect(page.locator("aside").getByText("Persist me")).toBeVisible();
-    await expect(editor(page)).toHaveValue("still here");
+    await expectEditorValue(editor(page), "still here");
   });
 
   test("deletes a note and falls back gracefully", async ({ page }) => {

@@ -41,10 +41,7 @@ for (const theme of ["dark", "light"] as const) {
         { name: "dot.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==", "base64") },
         { name: "notes.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
       ]);
-      await editor(page).evaluate((el: HTMLTextAreaElement) => {
-        el.focus();
-        el.setSelectionRange(el.value.length, el.value.length);
-      });
+      await editor(page).press("Control+End");
       await page.keyboard.type(`
 ![a diagram that has not arrived](attachment:${"d".repeat(64)})`);
       await expect(page.locator("#preview-content [data-attachment-missing]")).toBeVisible();

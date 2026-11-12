@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "@playwright/test";
-import { createNote, editor, gotoFresh } from "./helpers";
+import { createNote, editor, gotoFresh, expectEditorValue } from "./helpers";
 
 test("? opens the shortcut list, Escape closes it, and typing ? in a note does not", async ({ page }) => {
   await gotoFresh(page);
@@ -16,7 +16,7 @@ test("? opens the shortcut list, Escape closes it, and typing ? in a note does n
 
   await createNote(page);
   await editor(page).pressSequentially("what?");
-  await expect(editor(page)).toHaveValue("what?");
+  await expectEditorValue(editor(page), "what?");
   await expect(dialog).toBeHidden();
 });
 
