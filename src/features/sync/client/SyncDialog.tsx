@@ -6,6 +6,7 @@ import Button from "@/shared/ui/Button";
 import Icon from "@/shared/ui/Icon";
 import { CopyButton } from "@/shared/ui/CopyButton";
 import type { SyncClient, SyncSnapshot } from "@/features/sync/client/syncClient";
+import { RecoveryJoin, RecoverySetup } from "@/features/recovery/client/RecoverySection";
 import { syncLabel } from "@/features/sync/client/SyncButton";
 import { useI18n } from "@/shared/i18n";
 
@@ -49,6 +50,7 @@ export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
             {t.sync.keyWarning}
           </p>
           <SyncStatusLine sync={sync} />
+          <RecoverySetup syncKey={sync.key} />
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="ghost" onClick={() => sync.client.disable()}>
               {t.sync.turnOff}
@@ -104,6 +106,7 @@ export default function SyncDialog({ open, onClose, sync }: SyncDialogProps) {
             </div>
           </form>
           {sync.error && <p className="text-xs text-red-400">{sync.error}</p>}
+          <RecoveryJoin onKey={(key) => run(() => sync.client.enable(key))} />
         </div>
       )}
     </Modal>

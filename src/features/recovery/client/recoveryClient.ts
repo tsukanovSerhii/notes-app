@@ -7,7 +7,7 @@ import {
 
 export class RecoveryError extends Error {
   constructor(
-    readonly code: "notFound" | "busy" | "disabled" | "failed",
+    readonly code: "notFound" | "busy" | "disabled" | "failed" | "badCode",
     message: string
   ) {
     super(message);
