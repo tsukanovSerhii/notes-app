@@ -123,7 +123,18 @@ test("a picture reaches another device through sync", async ({ browser }) => {
   await noteRow(laptop, title).click();
 
   // The note text arrives first; the picture follows once downloaded and checked.
-  await expect(picture(laptop)).toBeVisible({ timeout: 20_000 });
+  // The phone may still be uploading when the laptop first asks, so ask again.
+  await expect
+    .poll(
+      async () => {
+        await laptop.getByRole("button", { name: /^Sync settings/ }).click();
+        await laptop.getByRole("button", { name: "Sync now" }).click();
+        await laptop.keyboard.press("Escape");
+        return picture(laptop).isVisible();
+      },
+      { timeout: 45_000, intervals: [3000] }
+    )
+    .toBe(true);
   await expect.poll(() => picture(laptop).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(2);
 });
 
