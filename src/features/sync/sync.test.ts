@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createMemoryRepository, handleSyncRequest } from "@/features/sync/server/handler";
-import { createSyncClient, SYNC_KEY_STORAGE } from "@/features/sync/client/syncClient";
+import { createSyncClient, splitIntoBatches, SYNC_KEY_STORAGE } from "@/features/sync/client/syncClient";
 import { generateSyncKey, PROTOCOL_VERSION, SYNC_KEY_PATTERN } from "@/features/sync/shared/protocol";
 import { deriveSyncKeys, sealData } from "@/features/sync/client/crypto";
 import { createRateLimiter } from "@/features/sync/server/rateLimit";
@@ -428,5 +428,68 @@ test.describe("sync client", () => {
     await expect.poll(() => calls).toBe(2);
     await expect.poll(() => client.getSnapshot().state).toBe("idle");
     expect(client.getSnapshot().retryAt).toBeNull();
+  });
+});
+
+test.describe("big replicas", () => {
+  test("splitIntoBatches cuts by size, keeps order and puts folders and tombstones first", () => {
+    const notes = ["a", "b", "c", "d", "e"].map((id) => sealedNote(id, { sealed: "x".repeat(1000) }));
+    const folders = [{ id: "f", createdAt: 1, updatedAt: 1, sealed: "s" }];
+    const batches = splitIntoBatches({ notes, folders, tombstones: { t: 5 } }, 2900);
+    // 1400 bytes counted per note: two fit under 2900, a third does not.
+    expect(batches.map((b) => b.notes.map((n) => n.id).join(""))).toEqual(["ab", "cd", "e"]);
+    expect(batches[0].folders).toHaveLength(1);
+    expect(batches[0].tombstones).toEqual({ t: 5 });
+    expect(batches[1].folders).toEqual([]);
+    expect(batches[1].tombstones).toEqual({});
+  });
+
+  test("an empty replica and a single oversized note are still one request each", () => {
+    expect(splitIntoBatches({ notes: [], folders: [], tombstones: {} })).toHaveLength(1);
+    const big = sealedNote("big", { sealed: "x".repeat(10_000) });
+    expect(splitIntoBatches({ notes: [big], folders: [], tombstones: {} }, 100).map((b) => b.notes.length)).toEqual([1]);
+  });
+
+  test("a first sync of many notes is sent in several requests and arrives whole", async () => {
+    const repo = createMemoryRepository();
+    const sizes: number[] = [];
+    const make = async () => {
+      const store = createNotesStore({
+        getPersistence: () => createMemoryPersistence({ data: data({}), activeId: null }),
+        timers: new FakeTimers(),
+      });
+      await store.start();
+      const storage = new Map<string, string>();
+      const client = createSyncClient({
+        store,
+        timers: new FakeTimers(),
+        isOnline: () => true,
+        batchBytes: 6000,
+        keyStorage: {
+          getItem: (k) => storage.get(k) ?? null,
+          setItem: (k, v) => void storage.set(k, v),
+          removeItem: (k) => void storage.delete(k),
+        },
+        fetch: (async (_url: string, init: RequestInit) => {
+          const body = JSON.parse(String(init.body));
+          sizes.push(body.data.notes.length);
+          const result = await handleSyncRequest(repo, body, (key) => `space-${key.slice(0, 8)}`);
+          return new Response(JSON.stringify(result.body), { status: result.status });
+        }) as typeof fetch,
+      });
+      return { store, client };
+    };
+
+    const big = await make();
+    for (let i = 0; i < 12; i++) big.store.create({ title: `Note ${i}`, content: "word ".repeat(300) });
+    await big.client.enable(KEY);
+    // Several requests, none holding all twelve notes.
+    expect(sizes.length).toBeGreaterThan(2);
+    expect(Math.max(...sizes)).toBeLessThan(12);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(12);
+
+    const other = await make();
+    await other.client.enable(KEY);
+    expect(other.store.getSnapshot().notes).toHaveLength(12);
   });
 });

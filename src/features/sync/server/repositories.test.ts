@@ -112,3 +112,33 @@ test("a full sync through Postgres converges two devices", async () => {
   expect(res.body.cursor).toBe(2);
   await db.close();
 });
+
+test("a poll that changes nothing writes nothing and keeps the version", async () => {
+  const inner = createMemoryRepository();
+  let writes = 0;
+  const repo: SyncRepository = {
+    get: (id) => inner.get(id),
+    put: async (id, space, expected) => {
+      writes++;
+      return inner.put(id, space, expected);
+    },
+    delete: (id) => inner.delete(id),
+  };
+  const first = await handleSyncRequest(repo, { v, key: KEY, data: { notes: [sealedNote("a")] } }, () => ID);
+  expect(writes).toBe(1);
+  const cursor = (first.body as { cursor: number }).cursor;
+
+  // The same device asks again with nothing new: no write, same version, nothing to send back.
+  const poll = await handleSyncRequest(repo, { v, key: KEY, data: {}, cursor, since: 5 }, () => ID);
+  expect(writes).toBe(1);
+  expect(poll.status).toBe(200);
+  expect(poll.body).toMatchObject({ cursor, data: { notes: [] } });
+  // Echoing what the server already has is no change either.
+  await handleSyncRequest(repo, { v, key: KEY, data: { notes: [sealedNote("a")] }, cursor, since: 5 }, () => ID);
+  expect(writes).toBe(1);
+
+  // A real change still writes, and bumps the version.
+  const next = await handleSyncRequest(repo, { v, key: KEY, data: { notes: [sealedNote("b")] }, cursor }, () => ID);
+  expect(writes).toBe(2);
+  expect((next.body as { cursor: number }).cursor).toBe(cursor + 1);
+});
