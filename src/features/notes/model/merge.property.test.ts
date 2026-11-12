@@ -18,6 +18,7 @@ const text = fc.constantFrom("", "x", "y", "z");
 const folderArb: fc.Arbitrary<Folder> = fc.record({
   id: fc.constantFrom(...folderIds),
   name: text,
+  parentId: fc.option(fc.constantFrom(...folderIds), { nil: null }),
   createdAt: times,
   updatedAt: times,
 });

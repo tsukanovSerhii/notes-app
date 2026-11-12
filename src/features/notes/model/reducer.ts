@@ -1,5 +1,6 @@
 import type { Folder, Note, NotePatch, NotesData, Tombstones } from "@/features/notes/model/types";
 import { mergeData, reviveImported } from "@/features/notes/model/merge";
+import { canMoveFolder } from "@/features/notes/model/folders";
 import { normalizeTags } from "@/features/notes/model/schema";
 
 export interface NotesState {
@@ -29,6 +30,8 @@ export type NotesAction =
   | { type: "select"; id: string | null }
   | { type: "createFolder"; folder: Folder }
   | { type: "renameFolder"; id: string; name: string; now: number }
+  /** Moves a folder under another (or to the top with null); refused if it would make a loop. */
+  | { type: "moveFolder"; id: string; parentId: string | null; now: number }
   | { type: "deleteFolder"; id: string; now: number };
 
 /**
@@ -73,6 +76,8 @@ export const initialNotesState: NotesState = {
 export interface NoteFilter {
   query?: string;
   folderId?: string | null;
+  /** Several folders at once (a folder and its subfolders); wins over `folderId`. */
+  folderIds?: ReadonlySet<string> | null;
   tag?: string | null;
 }
 
@@ -94,12 +99,12 @@ export function filterNotes(
   notes: readonly Note[],
   filter: NoteFilter | string = {}
 ): Note[] {
-  const { query = "", folderId = null, tag = null } =
+  const { query = "", folderId = null, folderIds = null, tag = null } =
     typeof filter === "string" ? { query: filter } : filter;
   const q = query.trim().toLowerCase().replace(/^#/, "");
   return notes.filter(
     (n) =>
-      (!folderId || n.folderId === folderId) &&
+      (folderIds ? n.folderId !== null && folderIds.has(n.folderId) : !folderId || n.folderId === folderId) &&
       (!tag || n.tags.includes(tag)) &&
       (!q ||
         n.title.toLowerCase().includes(q) ||
@@ -306,16 +311,32 @@ export function notesReducer(state: NotesState, action: NotesAction): NotesState
       };
     }
 
+    case "moveFolder": {
+      const folder = state.folders.find((f) => f.id === action.id);
+      if (!folder || folder.parentId === action.parentId) return state;
+      if (!canMoveFolder(state.folders, action.id, action.parentId)) return state;
+      return {
+        ...state,
+        folders: state.folders.map((f) =>
+          f.id === action.id ? { ...f, parentId: action.parentId, updatedAt: stamp(f.updatedAt, action.now) } : f
+        ),
+      };
+    }
+
     case "deleteFolder": {
       const folder = state.folders.find((f) => f.id === action.id);
       if (!folder) return state;
-      // Deleting a folder never deletes notes; they move out of it.
+      // Deleting a folder never deletes what is in it: notes and subfolders
+      // move up to the deleted folder's own parent (or to the top).
+      const up = folder.parentId && state.folders.some((f) => f.id === folder.parentId) ? folder.parentId : null;
       return {
         ...state,
-        folders: state.folders.filter((f) => f.id !== action.id),
+        folders: state.folders
+          .filter((f) => f.id !== action.id)
+          .map((f) => (f.parentId === action.id ? { ...f, parentId: up, updatedAt: stamp(f.updatedAt, action.now) } : f)),
         notes: state.notes.map((n) =>
           n.folderId === action.id
-            ? { ...n, folderId: null, updatedAt: stamp(n.updatedAt, action.now) }
+            ? { ...n, folderId: up, updatedAt: stamp(n.updatedAt, action.now) }
             : n
         ),
         tombstones: { ...state.tombstones, [action.id]: stamp(folder.updatedAt, action.now) },

@@ -66,6 +66,8 @@ export const en = {
   library: {
     label: "Library",
     newFolder: "New folder",
+    newSubfolder: (name: string) => `New folder in ${name}`,
+    moveToTop: "Move to the top level",
     newFolderName: "New folder name",
     folderName: "Folder name",
     rename: (name: string) => `Rename ${name}`,
@@ -153,7 +155,8 @@ export const en = {
     deletedForever: (title: string) => `Deleted “${title}” forever`,
     deletedManyForever: (count: string) => `Deleted ${count} forever`,
     restored: (title: string) => `Restored “${title}”`,
-    folderDeleted: (name: string) => `Deleted folder “${name}”. Its notes were kept.`,
+    folderDeleted: (name: string) => `Deleted folder “${name}”. What was in it was kept.`,
+    folderMoved: (name: string, to: string) => `Moved folder “${name}” to ${to}`,
     backupDownloaded: (count: string) => `Backup of ${count} downloaded`,
     imported: (count: string) => `Imported ${count}`,
     skipped: (count: string) => `, skipped ${count}`,

@@ -63,8 +63,9 @@ export interface NotesStore {
   emptyTrash(): void;
   togglePin(id: string): void;
   select(id: string | null): void;
-  createFolder(name: string): Folder | null;
+  createFolder(name: string, parentId?: string | null): Folder | null;
   renameFolder(id: string, name: string): void;
+  moveFolder(id: string, parentId: string | null): void;
   deleteFolder(id: string): void;
   /** Merges data from the sync server or an imported backup. */
   merge(data: NotesData, mode: "sync" | "import"): void;
@@ -312,15 +313,16 @@ export function createNotesStore({
     togglePin: (id) => dispatch({ type: "togglePin", id, now: ts() }),
     select: (id) => dispatch({ type: "select", id }),
 
-    createFolder(name) {
+    createFolder(name, parentId = null) {
       const clean = name.trim().slice(0, 60);
       if (!clean) return null;
       const t = ts();
-      const folder: Folder = { id: createId(), name: clean, createdAt: t, updatedAt: t };
+      const folder: Folder = { id: createId(), name: clean, parentId, createdAt: t, updatedAt: t };
       dispatch({ type: "createFolder", folder });
       return folder;
     },
     renameFolder: (id, name) => dispatch({ type: "renameFolder", id, name, now: ts() }),
+    moveFolder: (id, parentId) => dispatch({ type: "moveFolder", id, parentId, now: ts() }),
     deleteFolder: (id) => dispatch({ type: "deleteFolder", id, now: ts() }),
 
     merge(data, mode) {

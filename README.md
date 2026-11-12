@@ -29,7 +29,10 @@ backed by Postgres. Encryption uses the built-in Web Crypto API.
 - Live GFM preview (tables, task lists, strikethrough) with edit, split and
   preview-only modes.
 - **Wiki links**: `[[Note title]]` or `[[Note title|text]]` opens that note,
-  or creates it; each note lists the notes that link to it.
+  or creates it; each note lists the notes that link to it. Renaming a note
+  updates the links to it in other notes (the old text stays in History).
+- **Note graph**: the notes and the links between them as a picture you can
+  click through, laid out by a small force simulation and loaded on demand.
 - **Math** with KaTeX (`$…$`, `$$…$$`) and **diagrams** with Mermaid
   (```` ```mermaid ````), both loaded only when a note uses them.
 - **Version history**: earlier versions of each note are kept on the device
@@ -42,12 +45,14 @@ backed by Postgres. Encryption uses the built-in Web Crypto API.
 - Templates, a Markdown cheatsheet, and word count with reading time.
 
 **Organizing**
-- **Folders**: create, rename and delete them (deleting a folder keeps its
-  notes) and filter the list by folder.
+- **Nested folders**: create folders inside folders, drag them to rearrange,
+  and filter by a folder to see its subfolders' notes too. Deleting a folder
+  keeps what is in it, one level up.
 - **Tags**: chip input with suggestions; filter by tag; search also matches
   tags.
-- Pinning, and full-text search that highlights matches and shows the text
-  around them.
+- Pinning, and **ranked full-text search** (a MiniSearch index in a Web
+  Worker: every word must match, prefixes and small typos are forgiven, titles
+  weigh most) that highlights matches and shows the text around them.
 - **Drag and drop** notes onto a folder, out of folders, or into the trash;
   sort the list by last edit, creation or title.
 - **Command palette** (`Ctrl/Cmd + Shift + P`, or `Ctrl/Cmd + K` outside the
@@ -62,7 +67,8 @@ backed by Postgres. Encryption uses the built-in Web Crypto API.
 - **IndexedDB storage** with one record per note, debounced incremental
   writes, a visible save status, and cross-tab updates via `BroadcastChannel`.
 - **Import** `.md`/`.txt` files from the menu or by dropping them onto the
-  window.
+  window, or a whole **Obsidian vault or Notion export** as a folder: folders,
+  tags (frontmatter and `#inline`) and links are carried over.
 - **Backup**: download every note and folder as JSON, and restore it later,
   including notes deleted since the backup.
 - **Export** a note as a PDF or a `.md` file.
@@ -160,7 +166,7 @@ is broken:
 - **The logic has no React and no DOM.** The reducer, merge, validation,
   highlighter, import parsing and the sync handler are plain functions. The
   store and the sync client get their persistence, clock, ID generator, timers
-  and `fetch` injected. That is why 194 unit tests run in about 3 seconds with no
+  and `fetch` injected. That is why 220 unit tests run in about 3 seconds with no
   browser.
 - **IndexedDB with incremental writes.** The store diffs note references
   between states, collects the changed IDs, and writes only those records plus
@@ -255,6 +261,16 @@ is broken:
   note's text changes, saves the version from just before the change, at most
   every five minutes per note, in its own IndexedDB object store. That covers
   edits and text replaced by sync alike, without touching the reducer.
+- **Folders are a tree read defensively.** A folder has a `parentId`, and
+  replicas can disagree about it (a parent deleted elsewhere, two folders moved
+  into each other). Nothing is rewritten to repair that: every reader goes
+  through `folders.ts`, which treats a missing parent or a cycle as top level,
+  and the reducer refuses moves into a folder's own subtree. In sync the
+  parent is inside the encrypted blob, so the server sees no structure.
+- **Search off the main thread.** The index lives in a Web Worker, is built on
+  the first query and kept current by sending only the notes whose version
+  changed; until it answers, a plain filter fills the list, so nothing flashes
+  empty. If workers are unavailable, the same index runs inline.
 - **Heavy features load on demand.** KaTeX and Mermaid are dynamic imports
   triggered by the content itself; Mermaid runs in strict mode, which
   sanitizes the SVG it returns.
@@ -347,7 +363,7 @@ on them.
 
 ## Testing
 
-- **Unit tests** (`src/**/*.test.ts`, 194 tests) cover the reducer, the merge
+- **Unit tests** (`src/**/*.test.ts`, 220 tests) cover the reducer, the merge
   (examples plus **property-based tests** with fast-check: random replicas must
   merge commutatively, associatively and idempotently, never resurrect a
   deletion and never rewrite an entity), validation and migration,
@@ -366,7 +382,7 @@ on them.
 - **Accessibility tests** run axe-core against the WCAG 2.0/2.1 A and AA rules
   on the editor, preview, trash, sync dialog, command palette and menu, in the
   dark and light themes and in Ukrainian.
-- **End-to-end tests** (`e2e/`, 60 tests) cover the whole app, including
+- **End-to-end tests** (`e2e/`, 67 tests) cover the whole app, including
   folders, tags, highlighting, IndexedDB storage, migration from
   localStorage, Markdown import, backup and restore, and **two browser
   contexts syncing through the real API route** (concurrent edits included,
@@ -433,7 +449,6 @@ Unit tests sit next to the code they test as `*.test.ts`.
 - A hosted demo
 - Images stored with notes (they would need encrypting and syncing as
   binary data, within the request size limit)
-- An inverted search index in a Web Worker for very large libraries
 - Field-level merge, so two devices editing different fields of a note
   don't overwrite each other
 

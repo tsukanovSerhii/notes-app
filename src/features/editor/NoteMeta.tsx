@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Folder, Note } from "@/features/notes/model/types";
+import { folderPath, folderRows } from "@/features/notes/model/folders";
 import Icon from "@/shared/ui/Icon";
 import { normalizeTag } from "@/features/notes/model/schema";
 import { useI18n } from "@/shared/i18n";
@@ -42,9 +43,9 @@ export default function NoteMeta({ note, folders, allTags, onChange, onShowHisto
           <option value="" className="bg-bg-elevated">
             {t.note.noFolder}
           </option>
-          {folders.map((f) => (
+          {folderRows(folders).map(({ folder: f }) => (
             <option key={f.id} value={f.id} className="bg-bg-elevated">
-              {f.name}
+              {folderPath(folders, f.id)}
             </option>
           ))}
         </select>

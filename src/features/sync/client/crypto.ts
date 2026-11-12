@@ -130,14 +130,15 @@ export async function sealFolder(keys: SyncKeys, f: Folder): Promise<SealedFolde
     id: f.id,
     createdAt: f.createdAt,
     updatedAt: f.updatedAt,
-    sealed: await seal(keys.encrypt, { name: f.name }, `folder:${f.id}`),
+    sealed: await seal(keys.encrypt, { name: f.name, parentId: f.parentId }, `folder:${f.id}`),
   };
 }
 
 export async function openFolder(keys: SyncKeys, s: SealedFolder): Promise<Folder> {
   const body = (await open(keys.encrypt, s.sealed, `folder:${s.id}`)) as Record<string, unknown>;
   const name = typeof body.name === "string" && body.name.trim() ? body.name.trim().slice(0, 60) : "Folder";
-  return { id: s.id, name, createdAt: s.createdAt, updatedAt: s.updatedAt };
+  const parentId = typeof body.parentId === "string" && body.parentId ? body.parentId : null;
+  return { id: s.id, name, parentId, createdAt: s.createdAt, updatedAt: s.updatedAt };
 }
 
 export async function sealData(keys: SyncKeys, data: NotesData): Promise<SealedData> {

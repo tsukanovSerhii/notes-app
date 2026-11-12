@@ -321,3 +321,48 @@ test("withoutMissingFolders shows notes in a missing folder as unfiled, without 
   const same = [inFolder, unfiled];
   expect(withoutMissingFolders(same, [folder("f")])).toBe(same);
 });
+
+test.describe("nested folders", () => {
+  const nested = () =>
+    stateWith(
+      [note("n1", { folderId: "web" }), note("n2", { folderId: "work" })],
+      null,
+      {
+        folders: [
+          folder("work"),
+          folder("web", { parentId: "work" }),
+          folder("api", { parentId: "web" }),
+        ],
+      }
+    );
+
+  test("moveFolder reparents with a new version, and refuses loops", () => {
+    const moved = notesReducer(nested(), { type: "moveFolder", id: "api", parentId: "work", now: 9 });
+    expect(moved.folders.find((f) => f.id === "api")).toMatchObject({ parentId: "work", updatedAt: 9 });
+
+    const state = nested();
+    for (const [id, parentId] of [["work", "api"], ["work", "work"], ["web", "web"]] as const) {
+      expect(notesReducer(state, { type: "moveFolder", id, parentId, now: 9 })).toBe(state);
+    }
+    // Same parent: nothing to do.
+    expect(notesReducer(state, { type: "moveFolder", id: "web", parentId: "work", now: 9 })).toBe(state);
+  });
+
+  test("deleting a folder lifts its notes and subfolders to its parent", () => {
+    const next = notesReducer(nested(), { type: "deleteFolder", id: "web", now: 9 });
+    expect(next.folders.map((f) => f.id).sort()).toEqual(["api", "work"]);
+    expect(next.folders.find((f) => f.id === "api")).toMatchObject({ parentId: "work", updatedAt: 9 });
+    expect(next.notes.find((n) => n.id === "n1")?.folderId).toBe("work");
+    expect(next.tombstones).toHaveProperty("web");
+
+    // A top-level folder's contents go to the top.
+    const top = notesReducer(nested(), { type: "deleteFolder", id: "work", now: 9 });
+    expect(top.folders.find((f) => f.id === "web")?.parentId).toBeNull();
+    expect(top.notes.find((n) => n.id === "n2")?.folderId).toBeNull();
+  });
+
+  test("filterNotes can match a set of folders", () => {
+    const notes = [note("a", { folderId: "x" }), note("b", { folderId: "y" }), note("c")];
+    expect(filterNotes(notes, { folderIds: new Set(["x", "y"]) }).map((n) => n.id)).toEqual(["a", "b"]);
+  });
+});
