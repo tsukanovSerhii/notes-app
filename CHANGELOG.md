@@ -8,6 +8,9 @@ All notable changes to NoteVoid. The format follows
 
 ### Added
 
+- **CodeMirror 6 editor** instead of a textarea: Markdown highlighting, slash
+  commands (`/`), a proper undo history across toolbar actions, and optional
+  **Vim keys** (loaded only when switched on).
 - **Outline** of a note's headings, **keyboard shortcut list** on `?`, a **Today**
   button for daily notes (Alt+D), and **tag management** (rename, merge,
   delete in all notes).
@@ -27,6 +30,11 @@ All notable changes to NoteVoid. The format follows
 - Property-based tests of the merge, axe accessibility tests, unit-test
   coverage with thresholds, Lighthouse CI with performance and size budgets,
   and CodeQL.
+
+### Changed
+
+- The first-load script budget is 400 KiB (was 330) because the editor is
+  CodeMirror; Lighthouse still reads 99 / 100 / 100 / 100.
 
 ### Fixed
 
