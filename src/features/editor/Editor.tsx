@@ -20,7 +20,9 @@ interface EditorProps {
   value: string;
   saveStatus: SaveStatus;
   onChange: (value: string) => void;
+  templates: NoteTemplate[];
   onTemplate: (template: NoteTemplate) => void;
+  onSaveTemplate: () => void;
   /** Stores files and returns the Markdown that shows them ("" if none were added). */
   onAttach: (files: File[]) => Promise<string>;
 }
@@ -31,7 +33,9 @@ export default function Editor({
   value,
   saveStatus,
   onChange,
+  templates,
   onTemplate,
+  onSaveTemplate,
   onAttach,
 }: EditorProps) {
   const { t } = useI18n();
@@ -102,7 +106,9 @@ export default function Editor({
         onWrap={wrap}
         onPrefix={prefix}
         onInsert={insert}
+        templates={templates}
         onTemplate={onTemplate}
+        onSaveTemplate={onSaveTemplate}
         onAttach={(files) => void attach(files)}
         content={value}
         onJump={jump}

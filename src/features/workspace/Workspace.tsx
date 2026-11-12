@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useCallback, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
 import type { Note } from "@/features/notes/model/types";
 import { useNotes } from "@/features/notes/state/useNotes";
 import Sidebar from "@/features/library/Sidebar";
@@ -23,6 +23,8 @@ import Header from "@/features/workspace/Header";
 import MobileDrawer from "@/features/workspace/MobileDrawer";
 import TagsDialog from "@/features/library/TagsDialog";
 import ShortcutsDialog from "@/features/editor/ShortcutsDialog";
+import { TEMPLATES } from "@/features/editor/lib/templates";
+import { userTemplates } from "@/features/editor/lib/userTemplates";
 import NotePane from "@/features/workspace/NotePane";
 import TrashedNote from "@/features/workspace/TrashedNote";
 import { EmptyState, WorkspaceSkeleton } from "@/features/workspace/EmptyState";
@@ -54,6 +56,8 @@ export default function Workspace() {
   const { attachFiles, dropFiles } = useAttachFiles({ store, activeNote, feedback, importFiles });
   useAttachmentCleanup(hydrated, () => store.getData().notes);
   useConflictToasts(sync.client, showToast);
+
+  const templates = useMemo(() => [...TEMPLATES, ...userTemplates(notes, folders)], [notes, folders]);
 
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -220,7 +224,9 @@ export default function Workspace() {
             titleRef={titleRef}
             onOpen={openNote}
             onShowHistory={() => setHistoryFor(activeNote)}
+            templates={templates}
             onTemplate={actions.applyTemplate}
+            onSaveTemplate={actions.saveAsTemplate}
             onAttach={attachFiles}
             onRenamed={actions.renameLinks}
           />
