@@ -66,6 +66,9 @@ export function createMemoryAttachmentRepository(now: () => number = Date.now): 
       for (const r of all) if (drop.has(r.rid)) of(space).delete(key(r.rid, r.index));
       return drop.size;
     },
+    async purge(space) {
+      spaces.delete(space);
+    },
   };
 }
 
@@ -130,6 +133,9 @@ export function createFileAttachmentRepository(dir: string): AttachmentRepositor
       );
       for (const f of all) if (drop.has(f.rid)) await rm(path.join(spaceDir(space), f.name), { force: true });
       return drop.size;
+    },
+    async purge(space) {
+      await rm(spaceDir(space), { recursive: true, force: true });
     },
   };
 }

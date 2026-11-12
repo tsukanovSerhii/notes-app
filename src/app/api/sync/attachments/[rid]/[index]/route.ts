@@ -6,7 +6,13 @@ import { MAX_CHUNK_BYTES } from "@/features/sync/shared/attachments";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const deps = { repo: rt.repo, hashKey: rt.hashKey, quotaBytes: rt.quotaBytes, limitSpace: rt.spaceLimiter };
+const deps = {
+  repo: rt.repo,
+  hashKey: rt.hashKey,
+  quotaBytes: rt.quotaBytes,
+  limitSpace: rt.spaceLimiter,
+  isRevoked: rt.isRevoked,
+};
 
 type Params = { params: Promise<{ rid: string; index: string }> };
 

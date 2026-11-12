@@ -27,6 +27,8 @@ export interface AttachmentRepository {
    * unfinished uploads stored before it. Returns how many files went.
    */
   prune(space: string, keep: ReadonlySet<string>, cutoff: number): Promise<number>;
+  /** Deletes every file of the space. */
+  purge(space: string): Promise<void>;
 }
 
 export interface AttachmentResult {
@@ -47,6 +49,8 @@ interface Deps {
   quotaBytes: number;
   now?: () => number;
   limitSpace?: RateLimiter;
+  /** Whether the space was retired by a key rotation; its files are then gone for good. */
+  isRevoked?: (space: string) => Promise<boolean>;
 }
 
 /** The space the request's bearer token names, or an error result. */
@@ -82,6 +86,7 @@ export async function putAttachmentChunk(
 ): Promise<AttachmentResult> {
   const space = spaceOf(authorization, deps);
   if (typeof space !== "string") return space;
+  if (await deps.isRevoked?.(space)) return fail(410, "This sync key was replaced on another device.");
   const i = asInt(index);
   const n = asInt(parts);
   if (!RID_PATTERN.test(rid) || !Number.isInteger(i) || !Number.isInteger(n) || n < 1 || n > MAX_PARTS || i >= n) {
@@ -104,6 +109,7 @@ export async function getAttachmentChunk(
 ): Promise<AttachmentResult> {
   const space = spaceOf(authorization, deps);
   if (typeof space !== "string") return space;
+  if (await deps.isRevoked?.(space)) return fail(410, "This sync key was replaced on another device.");
   const i = asInt(index);
   if (!RID_PATTERN.test(rid) || !Number.isInteger(i)) return fail(400, "Invalid attachment chunk.");
   const chunk = await deps.repo.getChunk(space, rid, i);
@@ -118,7 +124,8 @@ export async function getAttachmentChunk(
 /**
  * Bulk questions about a space's attachments:
  * - `have`: which of `ids` are stored completely;
- * - `prune`: delete files not in `keep` that are older than the grace period.
+ * - `prune`: delete files not in `keep` that are older than the grace period;
+ * - `purge`: delete every file (after the space's key was replaced).
  */
 export async function manageAttachments(deps: Deps, body: unknown): Promise<AttachmentResult> {
   if (typeof body !== "object" || body === null) return fail(400, "Expected a JSON object.");
@@ -131,6 +138,12 @@ export async function manageAttachments(deps: Deps, body: unknown): Promise<Atta
       ? (value as string[])
       : null;
 
+  if (op === "purge") {
+    // Allowed on a retired space too: that is when its files are removed.
+    await deps.repo.purge(space);
+    return { status: 200, json: { ok: true } };
+  }
+  if (await deps.isRevoked?.(space)) return fail(410, "This sync key was replaced on another device.");
   if (op === "have") {
     const wanted = list(ids);
     if (!wanted || wanted.length > MAX_IDS_PER_REQUEST) return fail(400, "Invalid id list.");

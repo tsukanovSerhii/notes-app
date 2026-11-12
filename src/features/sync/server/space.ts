@@ -16,6 +16,12 @@ export interface StoredSpace {
   data: SealedData;
   changes: Record<string, number>;
   horizon: number;
+  /**
+   * Set when the key was rotated away from: the space holds nothing and every
+   * request to it is answered with 410, so a device that still has the old
+   * key cannot read or add anything.
+   */
+  revokedAt: number | null;
 }
 
 export const emptySpace = (): StoredSpace => ({
@@ -23,6 +29,7 @@ export const emptySpace = (): StoredSpace => ({
   data: emptySealedData(),
   changes: {},
   horizon: 0,
+  revokedAt: null,
 });
 
 export { TOMBSTONE_TTL_MS };
@@ -42,6 +49,7 @@ export function parseSpace(value: unknown): StoredSpace {
     data: parseSealedData(v.data),
     changes,
     horizon: typeof v.horizon === "number" && Number.isFinite(v.horizon) ? v.horizon : 0,
+    revokedAt: typeof v.revokedAt === "number" && Number.isFinite(v.revokedAt) ? v.revokedAt : null,
   };
 }
 

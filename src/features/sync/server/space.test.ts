@@ -25,7 +25,10 @@ test("parseSpace validates a stored space and ignores the plaintext format of ea
     data: legacy,
     changes: { "n:a": 2 },
     horizon: 5,
+    revokedAt: null,
   });
+  expect(parseSpace({ version: 4, data: legacy, changes: {}, horizon: 0, revokedAt: 99 }).revokedAt).toBe(99);
+  expect(parseSpace({ version: 4, data: legacy, changes: {}, horizon: 0, revokedAt: "x" }).revokedAt).toBeNull();
 });
 
 test("changedKeys lists new or different entities and raised tombstones", () => {

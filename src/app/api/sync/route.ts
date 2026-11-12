@@ -1,19 +1,11 @@
 import { createHash } from "node:crypto";
-import path from "node:path";
-import pg from "pg";
-import { createFileRepository } from "@/features/sync/server/fileRepository";
-import { createPostgresRepository } from "@/features/sync/server/postgresRepository";
+import { syncRepo as repo } from "@/features/sync/server/syncRuntime";
 import { handleSyncRequest } from "@/features/sync/server/handler";
 import { MAX_SYNC_BYTES } from "@/features/sync/shared/protocol";
 import { clientAddress, createRateLimiter, readPerMinute } from "@/features/sync/server/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// Postgres when DATABASE_URL is set (any number of instances), else JSON files.
-const repo = process.env.DATABASE_URL
-  ? createPostgresRepository(new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5 }))
-  : createFileRepository(process.env.SYNC_DATA_DIR ?? path.join(process.cwd(), ".data", "sync"));
 
 // A device syncs about twice a minute when idle and every few seconds while
 // typing, so these defaults leave plenty of room for real use.

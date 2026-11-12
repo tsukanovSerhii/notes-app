@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   }
   return respond.result(
     await manageAttachments(
-      { repo: rt.repo, hashKey: rt.hashKey, quotaBytes: rt.quotaBytes, limitSpace: rt.spaceLimiter },
+      { repo: rt.repo, hashKey: rt.hashKey, quotaBytes: rt.quotaBytes, limitSpace: rt.spaceLimiter, isRevoked: rt.isRevoked },
       body
     )
   );

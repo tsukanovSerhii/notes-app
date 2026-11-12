@@ -36,7 +36,7 @@ test.describe("sync server", () => {
   test("erases the plaintext space an upgrading device names", async () => {
     const repo = createMemoryRepository();
     const legacy = "f".repeat(64);
-    await repo.put(legacy, { version: 1, data: sealed({}), changes: {}, horizon: 0 }, null);
+    await repo.put(legacy, { version: 1, data: sealed({}), changes: {}, horizon: 0, revokedAt: null }, null);
     await handleSyncRequest(repo, { v, key: KEY, data: sealed({}), forgetLegacy: legacy }, hash);
     expect(repo.spaces.has(legacy)).toBe(false);
     expect(repo.spaces.has("space-32")).toBe(true);
