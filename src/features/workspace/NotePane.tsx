@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, type Ref } from "react";
+import { useDeferredValue, useMemo, useRef, type Ref } from "react";
 import type { Folder, Note } from "@/features/notes/model/types";
 import type { NotesStore, SaveStatus } from "@/features/notes/state/store";
 import Editor from "@/features/editor/Editor";
@@ -10,7 +10,7 @@ import type { NoteTemplate } from "@/features/editor/lib/templates";
 import Preview from "@/features/markdown/Preview";
 import Backlinks from "@/features/markdown/Backlinks";
 import { WikiLinkContext, type WikiLinkTarget } from "@/features/markdown/wikiLinkContext";
-import { backlinks, findNoteByTitle } from "@/features/markdown/lib/wikiLinks";
+import { backlinks, titleIndex } from "@/features/markdown/lib/wikiLinks";
 import { useI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/cn";
 
@@ -58,19 +58,25 @@ export default function NotePane({
 }) {
   const { t } = useI18n();
   const titleOnFocus = useRef(note.title);
-  const linkedFrom = useMemo(() => backlinks(notes, note), [notes, note]);
+  // Backlinks can trail a keystroke behind; typing comes first.
+  const lazyNotes = useDeferredValue(notes);
+  const linkedFrom = useMemo(
+    () => backlinks(lazyNotes, { id: note.id, title: note.title }),
+    [lazyNotes, note.id, note.title]
+  );
 
   // [[Title]] links in the preview open that note, or create it.
+  const titles = useMemo(() => titleIndex(lazyNotes), [lazyNotes]);
   const wikiTarget = useMemo<WikiLinkTarget>(
     () => ({
-      exists: (title) => findNoteByTitle(notes, title) !== null,
+      exists: (title) => titles.find(title) !== null,
       open: (title) => {
-        const found = findNoteByTitle(notes, title);
+        const found = titles.find(title);
         if (found) store.select(found.id);
         else store.create({ title, folderId: folderForNewNotes });
       },
     }),
-    [notes, store, folderForNewNotes]
+    [titles, store, folderForNewNotes]
   );
 
   return (

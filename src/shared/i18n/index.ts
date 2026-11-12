@@ -54,12 +54,16 @@ const subscribe = (l: () => void) => {
 };
 
 /** Counts with the right plural form: "1 note", "3 нотатки", "5 нотаток". */
+const pluralRules = new Map<Locale, Intl.PluralRules>();
+
 export function formatCount(
   locale: Locale,
   n: number,
   forms: { one: string; few?: string; many?: string; other: string }
 ): string {
-  const rule = new Intl.PluralRules(locale).select(n) as keyof typeof forms;
+  let rules = pluralRules.get(locale);
+  if (!rules) pluralRules.set(locale, (rules = new Intl.PluralRules(locale)));
+  const rule = rules.select(n) as keyof typeof forms;
   return `${n} ${forms[rule] ?? forms.other}`;
 }
 

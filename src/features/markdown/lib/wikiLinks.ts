@@ -19,6 +19,30 @@ export function titleFromHref(href: string | undefined): string | null {
 
 const sameTitle = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
+const titleKey = (title: string) => title.trim().toLowerCase();
+
+const titleCache = new WeakMap<object, string>();
+const normalizedTitle = (note: Note) => {
+  let key = titleCache.get(note);
+  if (key === undefined) titleCache.set(note, (key = titleKey(note.title)));
+  return key;
+};
+
+/**
+ * Looks live notes up by title (ignoring case and padding) without scanning
+ * them for every lookup. Build one per list of notes and reuse it.
+ */
+export function titleIndex(notes: readonly Note[]): { find(title: string): Note | null } {
+  const byTitle = new Map<string, Note>();
+  for (const n of notes) {
+    if (n.trashedAt !== null) continue;
+    const key = normalizedTitle(n);
+    // The first note with a title wins, as with a linear search.
+    if (!byTitle.has(key)) byTitle.set(key, n);
+  }
+  return { find: (title) => byTitle.get(titleKey(title)) ?? null };
+}
+
 /** The note a link points to: a live note whose title matches, ignoring case. */
 export function findNoteByTitle(notes: readonly Note[], title: string): Note | null {
   return notes.find((n) => n.trashedAt === null && sameTitle(n.title, title)) ?? null;
@@ -26,21 +50,37 @@ export function findNoteByTitle(notes: readonly Note[], title: string): Note | n
 
 /** Titles a note links to, outside code. */
 export function wikiTargets(markdown: string): string[] {
-  const prose = markdown.replace(/```[\s\S]*?(```|$)/g, " ").replace(/`[^`\n]*`/g, " ");
+  // Most notes have no code; skip the two passes that blank it out for them.
+  const prose = markdown.includes("`")
+    ? markdown.replace(/```[\s\S]*?(```|$)/g, " ").replace(/`[^`\n]*`/g, " ")
+    : markdown;
   const out = new Set<string>();
   for (const m of prose.matchAll(WIKI_LINK)) out.add(m[1].trim());
   return [...out];
 }
 
+/**
+ * What each note links to, lower-cased, remembered per note object. An edit
+ * creates a new object for the edited note only, so typing in one note does
+ * not re-read the text of every other note.
+ */
+const linkCache = new WeakMap<object, string[]>();
+
+function linksOf(note: Note): string[] {
+  let links = linkCache.get(note);
+  if (!links) {
+    // Most notes have no links at all; skip the code-stripping regexes for them.
+    links = note.content.includes("[[") ? wikiTargets(note.content).map((t) => t.trim().toLowerCase()) : [];
+    linkCache.set(note, links);
+  }
+  return links;
+}
+
 /** Live notes, other than `target`, that link to it. */
-export function backlinks(notes: readonly Note[], target: Note): Note[] {
-  if (!target.title.trim()) return [];
-  return notes.filter(
-    (n) =>
-      n.id !== target.id &&
-      n.trashedAt === null &&
-      wikiTargets(n.content).some((t) => sameTitle(t, target.title))
-  );
+export function backlinks(notes: readonly Note[], target: Pick<Note, "id" | "title">): Note[] {
+  const title = target.title.trim().toLowerCase();
+  if (!title) return [];
+  return notes.filter((n) => n.id !== target.id && n.trashedAt === null && linksOf(n).includes(title));
 }
 
 /**

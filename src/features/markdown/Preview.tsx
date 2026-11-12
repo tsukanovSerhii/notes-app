@@ -2,6 +2,7 @@
 
 import { useDeferredValue } from "react";
 import Markdown from "@/features/markdown/Markdown";
+import { useThrottledValue } from "@/shared/hooks/useThrottledValue";
 import { useI18n } from "@/shared/i18n";
 
 /** The look of rendered notes, shared by the preview and the page a share link opens. */
@@ -16,15 +17,20 @@ export const PROSE_CLASS = `prose dark:prose-invert max-w-none transition-opacit
           prose-blockquote:border-l-accent prose-blockquote:text-text-secondary
           prose-th:text-text-primary prose-td:text-text-secondary`;
 
+/** How often the preview may redraw while the text is changing. */
+const PREVIEW_INTERVAL_MS = 150;
+
 interface PreviewProps {
   content: string;
 }
 
 export default function Preview({ content }: PreviewProps) {
   const { t } = useI18n();
-  // Parsing Markdown on every keystroke can lag on long notes; the deferred
-  // value lets React keep typing responsive and catch the preview up after.
-  const deferred = useDeferredValue(content);
+  // Parsing Markdown on every keystroke lags on long notes and on slow
+  // devices, so the preview follows typing at most every 150 ms; the deferred
+  // value then lets React keep typing responsive while it catches up.
+  const throttled = useThrottledValue(content, PREVIEW_INTERVAL_MS);
+  const deferred = useDeferredValue(throttled);
   const stale = deferred !== content;
 
   return (

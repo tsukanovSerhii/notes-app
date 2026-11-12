@@ -1,10 +1,11 @@
 "use client";
 
-import type { ReactNode, Ref } from "react";
+import { useRef, type ReactNode, type Ref } from "react";
 import type { Note } from "@/features/notes/model/types";
 import type { SortMode } from "@/features/notes/model/reducer";
 import SearchBar from "@/features/library/SearchBar";
-import NoteItem from "@/features/library/NoteItem";
+import NoteItem, { NOTE_ROW_HEIGHT } from "@/features/library/NoteItem";
+import { useVirtualRange } from "@/features/library/useVirtualRange";
 import Button from "@/shared/ui/Button";
 import Icon from "@/shared/ui/Icon";
 import { useI18n } from "@/shared/i18n";
@@ -29,6 +30,11 @@ interface SidebarProps {
   onSortChange?: (mode: SortMode) => void;
 }
 
+/** Gap between rows (Tailwind space-y-1). */
+const ROW_GAP = 4;
+/** Below this many notes every row is simply rendered. */
+export const VIRTUALIZE_ABOVE = 60;
+
 export default function Sidebar({
   notes,
   listTitle,
@@ -48,6 +54,18 @@ export default function Sidebar({
   onSortChange,
 }: SidebarProps) {
   const { t } = useI18n();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const rowPitch = NOTE_ROW_HEIGHT + ROW_GAP;
+  const windowed = notes.length > VIRTUALIZE_ABOVE;
+  const { start, end } = useVirtualRange({
+    count: notes.length,
+    rowHeight: rowPitch,
+    scrollRef,
+    listRef,
+    enabled: windowed,
+  });
+  const shown = windowed ? notes.slice(start, end) : notes;
   return (
     <aside
       aria-label={t.sidebar.notes}
@@ -66,7 +84,7 @@ export default function Sidebar({
         <SearchBar ref={searchRef} value={searchQuery} onChange={onSearchChange} />
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-3">
         {library}
 
         <h2 className="mb-1.5 flex items-center justify-between border-t border-border px-4 pt-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
@@ -95,8 +113,14 @@ export default function Sidebar({
         {notes.length === 0 ? (
           <p className="px-3 py-6 text-center text-xs text-text-muted">{emptyMessage}</p>
         ) : (
-          <ul aria-label={t.sidebar.noteList} className="space-y-1 px-2">
-            {notes.map((note) => (
+          <ul
+            ref={listRef}
+            aria-label={t.sidebar.noteList}
+            className="space-y-1 px-2"
+            // Rows outside the window are replaced by padding of the same height.
+            style={windowed ? { paddingTop: start * rowPitch, paddingBottom: (notes.length - end) * rowPitch } : undefined}
+          >
+            {shown.map((note) => (
               <NoteItem
                 key={note.id}
                 note={note}

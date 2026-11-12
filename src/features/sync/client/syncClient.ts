@@ -7,8 +7,35 @@ import {
   type SyncResponse,
 } from "@/features/sync/shared/protocol";
 import { deriveSyncKeys, openData, sealData, type SyncKeys } from "@/features/sync/client/crypto";
-import { parseSealedData } from "@/features/sync/shared/wire";
+import { parseSealedData, type SealedData } from "@/features/sync/shared/wire";
 import type { AttachmentSync } from "@/features/sync/client/attachmentSync";
+
+/** A request carries at most about this much sealed text; the server refuses bodies over 5 MB. */
+export const BATCH_BYTES = 2_500_000;
+
+/**
+ * Cuts a replica into requests of about `maxBytes` of sealed text each, notes
+ * in order. The first carries the folders and tombstones. A note larger than
+ * the limit goes alone. Always at least one batch, so an empty replica is
+ * still a request.
+ */
+export function splitIntoBatches(data: SealedData, maxBytes: number = BATCH_BYTES): SealedData[] {
+  const batches: SealedData[] = [];
+  let current: SealedData = { notes: [], folders: data.folders, tombstones: data.tombstones };
+  let bytes = 0;
+  for (const note of data.notes) {
+    const size = note.sealed.length + 400;
+    if (bytes + size > maxBytes && current.notes.length > 0) {
+      batches.push(current);
+      current = { notes: [], folders: [], tombstones: {} };
+      bytes = 0;
+    }
+    current.notes.push(note);
+    bytes += size;
+  }
+  batches.push(current);
+  return batches;
+}
 
 export const SYNC_KEY_STORAGE = "notevoid-sync-key";
 /** When the last snapshot the server has merged was taken (corrected clock). */
@@ -57,6 +84,8 @@ export interface SyncClientOptions {
   now?: () => number;
   /** This device's id, sent so the server can tell whose edits conflict. */
   deviceId?: string | null;
+  /** Size of one upload request (sealed text); larger replicas are sent in several. */
+  batchBytes?: number;
   /** Keeps attachment files in step; runs after each note sync. */
   attachments?: AttachmentSync;
 }
@@ -134,6 +163,7 @@ export function createSyncClient({
   now = Date.now,
   deviceId = null,
   attachments,
+  batchBytes = BATCH_BYTES,
 }: SyncClientOptions): SyncClient {
   let loaded = false;
   let snapshot: SyncSnapshot = OFF;
@@ -241,52 +271,63 @@ export function createSyncClient({
       const payload = await sealData(k, cursor === null || base === null ? local : changedSince(local, base));
       // Once per key, ask the server to erase what earlier builds stored in plaintext.
       const legacy = storageGet(SYNC_E2EE_STORAGE) === key ? null : await legacySpaceId(key);
-      const sentAt = rawNow();
-      const res = await fetchFn(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          v: PROTOCOL_VERSION,
-          key: k.spaceToken,
-          data: payload,
-          since: base,
-          cursor,
-          ...(deviceId && { deviceId }),
-          ...(legacy && { forgetLegacy: legacy }),
-        }),
-      });
-      const json = (await res.json().catch(() => null)) as
-        | (SyncResponse & { error?: string })
-        | null;
-      if (res.status === 429) {
-        // Rate limited: come back when the server says so instead of waiting
-        // for the next poll or edit.
-        const wait = Number(res.headers.get("Retry-After"));
-        const ms = (Number.isFinite(wait) && wait > 0 ? wait : 5) * 1000;
-        retryIn(ms);
-        set({ retryAt: rawNow() + ms });
+      // A big replica (a first sync of thousands of notes) goes in several requests.
+      // Each reply is merged before the next is sent, and carries on from the cursor it returned.
+      let json: (SyncResponse & { error?: string }) | null = null;
+      let rejected = 0;
+      const conflictIds: string[] = [];
+      let sendCursor = cursor;
+      const parts = splitIntoBatches(payload, batchBytes);
+      for (let i = 0; i < parts.length; i++) {
+        const sentAt = rawNow();
+        const res = await fetchFn(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            v: PROTOCOL_VERSION,
+            key: k.spaceToken,
+            data: parts[i],
+            since: base,
+            cursor: sendCursor,
+            ...(deviceId && { deviceId }),
+            ...(legacy && i === 0 && { forgetLegacy: legacy }),
+          }),
+        });
+        json = (await res.json().catch(() => null)) as (SyncResponse & { error?: string }) | null;
+        if (res.status === 429) {
+          // Rate limited: come back when the server says so instead of waiting
+          // for the next poll or edit.
+          const wait = Number(res.headers.get("Retry-After"));
+          const ms = (Number.isFinite(wait) && wait > 0 ? wait : 5) * 1000;
+          retryIn(ms);
+          set({ retryAt: rawNow() + ms });
+        }
+        if (res.status === 410) {
+          // Another device replaced the key: stop, and leave this device's notes alone.
+          if (timer) timers.clearTimeout(timer);
+          timer = null;
+          set({ state: "revoked", error: json?.error ?? null, retryAt: null });
+          return;
+        }
+        if (!res.ok || !json) {
+          throw new Error(json?.error ?? `Sync failed (${res.status})`);
+        }
+        if (typeof json.syncedAt === "number") onServerTime?.(json.syncedAt, sentAt, rawNow());
+        if (snapshot.key !== key) return; // disabled or switched mid-request
+        const opened = await openData(k, parseSealedData(json.data));
+        if (snapshot.key !== key) return;
+        store.merge(opened.data, "sync");
+        rejected += opened.rejected;
+        if (Array.isArray(json.conflicts)) conflictIds.push(...json.conflicts.filter((t) => typeof t === "string"));
+        sendCursor = typeof json.cursor === "number" ? json.cursor : null;
       }
-      if (res.status === 410) {
-        // Another device replaced the key: stop, and leave this device's notes alone.
-        if (timer) timers.clearTimeout(timer);
-        timer = null;
-        set({ state: "revoked", error: json?.error ?? null, retryAt: null });
-        return;
-      }
-      if (!res.ok || !json) {
-        throw new Error(json?.error ?? `Sync failed (${res.status})`);
-      }
-      if (typeof json.syncedAt === "number") onServerTime?.(json.syncedAt, sentAt, rawNow());
-      if (snapshot.key !== key) return; // disabled or switched mid-request
-      const { data: remote, rejected } = await openData(k, parseSealedData(json.data));
-      if (snapshot.key !== key) return;
-      store.merge(remote, "sync");
+      if (!json) return;
       setBase(snapshotAt);
       if (legacy) storageSet(SYNC_E2EE_STORAGE, key);
-      cursor = typeof json.cursor === "number" ? json.cursor : null;
+      cursor = sendCursor;
 
       // The server names conflicting notes by id; only we can read their titles.
-      const ids = Array.isArray(json.conflicts) ? json.conflicts.filter((t) => typeof t === "string") : [];
+      const ids = conflictIds;
       const titles = new Map(store.getData().notes.map((n) => [n.id, n.title.trim() || "Untitled"]));
       const conflicts = ids.map((id) => titles.get(id) ?? "Untitled");
       set({

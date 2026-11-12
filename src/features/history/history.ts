@@ -115,6 +115,8 @@ export function createHistoryRecorder({
 }): HistoryRecorder {
   type Seen = Pick<Note, "title" | "content" | "editedAt">;
   const seen = new Map<string, Seen>();
+  /** The note object each entry in `seen` was taken from: the same object means no change. */
+  const seenFrom = new Map<string, Note>();
   const lastSaved = new Map<string, number>();
   let lastNotes: readonly Note[] | null = null;
   let chain = Promise.resolve();
@@ -136,6 +138,8 @@ export function createHistoryRecorder({
     const first = lastNotes === null;
     lastNotes = snap.notes;
     for (const n of snap.notes) {
+      if (seenFrom.get(n.id) === n) continue;
+      seenFrom.set(n.id, n);
       const prev = seen.get(n.id);
       const changed = prev && (prev.title !== n.title || prev.content !== n.content);
       // An empty note (one just created, say) has nothing worth going back to.

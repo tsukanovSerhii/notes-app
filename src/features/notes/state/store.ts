@@ -159,12 +159,24 @@ export function createNotesStore({
   /** Records what changed between two states so only that gets written. */
   const markDirty = (prev: NotesState, next: NotesState) => {
     if (prev.notes !== next.notes) {
-      const before = new Map(prev.notes.map((n) => [n.id, n]));
-      for (const note of next.notes) {
-        if (before.get(note.id) !== note) dirtyIds.add(note.id);
-        before.delete(note.id);
+      // Most changes (typing, pinning) replace notes where they are, so walking
+      // both lists side by side finds them without indexing every note.
+      let aligned = prev.notes.length === next.notes.length;
+      for (let i = 0; aligned && i < next.notes.length; i++) {
+        const was = prev.notes[i];
+        const now = next.notes[i];
+        if (was === now) continue;
+        if (was.id !== now.id) aligned = false;
+        else dirtyIds.add(now.id);
       }
-      for (const id of before.keys()) dirtyIds.add(id);
+      if (!aligned) {
+        const before = new Map(prev.notes.map((n) => [n.id, n]));
+        for (const note of next.notes) {
+          if (before.get(note.id) !== note) dirtyIds.add(note.id);
+          before.delete(note.id);
+        }
+        for (const id of before.keys()) dirtyIds.add(id);
+      }
     }
     if (
       prev.folders !== next.folders ||

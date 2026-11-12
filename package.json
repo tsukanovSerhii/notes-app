@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
+    "perf": "node perf/measure.mjs",
     "check": "npm run lint && npm run typecheck && npm run test:coverage"
   },
   "dependencies": {

@@ -379,6 +379,38 @@ Rate limits and the per-space lock live in each instance's memory, so with
 several instances the limits apply per instance; correctness does not depend
 on them.
 
+## Performance
+
+The app is built to stay responsive with a large library. Measured with
+`npm run perf` (a production build; 4x CPU slowdown, to stand in for a phone;
+45 characters typed in the open note, a search, opening another note):
+
+| Notes | To a usable editor | DOM nodes | Typing, script time | Search | Open a note |
+| --- | --- | --- | --- | --- | --- |
+| 300 | 1.3 s | 973 | 1.3 s | 0.9 s | 0.3 s |
+| 3,000 | 1.4 s | 969 | 1.6 s | 0.9 s | 0.3 s |
+| 10,000 | 2.3 s | 966 | 3.0 s | 1.6 s | 0.4 s |
+
+Before the work below, 3,000 notes took 11.9 s to load, drew 52,923 DOM nodes,
+needed 55 s to type 45 characters and 29 s to search.
+
+- **The note list is windowed**: rows are a fixed height and only the ones in
+  view are rendered, so the DOM does not grow with the library.
+- **Per-keystroke work is kept off the other notes**: the store finds the
+  changed note by position, folder counts take one pass, backlinks and wiki
+  link targets are cached per note object, the list is not sorted twice, and
+  the preview follows typing at most every 150 ms.
+- **Sync scales too**: a big first upload is split into requests under the
+  server's 5 MB limit, and a poll that changes nothing no longer rewrites the
+  stored space on the server.
+- **The first load stays small** (about 370 KiB of JavaScript, Lighthouse 99 /
+  100 / 100 / 100): dialogs, Mermaid, KaTeX, the PDF exporter and Vim keys are
+  fetched when first used.
+
+`PERF_NOTES`, `PERF_CPU`, `PERF_URL`, `PERF_PROFILE=1` (top functions while
+typing) and `PERF_PROFILE_LOAD=1` (the same for page load) tune the script.
+Build with `npx next build --no-mangling` to read function names in a profile.
+
 ## Scripts
 
 | Command | Description |
@@ -390,6 +422,7 @@ on them.
 | `npm run test:unit` | Unit tests (`src/**/*.test.ts`) |
 | `npm run test:coverage` | Unit tests with V8 coverage; fails below the thresholds in `.c8rc.json` |
 | `npm run test:e2e` | Playwright end-to-end tests |
+| `npm run perf` | Measure a large library against a running production server (see Performance) |
 | `npm test` | Unit tests, then end-to-end tests |
 | `npm run check` | Lint, typecheck and unit tests with coverage |
 

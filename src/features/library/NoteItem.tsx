@@ -20,6 +20,9 @@ interface NoteItemProps {
   query?: string;
 }
 
+/** Every row is this tall (px), so long lists can be windowed; the gap between rows is added to it. */
+export const NOTE_ROW_HEIGHT = 80;
+
 /** The drag type of a note being moved inside the app (files use "Files"). */
 export const NOTE_DRAG_TYPE = "application/x-notevoid-note";
 
@@ -70,7 +73,7 @@ function NoteItem({
   return (
     <li
       className={cn(
-        "group relative rounded-md border-l-2 transition-colors",
+        "group relative h-20 overflow-hidden rounded-md border-l-2 transition-colors",
         active
           ? "border-accent bg-accent-glow"
           : "border-transparent hover:bg-bg-elevated"
@@ -85,7 +88,7 @@ function NoteItem({
         }}
         onClick={() => onSelect(note.id)}
         aria-current={active ? "true" : undefined}
-        className="block w-full rounded-md py-2.5 pl-3 pr-16 text-left focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
+        className="block h-full w-full overflow-hidden rounded-md py-2.5 pl-3 pr-16 text-left focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
       >
         <span
           className={cn(
@@ -100,12 +103,10 @@ function NoteItem({
             <Highlighted text={title} query={query} />
           </span>
         </span>
-        {preview && (
-          <span className="mt-0.5 block truncate text-xs text-text-muted">
-            <Highlighted text={preview} query={query} />
-          </span>
-        )}
-        <span className="mt-1 flex items-center gap-1.5 overflow-hidden text-[11px] text-text-muted">
+        <span className="mt-0.5 block h-4 truncate text-xs text-text-muted">
+          {preview ? <Highlighted text={preview} query={query} /> : null}
+        </span>
+        <span className="mt-1 flex h-4 items-center gap-1.5 overflow-hidden text-[11px] text-text-muted">
           {trashed ? (
             <span className="shrink-0">{trashLabel(note.trashedAt!, i18n)}</span>
           ) : (

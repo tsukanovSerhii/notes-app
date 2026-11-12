@@ -77,9 +77,16 @@ function nextSpace(
     data = merge(data, { notes: lost.map((n) => conflictCopy(n, at)), folders: [], tombstones: {} });
   }
 
+  const changed = changedKeys(stored.data, data);
+  if (stored.version > 0 && changed.length === 0 && pruneTombstones(stored, at) === stored) {
+    // Nothing new in either direction (a device polling): the stored space stays as it is, so
+    // it is neither rewritten nor given a new version.
+    return { space: stored, lost, unchanged: true as const };
+  }
+
   const version = stored.version + 1;
   const changes = { ...stored.changes };
-  for (const key of changedKeys(stored.data, data)) changes[key] = version;
+  for (const key of changed) changes[key] = version;
   // Forget change records of entities that no longer exist.
   const alive = new Set([
     ...data.notes.map((n) => "n:" + n.id),
@@ -89,7 +96,7 @@ function nextSpace(
   for (const key of Object.keys(changes)) if (!alive.has(key)) delete changes[key];
 
   const space = pruneTombstones({ version, data, changes, horizon: stored.horizon, revokedAt: null }, at);
-  return { space, lost };
+  return { space, lost, unchanged: false as const };
 }
 
 /**
@@ -169,8 +176,8 @@ export async function handleSyncRequest(
       const found = await repo.get(spaceId);
       const stored = found ?? emptySpace();
       if (stored.revokedAt !== null) return "revoked" as const;
-      const { space, lost } = nextSpace(stored, incoming, base, device, now());
-      if (await repo.put(spaceId, space, found ? stored.version : null)) return { space, lost };
+      const { space, lost, unchanged } = nextSpace(stored, incoming, base, device, now());
+      if (unchanged || (await repo.put(spaceId, space, found ? stored.version : null))) return { space, lost };
     }
     return null;
   });
