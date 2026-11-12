@@ -8,6 +8,7 @@ import {
 } from "@/features/sync/shared/protocol";
 import { deriveSyncKeys, openData, sealData, type SyncKeys } from "@/features/sync/client/crypto";
 import { parseSealedData } from "@/features/sync/shared/wire";
+import type { AttachmentSync } from "@/features/sync/client/attachmentSync";
 
 export const SYNC_KEY_STORAGE = "notevoid-sync-key";
 /** When the last snapshot the server has merged was taken (corrected clock). */
@@ -32,6 +33,10 @@ export interface SyncSnapshot {
   lastConflict: { titles: string[]; at: number } | null;
   /** Set while the server is rate limiting this device: when the retry is due. */
   retryAt: number | null;
+  /** Pictures and files still to be uploaded or downloaded. */
+  attachmentsPending: number;
+  /** Why attachments are not in step (storage full, offline...), if they are not. */
+  attachmentsError: string | null;
 }
 
 export interface SyncClientOptions {
@@ -51,6 +56,8 @@ export interface SyncClientOptions {
   now?: () => number;
   /** This device's id, sent so the server can tell whose edits conflict. */
   deviceId?: string | null;
+  /** Keeps attachment files in step; runs after each note sync. */
+  attachments?: AttachmentSync;
 }
 
 export interface SyncClient {
@@ -63,6 +70,8 @@ export interface SyncClient {
   syncNow(): Promise<void>;
   /** Called when local data changes. */
   scheduleSync(): void;
+  /** Resolves when the attachment pass that is running (if any) has finished. */
+  attachmentsSettled(): Promise<void>;
 }
 
 /**
@@ -88,6 +97,8 @@ const OFF: SyncSnapshot = {
   error: null,
   lastConflict: null,
   retryAt: null,
+  attachmentsPending: 0,
+  attachmentsError: null,
 };
 
 const defaultTimers: Timers = {
@@ -113,6 +124,7 @@ export function createSyncClient({
   rawNow = Date.now,
   now = Date.now,
   deviceId = null,
+  attachments,
 }: SyncClientOptions): SyncClient {
   let loaded = false;
   let snapshot: SyncSnapshot = OFF;
@@ -120,6 +132,8 @@ export function createSyncClient({
   let again = false;
   let timer: unknown = null;
   let unsubscribeData: (() => void) | null = null;
+  let attachmentRun: Promise<void> | null = null;
+  let attachmentAgain = false;
   const listeners = new Set<() => void>();
   let base: number | null = null;
   /**
@@ -177,6 +191,25 @@ export function createSyncClient({
 
   const attach = () => {
     unsubscribeData ??= store.subscribeData(() => client.scheduleSync());
+  };
+
+  /** Runs beside note sync, so a big picture never delays text. */
+  const runAttachments = (k: SyncKeys, key: string) => {
+    if (!attachments) return;
+    if (attachmentRun) {
+      attachmentAgain = true;
+      return;
+    }
+    attachmentRun = (async () => {
+      do {
+        attachmentAgain = false;
+        const result = await attachments.run(k);
+        if (snapshot.key !== key) return;
+        set({ attachmentsPending: result.pending, attachmentsError: result.error });
+      } while (attachmentAgain && snapshot.key === key);
+    })().finally(() => {
+      attachmentRun = null;
+    });
   };
 
   const retryIn = (ms: number) => {
@@ -249,6 +282,7 @@ export function createSyncClient({
         lastSyncedAt: json.syncedAt ?? Date.now(),
         ...(conflicts.length > 0 && { lastConflict: { titles: conflicts, at: now() } }),
       });
+      runAttachments(k, key);
     } catch (error) {
       if (snapshot.key !== key) return;
       const offline = error instanceof TypeError || !isOnline();
@@ -282,6 +316,7 @@ export function createSyncClient({
       if (!key) storageSet(SYNC_E2EE_STORAGE, next);
       setBase(null);
       cursor = null;
+      attachments?.reset();
       loaded = true;
       set({ state: "idle", key: next, error: null, lastSyncedAt: null });
       attach();
@@ -294,6 +329,7 @@ export function createSyncClient({
       storageSet(SYNC_E2EE_STORAGE, null);
       setBase(null);
       cursor = null;
+      attachments?.reset();
       if (timer) timers.clearTimeout(timer);
       timer = null;
       unsubscribeData?.();
@@ -327,6 +363,10 @@ export function createSyncClient({
     scheduleSync() {
       if (!snapshot.key) return;
       retryIn(debounceMs);
+    },
+
+    attachmentsSettled: async () => {
+      while (attachmentRun) await attachmentRun;
     },
   };
 

@@ -172,7 +172,7 @@ export const en = {
     noMarkdown: "No Markdown files to import (.md, .markdown or .txt, up to 5 MB).",
     vaultImported: (notes: string, folders: string) => `Imported ${notes} and ${folders}`,
     vaultEmpty: "No Markdown notes found in that folder.",
-    backupTooLarge: "The backup is larger than 5 MB.",
+    backupTooLarge: "The backup is larger than 64 MB.",
     backupUnreadable: "Could not read the backup file.",
     notABackup: "This file is not a NoteVoid backup.",
     restoredBackup: (count: string) => `Restored ${count} from the backup`,
@@ -208,6 +208,8 @@ export const en = {
     unknownError: "unknown error",
     lastSynced: (time: string) => `Last synced at ${time}`,
     waiting: "Waiting for the first sync…",
+    attachmentsPending: (n: number) => `${n} ${n === 1 ? "picture or file is" : "pictures and files are"} still syncing`,
+    attachmentsFailed: (error: string) => `Pictures and files: ${error}`,
     badKey: "That does not look like a sync key.",
   },
   palette: {

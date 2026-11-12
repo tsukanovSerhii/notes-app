@@ -12,6 +12,8 @@ const snap = (s: Partial<SyncSnapshot>): SyncSnapshot => ({
   error: null,
   lastConflict: null,
   retryAt: null,
+  attachmentsPending: 0,
+  attachmentsError: null,
   ...s,
 });
 

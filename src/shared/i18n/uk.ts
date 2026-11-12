@@ -171,7 +171,7 @@ export const uk: Messages = {
     noMarkdown: "Немає Markdown-файлів для імпорту (.md, .markdown або .txt, до 5 МБ).",
     vaultImported: (notes, folders) => `Імпортовано: ${notes} та ${folders}`,
     vaultEmpty: "У цій теці немає Markdown-нотаток.",
-    backupTooLarge: "Резервна копія більша за 5 МБ.",
+    backupTooLarge: "Резервна копія більша за 64 МБ.",
     backupUnreadable: "Не вдалося прочитати файл резервної копії.",
     notABackup: "Цей файл не є резервною копією NoteVoid.",
     restoredBackup: (count) => `З резервної копії відновлено: ${count}`,
@@ -207,6 +207,8 @@ export const uk: Messages = {
     unknownError: "невідома помилка",
     lastSynced: (time) => `Остання синхронізація о ${time}`,
     waiting: "Очікування першої синхронізації…",
+    attachmentsPending: (n) => `Ще синхронізується файлів: ${n}`,
+    attachmentsFailed: (error) => `Зображення та файли: ${error}`,
     badKey: "Це не схоже на ключ синхронізації.",
   },
   palette: {

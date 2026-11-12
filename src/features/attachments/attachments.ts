@@ -41,6 +41,13 @@ export function attachmentRefs(text: string): string[] {
   return [...found];
 }
 
+/** Every attachment any of `texts` refers to. */
+export function referencedIds(texts: Iterable<string>): Set<string> {
+  const ids = new Set<string>();
+  for (const text of texts) for (const id of attachmentRefs(text)) ids.add(id);
+  return ids;
+}
+
 /** Types a browser draws safely in an <img> (an SVG there cannot run scripts). */
 const INLINE_IMAGES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/svg+xml"]);
 export const isInlineImage = (type: string) => INLINE_IMAGES.has(type);
