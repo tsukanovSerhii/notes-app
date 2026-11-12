@@ -30,6 +30,7 @@ interface LibraryNavProps {
   onRenameFolder: (id: string, name: string) => void;
   onDeleteFolder: (id: string) => void;
   onManageTags: () => void;
+  onOpenToday: () => void;
   /** A folder dropped on a folder, or on "All notes" (null) to move it to the top level. */
   onMoveFolder: (id: string, parentId: string | null) => void;
   /** A note dropped on a row: into a folder (or out of folders with null), or the trash. */
@@ -48,6 +49,7 @@ export default function LibraryNav({
   onRenameFolder,
   onDeleteFolder,
   onManageTags,
+  onOpenToday,
   onMoveFolder,
   onDropNote,
 }: LibraryNavProps) {
@@ -61,6 +63,7 @@ export default function LibraryNav({
   return (
     <nav aria-label={t.library.label} className="space-y-3 px-2 pb-3">
       <ul className="space-y-0.5">
+        <NavRow icon="calendar" label={t.sidebar.today} active={false} onClick={onOpenToday} />
         <NavRow
           icon="fileText"
           label={t.sidebar.allNotes}
@@ -215,7 +218,7 @@ function NavRow({
 }: {
   icon: IconName;
   label: string;
-  count: number;
+  count?: number;
   active: boolean;
   onClick: () => void;
   actions?: React.ReactNode;
@@ -268,9 +271,11 @@ function NavRow({
       >
         <Icon name={icon} size={14} className="shrink-0" />
         <span className="min-w-0 flex-1 truncate">{label}</span>
-        <span className={cn("text-[11px] text-text-muted", actions && "group-focus-within:invisible group-hover:invisible")}>
-          {count}
-        </span>
+        {count !== undefined && (
+          <span className={cn("text-[11px] text-text-muted", actions && "group-focus-within:invisible group-hover:invisible")}>
+            {count}
+          </span>
+        )}
       </button>
       {actions && (
         <div className="absolute right-1 top-1/2 flex -translate-y-1/2 gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">

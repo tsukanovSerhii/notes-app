@@ -52,6 +52,7 @@ export const uk: Messages = {
     notes: "Нотатки",
     noteList: "Список нотаток",
     allNotes: "Усі нотатки",
+    today: "Сьогодні",
     trash: "Кошик",
     searchResults: "Результати пошуку",
     searchInTrash: "Пошук у кошику",
@@ -257,6 +258,7 @@ export const uk: Messages = {
     graph: "Відкрити граф нотаток",
     shortcuts: "Показати гарячі клавіші",
     manageTags: "Керувати тегами",
+    today: "Відкрити нотатку на сьогодні",
     exportZip: "Експортувати всі нотатки ZIP-архівом Markdown-файлів",
   },
   graph: {
@@ -303,5 +305,6 @@ export const uk: Messages = {
     palette: "Палітра команд",
     continueList: "Продовжити список",
     showShortcuts: "Показати гарячі клавіші",
+    todayNote: "Відкрити нотатку на сьогодні",
   },
 };

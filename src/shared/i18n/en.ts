@@ -53,6 +53,7 @@ export const en = {
     notes: "Notes",
     noteList: "Note list",
     allNotes: "All notes",
+    today: "Today",
     trash: "Trash",
     searchResults: "Search results",
     searchInTrash: "Search in trash",
@@ -258,6 +259,7 @@ export const en = {
     graph: "Open the note graph",
     shortcuts: "Show keyboard shortcuts",
     manageTags: "Manage tags",
+    today: "Open today's note",
     exportZip: "Export all notes as a ZIP of Markdown files",
   },
   graph: {
@@ -304,6 +306,7 @@ export const en = {
     palette: "Command palette",
     continueList: "Continue list",
     showShortcuts: "Show keyboard shortcuts",
+    todayNote: "Open today's note",
   },
 };
 

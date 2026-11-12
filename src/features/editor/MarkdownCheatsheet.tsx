@@ -29,6 +29,7 @@ const SYNTAX: { syntax: string; result: CheatKey }[] = [
 /** Also listed in the shortcuts dialog (`?`). */
 export const SHORTCUTS: { keys: string; action: CheatKey }[] = [
   { keys: "Alt + N", action: "newNote" },
+  { keys: "Alt + D", action: "todayNote" },
   { keys: "/", action: "searchNotes" },
   { keys: "Ctrl + Shift + P", action: "palette" },
   { keys: "Ctrl + B", action: "bold" },

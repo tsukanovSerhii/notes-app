@@ -8,6 +8,7 @@ import { setLocale, useI18n } from "@/shared/i18n";
 export function useCommands({
   hasOpenNote,
   newNote,
+  openToday,
   focusSearch,
   cycleViewMode,
   showHistory,
@@ -24,6 +25,7 @@ export function useCommands({
 }: {
   hasOpenNote: boolean;
   newNote: () => void;
+  openToday: () => void;
   focusSearch: () => void;
   cycleViewMode: () => void;
   showHistory: () => void;
@@ -47,6 +49,7 @@ export function useCommands({
   ];
   return [
     { id: "new", label: t.palette.newNote, icon: "plus", run: newNote },
+    { id: "today", label: t.palette.today, icon: "calendar", run: openToday },
     { id: "search", label: t.palette.search, icon: "search", run: focusSearch },
     ...(hasOpenNote ? forNote : []),
     { id: "graph", label: t.palette.graph, icon: "link", run: openGraph },

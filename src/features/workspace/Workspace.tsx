@@ -25,6 +25,8 @@ import TagsDialog from "@/features/library/TagsDialog";
 import ShortcutsDialog from "@/features/editor/ShortcutsDialog";
 import { TEMPLATES } from "@/features/editor/lib/templates";
 import { userTemplates } from "@/features/editor/lib/userTemplates";
+import { DAILY_TAG, findDailyNote } from "@/features/workspace/dailyNote";
+import { todayLocalISO } from "@/shared/lib/text";
 import NotePane from "@/features/workspace/NotePane";
 import TrashedNote from "@/features/workspace/TrashedNote";
 import { EmptyState, WorkspaceSkeleton } from "@/features/workspace/EmptyState";
@@ -86,6 +88,18 @@ export default function Workspace() {
     requestAnimationFrame(() => titleRef.current?.select());
   }, [store, activeFilter, viewMode, setSearchQuery, setFilter]);
 
+  /** Opens the note for today's date, making it the first time the day is used. */
+  const openToday = useCallback(() => {
+    const iso = todayLocalISO();
+    const existing = findDailyNote(store.getData().notes, iso);
+    if (existing) store.select(existing.id);
+    else store.create({ title: iso, content: `# ${iso}\n\n`, tags: [DAILY_TAG] });
+    setSearchQuery("");
+    setFilter(ALL_NOTES);
+    setDrawerOpen(false);
+    if (viewMode === "preview") setViewMode("split");
+  }, [store, viewMode, setSearchQuery, setFilter]);
+
   const openNote = useCallback(
     (id: string) => {
       store.select(id);
@@ -104,6 +118,7 @@ export default function Workspace() {
     openPalette: useCallback(() => setPaletteOpen(true), []),
     focusSearch,
     openShortcuts: useCallback(() => setShortcutsOpen(true), []),
+    openToday,
     escape: useCallback(() => setDrawerOpen(false), []),
     escapeActive: drawerOpen,
   });
@@ -111,6 +126,7 @@ export default function Workspace() {
   const commands = useCommands({
     hasOpenNote: activeNote !== null && !activeTrashed,
     newNote,
+    openToday,
     focusSearch,
     cycleViewMode: () => setViewMode(nextViewMode(effectiveMode, isWide)),
     showHistory: () => setHistoryFor(activeNote),
@@ -153,6 +169,7 @@ export default function Workspace() {
           onRenameFolder={store.renameFolder}
           onDeleteFolder={actions.deleteFolder}
           onManageTags={() => setTagsOpen(true)}
+          onOpenToday={openToday}
           onMoveFolder={actions.moveFolder}
           onDropNote={actions.moveNote}
         />
