@@ -17,8 +17,8 @@ import nextTs from "eslint-config-next/typescript";
  */
 const ROUTES = { group: ["@/app/*"], message: "Only src/app may import routes." };
 const SYNC_SERVER = {
-  group: ["@/features/sync/server/*"],
-  message: "Browser code must not import the sync server (it would ship server code to the client).",
+  group: ["@/features/*/server/*"],
+  message: "Browser code must not import server code (it would ship it to the client).",
 };
 const OTHER_FEATURES = {
   group: ["@/features/*", "!@/features/notes", "!@/features/notes/**"],
@@ -44,7 +44,7 @@ const eslintConfig = defineConfig([
   ]),
   { files: ["src/features/**"], rules: restrict(ROUTES) },
   {
-    files: ["src/features/**/*.tsx", "src/features/**/client/**", "src/features/sync/shared/**"],
+    files: ["src/features/**/*.tsx", "src/features/**/client/**", "src/features/sync/shared/**", "src/features/sharing/shared/**"],
     ignores: ["**/*.test.ts"],
     rules: restrict(ROUTES, SYNC_SERVER),
   },
