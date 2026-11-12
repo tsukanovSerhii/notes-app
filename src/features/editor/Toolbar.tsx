@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { TEMPLATES, type NoteTemplate } from "@/features/editor/lib/templates";
 import MarkdownCheatsheet from "@/features/editor/MarkdownCheatsheet";
+import Outline from "@/features/editor/Outline";
+import type { Heading } from "@/features/editor/lib/outline";
 import Icon, { type IconName } from "@/shared/ui/Icon";
 import { useDismiss } from "@/shared/hooks/useDismiss";
 import { cn } from "@/shared/lib/cn";
@@ -14,6 +16,8 @@ export interface ToolbarProps {
   onInsert: (text: string) => void;
   onTemplate: (template: NoteTemplate) => void;
   onAttach: (files: File[]) => void;
+  content: string;
+  onJump: (heading: Heading) => void;
 }
 
 const TABLE = `| Column A | Column B |
@@ -29,6 +33,8 @@ export default function Toolbar({
   onInsert,
   onTemplate,
   onAttach,
+  content,
+  onJump,
 }: ToolbarProps) {
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -81,6 +87,8 @@ export default function Toolbar({
       />
 
       <Divider />
+
+      <Outline content={content} onJump={onJump} />
 
       <div className="relative" ref={menuRef}>
         <button

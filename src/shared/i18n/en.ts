@@ -115,6 +115,8 @@ export const en = {
     codeBlock: "Code block",
     table: "Table",
     attach: "Insert image or file",
+    outline: "Outline",
+    noHeadings: "No headings yet. Start a line with # to add one.",
     templates: "Templates",
     help: "Markdown help",
     cheatsheet: "Markdown cheatsheet",

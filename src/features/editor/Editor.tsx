@@ -10,7 +10,8 @@ import {
   wrapSelection,
   type TextSelection,
 } from "@/features/editor/lib/markdownActions";
-import { applyNativeEdit, readSelection } from "@/features/editor/lib/textarea";
+import { applyNativeEdit, readSelection, revealOffset } from "@/features/editor/lib/textarea";
+import { scrollPreviewTo, type Heading } from "@/features/editor/lib/outline";
 import type { NoteTemplate } from "@/features/editor/lib/templates";
 import type { SaveStatus } from "@/features/notes/state/store";
 import { useI18n } from "@/shared/i18n";
@@ -63,6 +64,11 @@ export default function Editor({
     if (markdown) insert(markdown);
   };
 
+  const jump = (heading: Heading) => {
+    if (textareaRef.current) revealOffset(textareaRef.current, heading.offset);
+    scrollPreviewTo(heading);
+  };
+
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     // Copied text may come with a picture of it; only files alone are attached.
     const files = [...e.clipboardData.files];
@@ -98,6 +104,8 @@ export default function Editor({
         onInsert={insert}
         onTemplate={onTemplate}
         onAttach={(files) => void attach(files)}
+        content={value}
+        onJump={jump}
       />
       <textarea
         ref={textareaRef}

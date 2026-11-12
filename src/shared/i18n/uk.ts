@@ -114,6 +114,8 @@ export const uk: Messages = {
     codeBlock: "Блок коду",
     table: "Таблиця",
     attach: "Вставити зображення або файл",
+    outline: "Зміст",
+    noHeadings: "Заголовків ще немає. Почніть рядок із #, щоб додати.",
     templates: "Шаблони",
     help: "Довідка з Markdown",
     cheatsheet: "Шпаргалка Markdown",

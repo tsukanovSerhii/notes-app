@@ -47,3 +47,28 @@ export function applyNativeEdit(
   }
   return false;
 }
+
+/**
+ * Puts the caret at `offset` and scrolls the textarea so that line is near
+ * the top. The position is measured on a hidden copy of the text, because
+ * wrapped lines make "line number × line height" wrong.
+ */
+export function revealOffset(el: HTMLTextAreaElement, offset: number): void {
+  el.focus();
+  el.setSelectionRange(offset, offset);
+  const style = getComputedStyle(el);
+  const mirror = document.createElement("div");
+  for (const prop of [
+    "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing",
+    "paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth", "tabSize",
+  ] as const) {
+    mirror.style[prop] = style[prop];
+  }
+  mirror.style.cssText += ";position:absolute;visibility:hidden;top:0;left:-9999px;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box";
+  mirror.style.width = `${el.clientWidth}px`;
+  mirror.textContent = el.value.slice(0, offset) || "\u200b";
+  document.body.appendChild(mirror);
+  const top = mirror.scrollHeight - parseFloat(style.lineHeight || "0");
+  mirror.remove();
+  el.scrollTop = Math.max(0, top);
+}
