@@ -1,5 +1,7 @@
 # NoteVoid
 
+**Live demo: <https://notes-app-ivory-eta.vercel.app/>**
+
 A local-first Markdown notes app: live preview, wiki links, folders and
 tags, math and diagrams, version history, a command palette, light and dark
 themes, English and Ukrainian, and optional end-to-end encrypted sync between
@@ -8,7 +10,8 @@ sync server is opt-in.
 
 Built with **Next.js 16** (App Router + Route Handlers), **React 19**,
 **TypeScript** (strict) and **Tailwind CSS 4**. No UI or state libraries. In
-the browser: `react-markdown` with `remark-gfm`, `html2pdf.js`, and KaTeX and
+the browser: `react-markdown` with `remark-gfm`, **CodeMirror 6** (the editor),
+`html2pdf.js`, and KaTeX and
 Mermaid loaded only when a note needs them; on the server, `pg` when sync is
 backed by Postgres. Encryption uses the built-in Web Crypto API.
 
@@ -40,6 +43,9 @@ backed by Postgres. Encryption uses the built-in Web Crypto API.
 - **Syntax highlighting** for TypeScript/JavaScript, JSON, CSS, HTML, bash and
   Python, using an in-house tokenizer with no dependencies. Code blocks show
   their language and have a Copy button.
+- A **CodeMirror 6** editor: Markdown is highlighted as you write, `/` opens a
+  menu of blocks to insert (headings, lists, tasks, table, code, math, diagram,
+  image), and optional **Vim keys** can be switched on in the app menu.
 - Formatting toolbar and shortcuts. Native **Ctrl + Z** keeps working after
   toolbar actions. Enter continues or ends lists.
 - Templates (built in, or any note saved into a `Templates` folder; `{{date}}`
@@ -158,7 +164,7 @@ is broken:
 | --- | --- | --- |
 | [`notes`](src/features/notes/) | The core: model, pure reducer and merge, validation, the store, IndexedDB/localStorage persistence | `model/types`, `model/reducer`, `model/merge`, `model/schema`, `state/store`, `persistence/indexedDb` |
 | [`library`](src/features/library/) | The sidebar: folders, tags, trash, the note list | `Sidebar`, `LibraryNav`, `NoteItem` |
-| [`editor`](src/features/editor/) | Writing: textarea, toolbar, shortcuts, folder and tag field, templates | `Editor`, `Toolbar`, `lib/markdownActions` |
+| [`editor`](src/features/editor/) | Writing: CodeMirror editor, slash commands, toolbar, shortcuts, outline, folder and tag field, templates | `Editor`, `cm/CodeEditor`, `Toolbar`, `lib/markdownActions` |
 | [`markdown`](src/features/markdown/) | Rendering: preview, syntax highlighting, wiki links and backlinks, KaTeX, Mermaid | `Markdown`, `lib/highlight`, `lib/wikiLinks`, `lib/extras` |
 | [`history`](src/features/history/) | Local version history and its dialog | `history`, `noteHistory`, `HistoryDialog` |
 | [`sync`](src/features/sync/) | Encrypted sync, split into `shared` (protocol, wire format), `client` (sync client, crypto, UI) and `server` (handler, conflicts, repositories, rate limits) | `client/syncClient`, `client/crypto`, `server/handler` |
@@ -417,7 +423,7 @@ npm test
 with coverage thresholds and the production build, then the end-to-end suite
 against `next start`, then **Lighthouse CI** (`lighthouserc.cjs`), which fails
 if performance, accessibility, best practices or SEO drop below 90 to 95, or if
-LCP, layout shift, blocking time or the 330 KiB first-load JavaScript budget are
+LCP, layout shift, blocking time or the 400 KiB first-load JavaScript budget are
 exceeded. Coverage and Lighthouse reports are uploaded as an artifact.
 [CodeQL](.github/workflows/codeql.yml) scans the code weekly and on pull
 requests, and Dependabot proposes dependency updates.
@@ -459,9 +465,6 @@ Unit tests sit next to the code they test as `*.test.ts`.
 ## Possible next steps
 
 - Real accounts instead of sync keys
-- A hosted demo
-- Images stored with notes (they would need encrypting and syncing as
-  binary data, within the request size limit)
 - Field-level merge, so two devices editing different fields of a note
   don't overwrite each other
 

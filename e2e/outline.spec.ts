@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createNote, editor, gotoFresh, preview } from "./helpers";
+import { caretLine, createNote, editor, gotoFresh, preview } from "./helpers";
 
 test("the outline lists headings and jumps to one in the editor and the preview", async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 700 });
@@ -13,9 +13,8 @@ test("the outline lists headings and jumps to one in the editor and the preview"
   await expect(menu.getByRole("menuitem")).toHaveText(["Start", "Middle part", "The end"]);
 
   await menu.getByRole("menuitem", { name: "Middle part" }).click();
-  const caret = await editor(page).evaluate((el: HTMLTextAreaElement) => el.value.slice(el.selectionStart, el.selectionStart + 14));
-  expect(caret).toBe("## Middle part");
-  expect(await editor(page).evaluate((el: HTMLTextAreaElement) => el.scrollTop)).toBeGreaterThan(200);
+  expect(await caretLine(page)).toBe("## Middle part");
+  expect(await page.locator(".cm-scroller").evaluate((el) => el.scrollTop)).toBeGreaterThan(200);
   await expect(preview(page).getByRole("heading", { name: "Middle part" })).toBeInViewport();
 });
 

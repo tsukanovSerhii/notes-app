@@ -17,7 +17,7 @@ export interface ToolbarProps {
   templates: NoteTemplate[];
   onTemplate: (template: NoteTemplate) => void;
   onSaveTemplate: () => void;
-  onAttach: (files: File[]) => void;
+  onPickFile: () => void;
   content: string;
   onJump: (heading: Heading) => void;
 }
@@ -36,14 +36,13 @@ export default function Toolbar({
   templates,
   onTemplate,
   onSaveTemplate,
-  onAttach,
+  onPickFile,
   content,
   onJump,
 }: ToolbarProps) {
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
   useDismiss(menuRef, menuOpen, () => setMenuOpen(false));
 
   return (
@@ -75,20 +74,7 @@ export default function Toolbar({
       <Btn label={t.editor.inlineCode} icon="code" onClick={() => onWrap("`", "`", "code")} />
       <Btn label={t.editor.codeBlock} icon="codeBlock" onClick={() => onInsert(CODE_BLOCK)} />
       <Btn label={t.editor.table} icon="table" onClick={() => onInsert(TABLE)} />
-      <Btn label={t.editor.attach} icon="image" onClick={() => fileInput.current?.click()} />
-      <input
-        ref={fileInput}
-        type="file"
-        multiple
-        hidden
-        data-testid="attach-input"
-        aria-label={t.editor.attach}
-        onChange={(e) => {
-          const files = [...(e.target.files ?? [])];
-          e.target.value = "";
-          if (files.length) onAttach(files);
-        }}
-      />
+      <Btn label={t.editor.attach} icon="image" onClick={onPickFile} />
 
       <Divider />
 

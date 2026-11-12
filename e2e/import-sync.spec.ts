@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "fs";
 import { storedSyncData } from "./syncStorage";
-import { gotoFresh, createNote, editor, noteList, titleInput, noteRow } from "./helpers";
+import { gotoFresh, createNote, editor, noteList, titleInput, noteRow, expectEditorValue } from "./helpers";
 
 test.describe("Import & backup", () => {
   test.beforeEach(async ({ page }) => {
@@ -107,13 +107,13 @@ test("syncs notes between two devices through the server", async ({ browser }) =
   const copyRow = noteList(phone).locator("li").filter({ hasText: phoneTitle }).filter({ hasText: "conflict copy" });
   await expect(copyRow).toHaveCount(1);
   await copyRow.click();
-  await expect(editor(phone)).toHaveValue("Phone version");
+  await expectEditorValue(editor(phone), "Phone version");
   await noteList(phone)
     .locator("li")
     .filter({ hasText: phoneTitle })
     .filter({ hasNotText: "conflict copy" })
     .click();
-  await expect(editor(phone)).toHaveValue("Laptop version");
+  await expectEditorValue(editor(phone), "Laptop version");
 
   // End-to-end encryption: what the server stored never contains the notes' text or the key.
   const stored = await storedSyncData(startedAt);

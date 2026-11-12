@@ -6,6 +6,7 @@ import {
   titleInput,
   preview,
   selectRange,
+  expectEditorValue,
 } from "./helpers";
 
 test.describe("Editor toolbar, shortcuts, templates & cheatsheet", () => {
@@ -18,14 +19,14 @@ test.describe("Editor toolbar, shortcuts, templates & cheatsheet", () => {
     await editor(page).fill("hello world");
     await selectRange(page, 6, 11);
     await page.getByRole("button", { name: /^Bold/i }).click();
-    await expect(editor(page)).toHaveValue("hello **world**");
+    await expectEditorValue(editor(page), "hello **world**");
   });
 
   test("toolbar Bullet list prefixes selected lines", async ({ page }) => {
     await editor(page).fill("a\nb\nc");
     await selectRange(page, 0, 5);
     await page.getByRole("button", { name: /Bullet list/i }).click();
-    await expect(editor(page)).toHaveValue("- a\n- b\n- c");
+    await expectEditorValue(editor(page), "- a\n- b\n- c");
   });
 
   test("toolbar Table inserts a GFM table rendered in preview", async ({
@@ -33,7 +34,7 @@ test.describe("Editor toolbar, shortcuts, templates & cheatsheet", () => {
   }) => {
     await editor(page).click();
     await page.getByRole("button", { name: /^Table$/i }).click();
-    await expect(editor(page)).toHaveValue(/\| Column A \|/);
+    await expectEditorValue(editor(page), /\| Column A \|/);
     await expect(preview(page).locator("table")).toHaveCount(1);
   });
 
@@ -41,17 +42,17 @@ test.describe("Editor toolbar, shortcuts, templates & cheatsheet", () => {
     await editor(page).fill("text");
     await selectRange(page, 0, 4);
     await editor(page).press("Control+b");
-    await expect(editor(page)).toHaveValue("**text**");
+    await expectEditorValue(editor(page), "**text**");
 
     await editor(page).fill("text");
     await selectRange(page, 0, 4);
     await editor(page).press("Control+i");
-    await expect(editor(page)).toHaveValue("*text*");
+    await expectEditorValue(editor(page), "*text*");
 
     await editor(page).fill("text");
     await selectRange(page, 0, 4);
     await editor(page).press("Control+k");
-    await expect(editor(page)).toHaveValue("[text](url)");
+    await expectEditorValue(editor(page), "[text](url)");
   });
 
   test("Templates menu inserts a whole note and adopts the title", async ({
@@ -61,7 +62,7 @@ test.describe("Editor toolbar, shortcuts, templates & cheatsheet", () => {
     await page.getByRole("menuitem", { name: /To-do list/i }).click();
 
     await expect(titleInput(page)).toHaveValue("To-do list");
-    await expect(editor(page)).toHaveValue(/## Today/);
+    await expectEditorValue(editor(page), /## Today/);
 
     await expect(
       preview(page).locator('input[type="checkbox"]')
@@ -80,10 +81,10 @@ test.describe("Editor toolbar, shortcuts, templates & cheatsheet", () => {
     await editor(page).fill("text");
     await selectRange(page, 0, 4);
     await page.getByRole("button", { name: /^Bold/i }).click();
-    await expect(editor(page)).toHaveValue("**text**");
+    await expectEditorValue(editor(page), "**text**");
 
     await editor(page).press("Control+z");
-    await expect(editor(page)).toHaveValue("text");
+    await expectEditorValue(editor(page), "text");
   });
 
   test("Enter continues a list and ends it on an empty item", async ({
@@ -93,11 +94,11 @@ test.describe("Editor toolbar, shortcuts, templates & cheatsheet", () => {
     await page.keyboard.type("- milk");
     await page.keyboard.press("Enter");
     await page.keyboard.type("eggs");
-    await expect(editor(page)).toHaveValue("- milk\n- eggs");
+    await expectEditorValue(editor(page), "- milk\n- eggs");
 
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
-    await expect(editor(page)).toHaveValue("- milk\n- eggs\n");
+    await expectEditorValue(editor(page), "- milk\n- eggs\n");
   });
 
   test("view mode switches between edit, split and preview", async ({

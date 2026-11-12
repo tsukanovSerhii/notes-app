@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createNote, editor, gotoFresh, noteRow, titleInput } from "./helpers";
+import { createNote, editor, gotoFresh, noteRow, titleInput, expectEditorValue } from "./helpers";
 
 test("a note can be saved as a template and used in other notes, with the date filled in", async ({ page }) => {
   await gotoFresh(page);
@@ -19,7 +19,7 @@ test("a note can be saved as a template and used in other notes, with the date f
   await page.getByRole("menuitem", { name: "Weekly review" }).click();
   const today = new Date();
   const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  await expect(editor(page)).toHaveValue(`# Review ${iso}\n\n- [ ] wins`);
+  await expectEditorValue(editor(page), `# Review ${iso}\n\n- [ ] wins`);
   await expect(titleInput(page)).toHaveValue("Weekly review");
 
   // Saving the same note again updates the template instead of adding another.

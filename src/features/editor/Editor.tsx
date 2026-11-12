@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { lazy, Suspense, useRef } from "react";
 import Toolbar from "@/features/editor/Toolbar";
 import StatusBar from "@/features/editor/StatusBar";
 import {
@@ -10,11 +10,16 @@ import {
   wrapSelection,
   type TextSelection,
 } from "@/features/editor/lib/markdownActions";
-import { applyNativeEdit, readSelection, revealOffset } from "@/features/editor/lib/textarea";
+import type { EditorHandle } from "@/features/editor/cm/CodeEditor";
+import { VIM_PREFERENCE, isVimSetting } from "@/features/editor/lib/vimSetting";
 import { scrollPreviewTo, type Heading } from "@/features/editor/lib/outline";
 import type { NoteTemplate } from "@/features/editor/lib/templates";
 import type { SaveStatus } from "@/features/notes/state/store";
+import { usePreference } from "@/shared/hooks/usePreference";
 import { useI18n } from "@/shared/i18n";
+
+// CodeMirror is a sizeable chunk; the page paints before it arrives.
+const CodeEditor = lazy(() => import("@/features/editor/cm/CodeEditor"));
 
 interface EditorProps {
   value: string;
@@ -39,28 +44,15 @@ export default function Editor({
   onAttach,
 }: EditorProps) {
   const { t } = useI18n();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [vim] = usePreference(VIM_PREFERENCE, "off", isVimSetting);
+  const editor = useRef<EditorHandle>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
-  const run = (transform: Transform): boolean => {
-    const el = textareaRef.current;
-    if (!el) return false;
-    const next = transform(readSelection(el));
-    if (!next) return false;
-
-    if (!applyNativeEdit(el, next)) {
-      onChange(next.value);
-      requestAnimationFrame(() => {
-        el.focus();
-        el.setSelectionRange(next.selectionStart, next.selectionEnd);
-      });
-    }
-    return true;
-  };
+  const run = (transform: Transform): boolean => editor.current?.transform(transform) ?? false;
 
   const wrap = (before: string, after: string, placeholder?: string) =>
     run((s) => wrapSelection(s, before, after, placeholder));
-  const prefix = (p: string, ordered?: boolean) =>
-    run((s) => prefixLines(s, p, ordered));
+  const prefix = (p: string, ordered?: boolean) => run((s) => prefixLines(s, p, ordered));
   const insert = (text: string) => run((s) => insertBlock(s, text));
 
   const attach = async (files: File[]) => {
@@ -69,35 +61,8 @@ export default function Editor({
   };
 
   const jump = (heading: Heading) => {
-    if (textareaRef.current) revealOffset(textareaRef.current, heading.offset);
+    editor.current?.reveal(heading.offset);
     scrollPreviewTo(heading);
-  };
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    // Copied text may come with a picture of it; only files alone are attached.
-    const files = [...e.clipboardData.files];
-    if (files.length === 0 || e.clipboardData.getData("text/plain")) return;
-    e.preventDefault();
-    void attach(files);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      if (!e.nativeEvent.isComposing && run(continueList)) e.preventDefault();
-      return;
-    }
-    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
-
-    const shortcuts: Record<string, () => void> = {
-      b: () => wrap("**", "**", "bold"),
-      i: () => wrap("*", "*", "italic"),
-      k: () => wrap("[", "](url)", "text"),
-    };
-    const action = shortcuts[e.key.toLowerCase()];
-    if (action) {
-      e.preventDefault();
-      action();
-    }
   };
 
   return (
@@ -109,21 +74,48 @@ export default function Editor({
         templates={templates}
         onTemplate={onTemplate}
         onSaveTemplate={onSaveTemplate}
-        onAttach={(files) => void attach(files)}
+        onPickFile={() => fileInput.current?.click()}
         content={value}
         onJump={jump}
       />
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
-        placeholder={t.note.placeholder}
-        aria-label={t.note.content}
-        spellCheck={false}
-        className="min-h-0 w-full flex-1 resize-none bg-transparent p-4 font-mono text-sm leading-[1.8] text-text-primary placeholder:text-text-muted outline-none sm:p-6"
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        hidden
+        data-testid="attach-input"
+        aria-label={t.editor.attach}
+        onChange={(e) => {
+          const files = [...(e.target.files ?? [])];
+          e.target.value = "";
+          if (files.length) void attach(files);
+        }}
       />
+      <div className="min-h-0 flex-1" data-testid="editor">
+        <Suspense fallback={<div className="h-full" aria-busy="true" />}>
+          <CodeEditor
+            value={value}
+            onChange={onChange}
+            label={t.note.content}
+            placeholder={t.note.placeholder}
+            vim={vim === "on"}
+            slashName={(id) => t.slash[id]}
+            slashHint={(id) => t.slashHint[id]}
+            onPickFile={() => fileInput.current?.click()}
+            onFiles={(files) => void attach(files)}
+            onKey={(name) =>
+              name === "bold"
+                ? (s) => wrapSelection(s, "**", "**", "bold")
+                : name === "italic"
+                  ? (s) => wrapSelection(s, "*", "*", "italic")
+                  : name === "link"
+                    ? (s) => wrapSelection(s, "[", "](url)", "text")
+                    : continueList
+            }
+            handleRef={editor}
+          />
+        </Suspense>
+      </div>
       <StatusBar content={value} saveStatus={saveStatus} />
     </div>
   );

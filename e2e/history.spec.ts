@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createNote, editor, gotoFresh, titleInput } from "./helpers";
+import { createNote, editor, gotoFresh, titleInput, expectEditorValue } from "./helpers";
 
 test("earlier versions of a note can be viewed and restored", async ({ page }) => {
   await page.clock.install();
@@ -23,7 +23,7 @@ test("earlier versions of a note can be viewed and restored", async ({ page }) =
   await expect(dialog.getByLabel(/^Version from/)).toContainText("First draft");
 
   await dialog.getByRole("button", { name: "Restore this version" }).click();
-  await expect(editor(page)).toHaveValue("First draft");
+  await expectEditorValue(editor(page), "First draft");
   await expect(page.getByRole("status").filter({ hasText: "Restored an earlier version" })).toBeVisible();
 
   // The text that was replaced is in the history now, so the restore can be undone.

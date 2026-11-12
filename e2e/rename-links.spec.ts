@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createNote, editor, gotoFresh, noteRow, titleInput } from "./helpers";
+import { createNote, editor, gotoFresh, noteRow, titleInput, expectEditorValue } from "./helpers";
 
 test("renaming a note updates the [[links]] to it in other notes", async ({ page }) => {
   await gotoFresh(page);
@@ -17,7 +17,7 @@ test("renaming a note updates the [[links]] to it in other notes", async ({ page
 
   await expect(page.getByRole("status").filter({ hasText: "Updated links in 1 note" })).toBeVisible();
   await noteRow(page, "Plan").click();
-  await expect(editor(page)).toHaveValue(
+  await expectEditorValue(editor(page), 
     "See [[Finance]] and [[Finance|the money]].\n\n`[[Budget]]` stays in code."
   );
 

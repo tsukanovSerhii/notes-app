@@ -1,7 +1,33 @@
-import { type Page, expect } from "@playwright/test";
+import { type Locator, type Page, expect } from "@playwright/test";
 
-export const editor = (page: Page) =>
-  page.locator('textarea[placeholder="Start writing in Markdown..."]');
+/** The editor (CodeMirror). Type into it with fill, press and pressSequentially. */
+export const editor = (page: Page) => page.locator('[data-testid="editor"] .cm-content');
+
+/** The text of the editor, line by line, without the placeholder. */
+export const editorText = (locator: Locator) =>
+  locator.evaluate((el) =>
+    [...el.querySelectorAll(".cm-line")]
+      .map((line) => {
+        const copy = line.cloneNode(true) as HTMLElement;
+        copy.querySelectorAll(".cm-placeholder").forEach((p) => p.remove());
+        return copy.textContent ?? "";
+      })
+      .join("\n")
+  );
+
+/** Waits until the editor holds exactly this text (a string) or matches it (a regular expression). */
+export async function expectEditorValue(locator: Locator, expected: string | RegExp) {
+  await expect
+    .poll(async () => {
+      const text = await editorText(locator);
+      return typeof expected === "string" ? text === expected : expected.test(text);
+    }, { message: `editor text should match ${String(expected)}` })
+    .toBe(true);
+}
+
+/** The line the caret is on. */
+export const caretLine = (page: Page) =>
+  page.evaluate(() => getSelection()?.anchorNode?.parentElement?.closest(".cm-line")?.textContent ?? null);
 
 export const titleInput = (page: Page) => page.locator('input[placeholder="Untitled"]');
 
@@ -59,16 +85,43 @@ export async function createNote(page: Page) {
   await expect(editor(page)).toBeVisible();
 }
 
+/** Selects characters `start`..`end` of the editor text (offsets count a newline as one). */
 export async function selectRange(page: Page, start: number, end: number) {
   await page.evaluate(
     ([s, e]) => {
-      const ta = document.querySelector("textarea")!;
-      ta.focus();
-      ta.setSelectionRange(s, e);
+      const content = document.querySelector<HTMLElement>('[data-testid="editor"] .cm-content')!;
+      content.focus();
+      const lines = [...content.querySelectorAll(".cm-line")];
+      const locate = (offset: number): [Node, number] => {
+        let rest = offset;
+        for (const line of lines) {
+          const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+          const nodes: Text[] = [];
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            if (!(n.parentElement?.closest(".cm-placeholder"))) nodes.push(n as Text);
+          }
+          const length = nodes.reduce((sum, n) => sum + n.data.length, 0);
+          if (rest <= length) {
+            for (const n of nodes) {
+              if (rest <= n.data.length) return [n, rest];
+              rest -= n.data.length;
+            }
+            return [line, 0];
+          }
+          rest -= length + 1;
+        }
+        return [content, 0];
+      };
+      const [a, ao] = locate(s);
+      const [b, bo] = locate(e);
+      getSelection()!.setBaseAndExtent(a, ao, b, bo);
     },
     [start, end]
   );
 }
+
+/** Puts the caret at `offset` in the editor text. */
+export const placeCaret = (page: Page, offset: number) => selectRange(page, offset, offset);
 
 /** Reads every note stored in IndexedDB. */
 export function storedNotes(page: Page) {
