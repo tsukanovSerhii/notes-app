@@ -25,15 +25,15 @@ test("derives a stable space token that reveals nothing of the key", async () =>
 test("seals text, tags and folder names, and opens them again", async () => {
   const keys = await deriveSyncKeys(KEY);
   const n = note("a", { title: "Plan", content: "secret", tags: ["work"], folderId: "f", editedBy: "dev" });
-  const sealed = await sealData(keys, { notes: [n], folders: [folder("f", { name: "Hidden" })], tombstones: { x: 1 } });
+  const sealed = await sealData(keys, { notes: [n], folders: [folder("f", { name: "Hidden", parentId: "parent-folder" })], tombstones: { x: 1 } });
   const raw = JSON.stringify(sealed);
-  for (const secret of ["Plan", "secret", "work", "Hidden"]) expect(raw).not.toContain(secret);
+  for (const secret of ["Plan", "secret", "work", "Hidden", "parent-folder"]) expect(raw).not.toContain(secret);
   // What the server needs stays readable.
   expect(sealed.notes[0]).toMatchObject({ id: "a", folderId: "f", editedBy: "dev", conflictOf: null });
   expect(sealed.tombstones).toEqual({ x: 1 });
 
   const opened = await openData(keys, sealed);
-  expect(opened).toEqual({ data: { notes: [n], folders: [folder("f", { name: "Hidden" })], tombstones: { x: 1 } }, rejected: 0 });
+  expect(opened).toEqual({ data: { notes: [n], folders: [folder("f", { name: "Hidden", parentId: "parent-folder" })], tombstones: { x: 1 } }, rejected: 0 });
 });
 
 test("each seal uses a fresh IV", async () => {

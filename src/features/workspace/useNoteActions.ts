@@ -7,6 +7,7 @@ import { historyRecorder } from "@/features/history/noteHistory";
 import type { NoteTemplate } from "@/features/editor/lib/templates";
 import { backupFileName, createBackup } from "@/features/transfer/importExport";
 import { findNoteByTitle, renameLinkTarget } from "@/features/markdown/lib/wikiLinks";
+import { canMoveFolder, folderPath } from "@/features/notes/model/folders";
 import { downloadText } from "@/shared/lib/download";
 import { useI18n } from "@/shared/i18n";
 import type { ShowToast } from "@/features/workspace/useToast";
@@ -73,6 +74,15 @@ export function useNoteActions({
     showToast({ text: t.toast.folderDeleted(folder?.name ?? "") });
   };
 
+  const moveFolder = (id: string, parentId: string | null) => {
+    const folder = folders.find((f) => f.id === id);
+    if (!folder || folder.parentId === parentId || !canMoveFolder(folders, id, parentId)) return;
+    store.moveFolder(id, parentId);
+    showToast({
+      text: t.toast.folderMoved(folder.name, parentId ? folderPath(folders, parentId) : t.sidebar.allNotes),
+    });
+  };
+
   const downloadBackup = () => {
     const backup = createBackup(store.getData());
     downloadText(backupFileName(), JSON.stringify(backup, null, 2), "application/json");
@@ -122,6 +132,7 @@ export function useNoteActions({
     emptyTrash,
     moveNote,
     deleteFolder,
+    moveFolder,
     downloadBackup,
     applyTemplate,
     renameLinks,

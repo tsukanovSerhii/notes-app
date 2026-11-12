@@ -12,6 +12,7 @@ function vault() {
   };
   put("Home.md", "---\ntags: [start]\n---\n# Home\n\nGo to [[Projects/Plan|the plan]] or [[Plan]] #welcome");
   put("Projects/Plan.md", "Back to [[Home]].");
+  put("Projects/Web/Site.md", "A deeper note.");
   put(".obsidian/workspace.json", "{}");
   put("logo.png", "binary");
   return root;
@@ -21,10 +22,16 @@ test("a folder of Obsidian notes imports with folders, tags and working links", 
   await gotoFresh(page);
   await page.getByTestId("import-folder").setInputFiles(vault());
 
-  await expect(page.getByRole("status").filter({ hasText: "Imported 2 notes and 1 folder" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Imported 3 notes and 2 folders" })).toBeVisible();
   await expect(noteRow(page, "Home")).toBeVisible();
   await expect(noteRow(page, "Plan")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Library" })).toContainText("Projects");
+  // Folders nest like the source: Web sits inside Projects.
+  await expect(page.getByRole("combobox", { name: "Folder" })).toBeVisible();
+  const library = page.getByRole("navigation", { name: "Library" });
+  const pad = (name: string) =>
+    library.getByRole("button", { name: new RegExp(`^${name}( \\d+)?$`) }).evaluate((el) => parseFloat(getComputedStyle(el).paddingLeft));
+  expect(await pad("Web")).toBeGreaterThan(await pad("Projects"));
   await expect(page.getByRole("navigation", { name: "Library" })).toContainText("#start");
   await expect(page.getByRole("navigation", { name: "Library" })).toContainText("#welcome");
 

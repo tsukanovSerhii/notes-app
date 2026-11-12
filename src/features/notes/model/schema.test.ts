@@ -66,7 +66,7 @@ test.describe("deserialize", () => {
             conflictOf: "orig",
           },
         ],
-        folders: [{ id: "f", name: "Work", createdAt: 1, updatedAt: 1 }],
+        folders: [{ id: "f", name: "Work", parentId: "p", createdAt: 1, updatedAt: 1 }],
         tombstones: { gone: 5 },
       },
       activeId: "a",

@@ -58,14 +58,27 @@ export function useImport(store: NotesStore, folderId: string | null, feedback: 
         return;
       }
 
-      // One folder per distinct path (nested paths are joined until folders nest).
-      const existing = new Map(store.getData().folders.map((f) => [f.name, f.id]));
-      const folderIds = new Map<string, string>();
+      // One folder per distinct path, nested like the source. A folder that
+      // already exists at the same place is reused.
+      const existing = store.getData().folders;
+      const folderIds = new Map<string, string>(); // "A/B" -> folder id
+      let created = 0;
       for (const p of parsed) {
-        const name = p.folderPath.join(" / ");
-        if (!name || folderIds.has(name)) continue;
-        const id = existing.get(name) ?? store.createFolder(name)?.id;
-        if (id) folderIds.set(name, id);
+        let parentId: string | null = null;
+        for (let depth = 1; depth <= p.folderPath.length; depth++) {
+          const key = p.folderPath.slice(0, depth).join("/");
+          const name = p.folderPath[depth - 1];
+          let id = folderIds.get(key);
+          if (!id) {
+            id = existing.find((f) => f.name === name && f.parentId === parentId)?.id;
+            if (!id) {
+              id = store.createFolder(name, parentId)?.id;
+              if (id) created++;
+            }
+            if (id) folderIds.set(key, id);
+          }
+          parentId = id ?? parentId;
+        }
       }
 
       const now = Date.now();
@@ -75,7 +88,7 @@ export function useImport(store: NotesStore, folderId: string | null, feedback: 
         content: p.content,
         pinned: false,
         tags: p.tags,
-        folderId: folderIds.get(p.folderPath.join(" / ")) ?? null,
+        folderId: folderIds.get(p.folderPath.join("/")) ?? null,
         createdAt: now + i,
         updatedAt: now + i,
         editedAt: now + i,
@@ -85,7 +98,7 @@ export function useImport(store: NotesStore, folderId: string | null, feedback: 
       }));
       store.addNotes(notes);
       feedback.success(
-        t.toast.vaultImported(count(notes.length, t.plural.notes), count(folderIds.size, t.plural.folders))
+        t.toast.vaultImported(count(notes.length, t.plural.notes), count(created, t.plural.folders))
       );
     },
     [store, feedback, t, count]

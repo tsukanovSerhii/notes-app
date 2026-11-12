@@ -78,13 +78,14 @@ export function parseNote(value: unknown): Note | null {
 
 export function parseFolder(value: unknown): Folder | null {
   if (!isRecord(value)) return null;
-  const { id, name, createdAt, updatedAt } = value;
+  const { id, name, parentId, createdAt, updatedAt } = value;
   if (typeof id !== "string" || !id) return null;
   if (typeof name !== "string" || !name.trim()) return null;
   const created = typeof createdAt === "number" ? createdAt : Date.now();
   return {
     id,
     name: name.trim().slice(0, 60),
+    parentId: typeof parentId === "string" && parentId ? parentId : null,
     createdAt: created,
     updatedAt: typeof updatedAt === "number" ? updatedAt : created,
   };

@@ -24,6 +24,8 @@ export interface Note {
 export interface Folder {
   id: string;
   name: string;
+  /** The folder this one sits in; null at the top. Dangling or looping values are tolerated, see folders.ts. */
+  parentId: string | null;
   createdAt: number;
   updatedAt: number;
 }

@@ -65,6 +65,8 @@ export const uk: Messages = {
   library: {
     label: "Бібліотека",
     newFolder: "Нова папка",
+    newSubfolder: (name) => `Нова папка в «${name}»`,
+    moveToTop: "Перемістити на верхній рівень",
     newFolderName: "Назва нової папки",
     folderName: "Назва папки",
     rename: (name) => `Перейменувати ${name}`,
@@ -152,7 +154,8 @@ export const uk: Messages = {
     deletedForever: (title) => `«${title}» видалено назавжди`,
     deletedManyForever: (count) => `Назавжди видалено: ${count}`,
     restored: (title) => `«${title}» відновлено`,
-    folderDeleted: (name) => `Папку «${name}» видалено. Нотатки збережено.`,
+    folderDeleted: (name) => `Папку «${name}» видалено. Її вміст збережено.`,
+    folderMoved: (name, to) => `Папку «${name}» переміщено в ${to}`,
     backupDownloaded: (count) => `Резервну копію завантажено: ${count}`,
     imported: (count) => `Імпортовано: ${count}`,
     skipped: (count) => `, пропущено: ${count}`,

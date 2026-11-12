@@ -130,12 +130,13 @@ export default function Workspace() {
           trashCount={trash.length}
           filter={activeFilter}
           onFilterChange={changeFilter}
-          onCreateFolder={(name) => {
-            const folder = store.createFolder(name);
+          onCreateFolder={(name, parentId) => {
+            const folder = store.createFolder(name, parentId);
             if (folder) setFilter((f) => ({ ...f, folderId: folder.id }));
           }}
           onRenameFolder={store.renameFolder}
           onDeleteFolder={actions.deleteFolder}
+          onMoveFolder={actions.moveFolder}
           onDropNote={actions.moveNote}
         />
       }

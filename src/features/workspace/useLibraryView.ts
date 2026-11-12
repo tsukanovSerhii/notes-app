@@ -6,6 +6,7 @@ import { collectTags, filterNotes, sortNotes, type SortMode } from "@/features/n
 import type { NotesStore } from "@/features/notes/state/store";
 import type { LibraryFilter } from "@/features/library/LibraryNav";
 import { useNoteSearch } from "@/features/library/search/useNoteSearch";
+import { folderWithDescendants } from "@/features/notes/model/folders";
 import { usePreference } from "@/shared/hooks/usePreference";
 import { useI18n } from "@/shared/i18n";
 
@@ -46,6 +47,12 @@ export function useLibraryView({
     [filter, folders, notes]
   );
 
+  // A folder shows the notes of its subfolders too.
+  const folderIds = useMemo(
+    () => (activeFilter.folderId ? folderWithDescendants(folders, activeFilter.folderId) : null),
+    [folders, activeFilter.folderId]
+  );
+
   // Ranked results from the search worker; null until it has answered.
   const ranked = useNoteSearch(notes, activeFilter.trash ? "" : searchQuery);
   const visibleNotes = useMemo(() => {
@@ -54,16 +61,20 @@ export function useLibraryView({
       // Best match first, still narrowed by the folder and tag filter.
       const byId = new Map(notes.map((n) => [n.id, n]));
       const hits = ranked.flatMap((id) => byId.get(id) ?? []);
-      return filterNotes(hits, { folderId: activeFilter.folderId, tag: activeFilter.tag });
+      return filterNotes(hits, { folderIds, tag: activeFilter.tag });
     }
-    return sortNotes(filterNotes(notes, { query: searchQuery, ...activeFilter }), sortMode);
-  }, [notes, trash, searchQuery, activeFilter, sortMode, ranked]);
+    return sortNotes(filterNotes(notes, { query: searchQuery, folderIds, tag: activeFilter.tag }), sortMode);
+  }, [notes, trash, searchQuery, activeFilter, folderIds, sortMode, ranked]);
   const tags = useMemo(() => collectTags(notes), [notes]);
+  // Counts include subfolders, matching what selecting the folder shows.
   const folderCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const n of notes) if (n.folderId) counts.set(n.folderId, (counts.get(n.folderId) ?? 0) + 1);
+    for (const f of folders) {
+      const inside = folderWithDescendants(folders, f.id);
+      counts.set(f.id, notes.reduce((sum, n) => sum + (n.folderId && inside.has(n.folderId) ? 1 : 0), 0));
+    }
     return counts;
-  }, [notes]);
+  }, [folders, notes]);
 
   const currentFolder = folders.find((f) => f.id === activeFilter.folderId);
   const searching = searchQuery.trim() !== "";
