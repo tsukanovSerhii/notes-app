@@ -70,6 +70,21 @@ export interface RecoveryState {
 
 export const RECOVERY_STORAGE = "notevoid-recovery";
 
+/**
+ * Removes the stored keys of every recovery way set up on this device. Used
+ * after the sync key is replaced: they open the old key, which is retired.
+ * Returns whether there was anything to remove.
+ */
+export async function forgetRecovery(fetchFn: typeof fetch): Promise<boolean> {
+  const state = createRecoveryState(typeof window === "undefined" ? null : window.localStorage);
+  const { code, passkey } = state.get();
+  for (const entry of [code, passkey]) {
+    if (entry) await removeRecovery(entry.lookupId, fetchFn).catch(() => undefined);
+  }
+  state.set({ code: null, passkey: null });
+  return code !== null || passkey !== null;
+}
+
 export function createRecoveryState(storage: Pick<Storage, "getItem" | "setItem"> | null) {
   const empty: RecoveryState = { code: null, passkey: null };
   const read = (): RecoveryState => {

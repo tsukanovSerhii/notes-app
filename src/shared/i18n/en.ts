@@ -345,6 +345,21 @@ export const en = {
     attachmentsPending: (n: number) => `${n} ${n === 1 ? "picture or file is" : "pictures and files are"} still syncing`,
     attachmentsFailed: (error: string) => `Pictures and files: ${error}`,
     badKey: "That does not look like a sync key.",
+    revoked: "Disconnected: key replaced",
+    revokedIntro:
+      "The sync key was replaced on another device, so this one no longer syncs. Your notes on this device are untouched. To sync again, enter the new key, or get it back with a recovery code or a passkey.",
+    rotateHeading: "Replace the sync key",
+    rotateIntro:
+      "If a device was lost or someone else may have the key, replace it. Your notes are re-encrypted under a new key and every other device is disconnected until you give it the new key. A lost device keeps the copy of the notes it already has.",
+    rotateAsk: "Replace the key…",
+    rotateConfirm:
+      "Every other device stops syncing, and recovery codes and passkeys set up before stop working. This cannot be undone.",
+    rotateDo: "Replace the key",
+    rotating: "Replacing…",
+    rotated: "The key was replaced. Other devices are disconnected: give them the new key above.",
+    rotatedForgotRecovery:
+      "The key was replaced. Other devices are disconnected: give them the new key above. Your earlier recovery code and passkey no longer work; set them up again.",
+    rotateFailed: "Could not replace the key. Nothing was changed; try again.",
   },
   palette: {
     label: "Command palette",

@@ -32,6 +32,8 @@ export interface AttachmentSync {
   run(keys: SyncKeys): Promise<AttachmentSyncResult>;
   /** Forgets what is known about the server, e.g. after switching spaces. */
   reset(): void;
+  /** Deletes every file of the space `keys` belong to (its key was replaced). */
+  purge(keys: SyncKeys): Promise<void>;
 }
 
 class ServerError extends Error {
@@ -149,6 +151,10 @@ export function createAttachmentSync({
     reset() {
       confirmed.clear();
       retryAt.clear();
+    },
+
+    async purge(keys) {
+      await manage(keys, { op: "purge" });
     },
 
     async run(keys) {
