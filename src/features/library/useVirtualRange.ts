@@ -11,7 +11,7 @@ export interface VirtualRange {
 
 const OVERSCAN = 8;
 /** Rows drawn before the list has been measured. */
-const FIRST_PAINT_ROWS = 30;
+const FIRST_PAINT_ROWS = 16;
 
 /**
  * Which rows of a long list of equal-height rows are on screen. The list sits

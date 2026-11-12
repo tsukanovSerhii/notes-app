@@ -50,7 +50,10 @@ export function findNoteByTitle(notes: readonly Note[], title: string): Note | n
 
 /** Titles a note links to, outside code. */
 export function wikiTargets(markdown: string): string[] {
-  const prose = markdown.replace(/```[\s\S]*?(```|$)/g, " ").replace(/`[^`\n]*`/g, " ");
+  // Most notes have no code; skip the two passes that blank it out for them.
+  const prose = markdown.includes("`")
+    ? markdown.replace(/```[\s\S]*?(```|$)/g, " ").replace(/`[^`\n]*`/g, " ")
+    : markdown;
   const out = new Set<string>();
   for (const m of prose.matchAll(WIKI_LINK)) out.add(m[1].trim());
   return [...out];

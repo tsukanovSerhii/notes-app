@@ -7,10 +7,8 @@ import Sidebar from "@/features/library/Sidebar";
 import LibraryNav from "@/features/library/LibraryNav";
 import EmptyTrashButton from "@/features/library/EmptyTrashButton";
 import ViewModeToggle, { nextViewMode, type ViewMode } from "@/features/editor/ViewModeToggle";
-import HistoryDialog from "@/features/history/HistoryDialog";
 import { useSync } from "@/features/sync/client/useSync";
 import SyncButton from "@/features/sync/client/SyncButton";
-import SyncDialog from "@/features/sync/client/SyncDialog";
 import { useImport } from "@/features/transfer/useImport";
 import { useAttachFiles } from "@/features/workspace/useAttachFiles";
 import { useAttachmentCleanup } from "@/features/attachments/useAttachmentCleanup";
@@ -22,9 +20,6 @@ import AppMenu from "@/features/workspace/AppMenu";
 import Header from "@/features/workspace/Header";
 import MobileDrawer from "@/features/workspace/MobileDrawer";
 import { useStableCallback } from "@/shared/hooks/useStableCallback";
-import ShareDialog from "@/features/sharing/client/ShareDialog";
-import TagsDialog from "@/features/library/TagsDialog";
-import ShortcutsDialog from "@/features/editor/ShortcutsDialog";
 import { TEMPLATES } from "@/features/editor/lib/templates";
 import { userTemplates } from "@/features/editor/lib/userTemplates";
 import { DAILY_TAG, findDailyNote } from "@/features/workspace/dailyNote";
@@ -43,6 +38,12 @@ import Toast from "@/shared/ui/Toast";
 
 // The graph and its layout load the first time it is opened.
 const GraphDialog = lazy(() => import("@/features/markdown/GraphDialog"));
+// Dialogs are only fetched when first opened, so they stay out of the first load.
+const SyncDialog = lazy(() => import("@/features/sync/client/SyncDialog"));
+const ShareDialog = lazy(() => import("@/features/sharing/client/ShareDialog"));
+const TagsDialog = lazy(() => import("@/features/library/TagsDialog"));
+const ShortcutsDialog = lazy(() => import("@/features/editor/ShortcutsDialog"));
+const HistoryDialog = lazy(() => import("@/features/history/HistoryDialog"));
 
 /**
  * The app shell. It owns the UI state that spans features (which note is
@@ -261,7 +262,9 @@ export default function Workspace() {
         )}
       </main>
 
-      <SyncDialog open={syncOpen} onClose={() => setSyncOpen(false)} sync={sync} />
+      <Suspense fallback={null}>
+        {syncOpen && <SyncDialog open onClose={() => setSyncOpen(false)} sync={sync} />}
+      </Suspense>
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
@@ -272,15 +275,21 @@ export default function Workspace() {
           openNote(id);
         }}
       />
-      <ShareDialog note={shareFor} onClose={() => setShareFor(null)} />
-      <TagsDialog
-        open={tagsOpen}
-        tags={library.tags}
-        onClose={() => setTagsOpen(false)}
-        onRename={actions.renameTag}
-        onDelete={actions.deleteTag}
-      />
-      <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <Suspense fallback={null}>
+        {shareFor && <ShareDialog note={shareFor} onClose={() => setShareFor(null)} />}
+      </Suspense>
+      <Suspense fallback={null}>
+        {tagsOpen && (
+          <TagsDialog
+            open
+            tags={library.tags}
+            onClose={() => setTagsOpen(false)}
+            onRename={actions.renameTag}
+            onDelete={actions.deleteTag}
+          />
+        )}
+        {shortcutsOpen && <ShortcutsDialog open onClose={() => setShortcutsOpen(false)} />}
+      </Suspense>
       <Suspense fallback={null}>
         {graphOpen && (
           <GraphDialog
@@ -295,14 +304,18 @@ export default function Workspace() {
           />
         )}
       </Suspense>
-      <HistoryDialog
-        note={historyFor}
-        onClose={() => setHistoryFor(null)}
-        onRestore={(version) => {
-          actions.restoreVersion(version);
-          setHistoryFor(null);
-        }}
-      />
+      <Suspense fallback={null}>
+        {historyFor && (
+          <HistoryDialog
+            note={historyFor}
+            onClose={() => setHistoryFor(null)}
+            onRestore={(version) => {
+              actions.restoreVersion(version);
+              setHistoryFor(null);
+            }}
+          />
+        )}
+      </Suspense>
       <DropOverlay onDrop={dropFiles} />
       <Toast toast={toast} onDismiss={dismissToast} />
     </div>

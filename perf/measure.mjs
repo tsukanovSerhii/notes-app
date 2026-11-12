@@ -94,11 +94,56 @@ await page.addInitScript(() => {
   }).observe({ type: "event", durationThreshold: 16, buffered: true });
 });
 
+async function printProfile(title) {
+  const { profile } = await cdp.send("Profiler.stop");
+  const self = new Map();
+  const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+  const dt = profile.timeDeltas;
+  profile.samples.forEach((id, i) => {
+    const n = byId.get(id);
+    const f = n.callFrame;
+    const key = `${f.functionName || "(anonymous)"} ${f.url.split("/").slice(-1)[0]}:${f.lineNumber}`;
+    self.set(key, (self.get(key) ?? 0) + (dt[i] ?? 0));
+  });
+  const total = [...self.values()].reduce((a, b) => a + b, 0);
+  const top = [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25);
+  // Inclusive time: a function and everything it called.
+  const parent = new Map();
+  for (const n of profile.nodes) for (const c of n.children ?? []) parent.set(c, n.id);
+  const inclusive = new Map();
+  profile.samples.forEach((id, i) => {
+    const seen = new Set();
+    for (let at = id; at !== undefined; at = parent.get(at)) {
+      const f = byId.get(at).callFrame;
+      const key = `${f.functionName || "(anonymous)"} ${f.url.split("/").slice(-1)[0]}:${f.lineNumber}:${f.columnNumber}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        inclusive.set(key, (inclusive.get(key) ?? 0) + (dt[i] ?? 0));
+      }
+    }
+  });
+  console.error(`--- ${title}: top inclusive time ---`);
+  for (const [k, v] of [...inclusive.entries()].sort((a, b) => b[1] - a[1]).slice(0, 45)) {
+    console.error(`${(v / 1000).toFixed(0).padStart(7)} ms ${((v / total) * 100).toFixed(1).padStart(5)}%  ${k}`);
+  }
+  console.error(`--- ${title}: top self time (ms, share) ---`);
+  for (const [k, v] of top) console.error(`${(v / 1000).toFixed(0).padStart(7)} ms ${((v / total) * 100).toFixed(1).padStart(5)}%  ${k}`);
+}
+
+
+
+const PROFILE_LOAD = process.env.PERF_PROFILE_LOAD === "1";
+if (PROFILE_LOAD) {
+  await cdp.send("Profiler.enable");
+  await cdp.send("Profiler.setSamplingInterval", { interval: 500 });
+  await cdp.send("Profiler.start");
+}
 const t0 = Date.now();
 await page.goto(URL_);
 await page.locator('[data-testid="editor"] .cm-content').waitFor();
 await page.getByRole("list", { name: "Note list" }).locator("li").first().waitFor();
 const loadMs = Date.now() - t0;
+if (PROFILE_LOAD) await printProfile("load");
 const afterLoad = await page.evaluate(() => ({
   dom: document.querySelectorAll("*").length,
   rows: document.querySelectorAll('[aria-label="Note list"] li').length,
@@ -131,41 +176,7 @@ const delta = (k) => Math.round((m1[k] - m0[k]) * 1000);
 const browserTime = { scriptMs: delta("ScriptDuration"), layoutMs: delta("LayoutDuration"), styleMs: delta("RecalcStyleDuration"), taskMs: delta("TaskDuration"), layouts: Math.round(m1.LayoutCount - m0.LayoutCount), styleRecalcs: Math.round(m1.RecalcStyleCount - m0.RecalcStyleCount) };
 const typingMs = Date.now() - typeStart - 300;
 
-if (PROFILE) {
-  const { profile } = await cdp.send("Profiler.stop");
-  const self = new Map();
-  const byId = new Map(profile.nodes.map((n) => [n.id, n]));
-  const dt = profile.timeDeltas;
-  profile.samples.forEach((id, i) => {
-    const n = byId.get(id);
-    const f = n.callFrame;
-    const key = `${f.functionName || "(anonymous)"} ${f.url.split("/").slice(-1)[0]}:${f.lineNumber}`;
-    self.set(key, (self.get(key) ?? 0) + (dt[i] ?? 0));
-  });
-  const total = [...self.values()].reduce((a, b) => a + b, 0);
-  const top = [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25);
-  // Inclusive time: a function and everything it called.
-  const parent = new Map();
-  for (const n of profile.nodes) for (const c of n.children ?? []) parent.set(c, n.id);
-  const inclusive = new Map();
-  profile.samples.forEach((id, i) => {
-    const seen = new Set();
-    for (let at = id; at !== undefined; at = parent.get(at)) {
-      const f = byId.get(at).callFrame;
-      const key = `${f.functionName || "(anonymous)"} ${f.url.split("/").slice(-1)[0]}:${f.lineNumber}:${f.columnNumber}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        inclusive.set(key, (inclusive.get(key) ?? 0) + (dt[i] ?? 0));
-      }
-    }
-  });
-  console.error("--- typing profile: top inclusive time ---");
-  for (const [k, v] of [...inclusive.entries()].sort((a, b) => b[1] - a[1]).slice(0, 45)) {
-    console.error(`${(v / 1000).toFixed(0).padStart(7)} ms ${((v / total) * 100).toFixed(1).padStart(5)}%  ${k}`);
-  }
-  console.error("--- typing profile: top self time (ms, share) ---");
-  for (const [k, v] of top) console.error(`${(v / 1000).toFixed(0).padStart(7)} ms ${((v / total) * 100).toFixed(1).padStart(5)}%  ${k}`);
-}
+if (PROFILE) await printProfile("typing");
 
 // Searching.
 const search = page.getByRole("searchbox");
