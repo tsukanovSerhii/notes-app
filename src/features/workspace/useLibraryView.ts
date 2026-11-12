@@ -63,7 +63,9 @@ export function useLibraryView({
       const hits = ranked.flatMap((id) => byId.get(id) ?? []);
       return filterNotes(hits, { folderIds, tag: activeFilter.tag });
     }
-    return sortNotes(filterNotes(notes, { query: searchQuery, folderIds, tag: activeFilter.tag }), sortMode);
+    const filtered = filterNotes(notes, { query: searchQuery, folderIds, tag: activeFilter.tag });
+    // `notes` is already sorted by last edit (pinned first), the default; sorting again would repeat that work on every keystroke.
+    return sortMode === "edited" ? filtered : sortNotes(filtered, sortMode);
   }, [notes, trash, searchQuery, activeFilter, folderIds, sortMode, ranked]);
   const tags = useMemo(() => collectTags(notes), [notes]);
   // Counts include subfolders, matching what selecting the folder shows.

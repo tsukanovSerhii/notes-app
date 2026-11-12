@@ -19,6 +19,30 @@ export function titleFromHref(href: string | undefined): string | null {
 
 const sameTitle = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
+const titleKey = (title: string) => title.trim().toLowerCase();
+
+const titleCache = new WeakMap<object, string>();
+const normalizedTitle = (note: Note) => {
+  let key = titleCache.get(note);
+  if (key === undefined) titleCache.set(note, (key = titleKey(note.title)));
+  return key;
+};
+
+/**
+ * Looks live notes up by title (ignoring case and padding) without scanning
+ * them for every lookup. Build one per list of notes and reuse it.
+ */
+export function titleIndex(notes: readonly Note[]): { find(title: string): Note | null } {
+  const byTitle = new Map<string, Note>();
+  for (const n of notes) {
+    if (n.trashedAt !== null) continue;
+    const key = normalizedTitle(n);
+    // The first note with a title wins, as with a linear search.
+    if (!byTitle.has(key)) byTitle.set(key, n);
+  }
+  return { find: (title) => byTitle.get(titleKey(title)) ?? null };
+}
+
 /** The note a link points to: a live note whose title matches, ignoring case. */
 export function findNoteByTitle(notes: readonly Note[], title: string): Note | null {
   return notes.find((n) => n.trashedAt === null && sameTitle(n.title, title)) ?? null;

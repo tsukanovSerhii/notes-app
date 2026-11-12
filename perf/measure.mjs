@@ -118,11 +118,17 @@ if (PROFILE) {
   await cdp.send("Profiler.setSamplingInterval", { interval: 500 });
   await cdp.send("Profiler.start");
 }
+await cdp.send("Performance.enable");
+const metrics = async () => Object.fromEntries((await cdp.send("Performance.getMetrics")).metrics.map((m) => [m.name, m.value]));
+const m0 = await metrics();
 await mark();
 const typeStart = Date.now();
 await page.keyboard.type("The quick brown fox jumps over the lazy dog. ", { delay: 0 });
 await page.waitForTimeout(300);
 const typed = await collect();
+const m1 = await metrics();
+const delta = (k) => Math.round((m1[k] - m0[k]) * 1000);
+const browserTime = { scriptMs: delta("ScriptDuration"), layoutMs: delta("LayoutDuration"), styleMs: delta("RecalcStyleDuration"), taskMs: delta("TaskDuration"), layouts: Math.round(m1.LayoutCount - m0.LayoutCount), styleRecalcs: Math.round(m1.RecalcStyleCount - m0.RecalcStyleCount) };
 const typingMs = Date.now() - typeStart - 300;
 
 if (PROFILE) {
@@ -138,6 +144,25 @@ if (PROFILE) {
   });
   const total = [...self.values()].reduce((a, b) => a + b, 0);
   const top = [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25);
+  // Inclusive time: a function and everything it called.
+  const parent = new Map();
+  for (const n of profile.nodes) for (const c of n.children ?? []) parent.set(c, n.id);
+  const inclusive = new Map();
+  profile.samples.forEach((id, i) => {
+    const seen = new Set();
+    for (let at = id; at !== undefined; at = parent.get(at)) {
+      const f = byId.get(at).callFrame;
+      const key = `${f.functionName || "(anonymous)"} ${f.url.split("/").slice(-1)[0]}:${f.lineNumber}:${f.columnNumber}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        inclusive.set(key, (inclusive.get(key) ?? 0) + (dt[i] ?? 0));
+      }
+    }
+  });
+  console.error("--- typing profile: top inclusive time ---");
+  for (const [k, v] of [...inclusive.entries()].sort((a, b) => b[1] - a[1]).slice(0, 45)) {
+    console.error(`${(v / 1000).toFixed(0).padStart(7)} ms ${((v / total) * 100).toFixed(1).padStart(5)}%  ${k}`);
+  }
   console.error("--- typing profile: top self time (ms, share) ---");
   for (const [k, v] of top) console.error(`${(v / 1000).toFixed(0).padStart(7)} ms ${((v / total) * 100).toFixed(1).padStart(5)}%  ${k}`);
 }
@@ -169,7 +194,7 @@ console.log(JSON.stringify({
   cpuSlowdown: CPU_SLOWDOWN,
   loadMs,
   afterLoad,
-  typing: { ms: typingMs, chars: 45, longTasks: stats(typed.longTasks), eventDuration: stats(typed.events) },
+  typing: { ms: typingMs, chars: 45, browserTime, longTasks: stats(typed.longTasks), eventDuration: stats(typed.events) },
   search: { ms: searchMs, longTasks: stats(searched.longTasks), eventDuration: stats(searched.events) },
   switchNote: { ms: switchMs, longTasks: stats(switched.longTasks), eventDuration: stats(switched.events) },
 }, null, 2));
