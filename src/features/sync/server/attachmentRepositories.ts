@@ -106,7 +106,8 @@ export function createFileAttachmentRepository(dir: string): AttachmentRepositor
       if (used + bytes.byteLength > quota) return "quota";
       const folder = spaceDir(space);
       await mkdir(folder, { recursive: true });
-      const file = path.join(folder, `${rid}.${index}.${parts}`);
+      // The data directory is chosen at run time; this is not a project file.
+      const file = path.join(/*turbopackIgnore: true*/ folder, `${rid}.${index}.${parts}`);
       const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
       await writeFile(tmp, bytes);
       if (same && same.name !== path.basename(file)) await rm(path.join(folder, same.name), { force: true });
