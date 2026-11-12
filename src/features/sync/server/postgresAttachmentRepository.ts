@@ -76,5 +76,10 @@ export function createPostgresAttachmentRepository(client: SqlClient): Attachmen
       );
       return new Set(rows.map((r) => r.id)).size;
     },
+
+    async purge(space) {
+      await schema();
+      await client.query(`delete from ${TABLE} where space = $1`, [space]);
+    },
   };
 }

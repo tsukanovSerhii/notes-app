@@ -37,15 +37,16 @@ export default function SyncButton({
         sync.state === "idle" && "text-accent",
         sync.state === "syncing" && "text-accent",
         sync.state === "offline" && "text-amber-300",
-        sync.state === "error" && (limited ? "text-amber-300" : "text-red-400")
+        sync.state === "error" && (limited ? "text-amber-300" : "text-red-400"),
+        sync.state === "revoked" && "text-red-400"
       )}
     >
       {sync.state === "syncing" ? (
         <Icon name="refresh" className="animate-spin" />
       ) : (
-        <Icon name={sync.state === "off" || sync.state === "offline" ? "cloudOff" : "cloud"} />
+        <Icon name={sync.state === "off" || sync.state === "offline" || sync.state === "revoked" ? "cloudOff" : "cloud"} />
       )}
-      {sync.state === "error" && (
+      {(sync.state === "error" || sync.state === "revoked") && (
         <span
           className={cn(
             "absolute right-1 top-1 h-1.5 w-1.5 rounded-full",

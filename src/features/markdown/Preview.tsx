@@ -4,6 +4,18 @@ import { useDeferredValue } from "react";
 import Markdown from "@/features/markdown/Markdown";
 import { useI18n } from "@/shared/i18n";
 
+/** The look of rendered notes, shared by the preview and the page a share link opens. */
+export const PROSE_CLASS = `prose dark:prose-invert max-w-none transition-opacity
+          prose-headings:text-text-primary
+          prose-p:text-text-secondary
+          prose-li:text-text-secondary
+          prose-strong:text-text-primary
+          prose-a:text-accent
+          prose-code:text-accent prose-code:before:content-none prose-code:after:content-none
+          prose-pre:bg-bg-base/80 prose-pre:border prose-pre:border-border
+          prose-blockquote:border-l-accent prose-blockquote:text-text-secondary
+          prose-th:text-text-primary prose-td:text-text-secondary`;
+
 interface PreviewProps {
   content: string;
 }
@@ -21,16 +33,7 @@ export default function Preview({ content }: PreviewProps) {
         id="preview-content"
         aria-label={t.editor.preview}
         aria-busy={stale}
-        className="prose dark:prose-invert max-w-none transition-opacity
-          prose-headings:text-text-primary
-          prose-p:text-text-secondary
-          prose-li:text-text-secondary
-          prose-strong:text-text-primary
-          prose-a:text-accent
-          prose-code:text-accent prose-code:before:content-none prose-code:after:content-none
-          prose-pre:bg-bg-base/80 prose-pre:border prose-pre:border-border
-          prose-blockquote:border-l-accent prose-blockquote:text-text-secondary
-          prose-th:text-text-primary prose-td:text-text-secondary"
+        className={PROSE_CLASS}
       >
         {deferred.trim() ? (
           <Markdown>{deferred}</Markdown>

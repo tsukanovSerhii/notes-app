@@ -93,6 +93,12 @@ backed by Postgres. Encryption uses the built-in Web Crypto API.
   Changes merge in both directions, and when two devices edit the same note
   between syncs **neither text is lost**: the overwritten one is kept as a
   note marked "conflict copy".
+- **Share a note** as a read-only link that works for 1 to 90 days and can be
+  revoked. The note is encrypted on your device and the key is in the part of
+  the link after `#`, which is never sent to a server.
+- **Get back in**: a recovery code or a passkey (WebAuthn PRF) can bring the
+  sync key back on a new device, and **replacing the key** cuts off a lost or
+  stolen one.
 
 **Offline and security**
 - **Installable PWA** that opens and works without a network after the first
@@ -168,6 +174,8 @@ is broken:
 | [`markdown`](src/features/markdown/) | Rendering: preview, syntax highlighting, wiki links and backlinks, KaTeX, Mermaid | `Markdown`, `lib/highlight`, `lib/wikiLinks`, `lib/extras` |
 | [`history`](src/features/history/) | Local version history and its dialog | `history`, `noteHistory`, `HistoryDialog` |
 | [`sync`](src/features/sync/) | Encrypted sync, split into `shared` (protocol, wire format), `client` (sync client, crypto, UI) and `server` (handler, conflicts, repositories, rate limits) | `client/syncClient`, `client/crypto`, `server/handler` |
+| [`sharing`](src/features/sharing/) | Read-only share links: sealed snapshots, the `/share` page, `shared`, `client` and `server` parts | `client/shareClient`, `client/ShareDialog`, `server/shareHandler` |
+| [`recovery`](src/features/recovery/) | Getting the sync key back with a recovery code or a passkey | `client/recoveryCrypto`, `client/passkey`, `server/recoveryHandler` |
 | [`transfer`](src/features/transfer/) | Import, backup and export | `importExport`, `ExportMenu`, `DropOverlay` |
 | [`palette`](src/features/palette/) | The command palette and fuzzy matching | `CommandPalette`, `fuzzy` |
 | [`theme`](src/features/theme/) | Light, dark and system themes | `theme`, `ThemeController` |
@@ -323,6 +331,11 @@ The sync API runs inside the Next.js server, so no separate service is needed.
 | `SYNC_DISABLED` | unset | Set to `true` to turn the endpoint off |
 | `SYNC_RATE_LIMIT_IP` | `120` | Sync requests per minute per client IP (`0` turns it off) |
 | `SYNC_RATE_LIMIT_SPACE` | `240` | Sync requests per minute per sync space (`0` turns it off) |
+| `SHARE_DATA_DIR` | `.data/shares` | Without `DATABASE_URL`: where share links are stored |
+| `SHARE_DISABLED` | unset | Set to `true` to turn share links off |
+| `SHARE_RATE_LIMIT_CREATE` / `_READ` | `20` / `120` | Share requests per minute per client IP |
+| `RECOVERY_DATA_DIR` | `.data/recovery` | Without `DATABASE_URL`: where sealed recovery keys are stored |
+| `RECOVERY_RATE_LIMIT_WRITE` / `_READ` | `10` / `30` | Recovery requests per minute per client IP |
 | `SYNC_ATTACHMENT_QUOTA_MB` | `256` | Attachment storage per sync space; uploads past it are refused |
 | `ATTACHMENT_DATA_DIR` | `.data/attachments` | Without `DATABASE_URL`: where sealed attachment chunks are stored |
 | `SYNC_ATTACHMENT_RATE_LIMIT_IP` / `_SPACE` | `600` / `1200` | Attachment requests per minute per client IP / sync space |
@@ -462,9 +475,31 @@ e2e/                   Playwright end-to-end tests
 
 Unit tests sit next to the code they test as `*.test.ts`.
 
+### Sharing, recovery and key rotation
+
+What the server can and cannot see:
+
+- **Share links.** A snapshot is sealed with a random 256-bit key that exists
+  only in the link's fragment (`/share#<id>.<key>`). The server stores the
+  ciphertext under the id and a hash of a delete token that only the creator's
+  device keeps. A link expires on its own, can be revoked, and a made-up or
+  expired id gets the same answer as a revoked one. A link is a bearer secret:
+  anyone who has it can read the snapshot until it expires, and a snapshot
+  never updates when the note changes.
+- **Recovery.** A secret only the user holds (a 160-bit recovery code, or the
+  value a passkey derives with the WebAuthn PRF extension) goes through HKDF
+  into a lookup id and a wrapping key. The sync key, sealed with that key, is
+  stored under the id. Knowing the id is what authorises a write; the server
+  cannot open the blob. Passkeys need a browser and authenticator that support
+  PRF; the recovery code works everywhere.
+- **Replacing the key.** There are no per-device keys, so the way to cut off a
+  device is to replace the shared key: the library is re-encrypted under a new
+  key, the old space is retired (410 from then on, files purged) and other
+  devices must be given the new key. A cut-off device keeps the copy of the
+  notes it already had; nothing can reach into it.
+
 ## Possible next steps
 
-- Real accounts instead of sync keys
 - Field-level merge, so two devices editing different fields of a note
   don't overwrite each other
 

@@ -4,6 +4,7 @@ import pg from "pg";
 import { createFileAttachmentRepository } from "@/features/sync/server/attachmentRepositories";
 import { createPostgresAttachmentRepository } from "@/features/sync/server/postgresAttachmentRepository";
 import { clientAddress, createRateLimiter, readPerMinute } from "@/features/sync/server/rateLimit";
+import { syncRepo } from "@/features/sync/server/syncRuntime";
 import { DEFAULT_QUOTA_BYTES } from "@/features/sync/shared/attachments";
 
 /** What the attachment routes share: storage, limits and the space hash. */
@@ -23,6 +24,8 @@ export const attachmentRuntime = (() => {
     ipLimiter: createRateLimiter({ perMinute: readPerMinute(process.env.SYNC_ATTACHMENT_RATE_LIMIT_IP, 600) }),
     spaceLimiter: createRateLimiter({ perMinute: readPerMinute(process.env.SYNC_ATTACHMENT_RATE_LIMIT_SPACE, 1200) }),
     hashKey: (token: string) => createHash("sha256").update(token).digest("hex"),
+    /** A space whose key was rotated away from keeps no files and accepts none. */
+    isRevoked: async (space: string) => (await syncRepo.get(space))?.revokedAt != null,
     clientAddress,
   };
 })();

@@ -5,7 +5,7 @@ import {
   SYNC_KEY_PATTERN,
   type SyncResponse,
 } from "@/features/sync/shared/protocol";
-import { parseSealedData, type SealedData, type SealedFolder, type SealedNote } from "@/features/sync/shared/wire";
+import { emptySealedData, parseSealedData, type SealedData, type SealedFolder, type SealedNote } from "@/features/sync/shared/wire";
 import { conflictCopy, findLostEdits } from "@/features/sync/server/conflicts";
 import {
   changedKeys,
@@ -88,7 +88,7 @@ function nextSpace(
   ]);
   for (const key of Object.keys(changes)) if (!alive.has(key)) delete changes[key];
 
-  const space = pruneTombstones({ version, data, changes, horizon: stored.horizon }, at);
+  const space = pruneTombstones({ version, data, changes, horizon: stored.horizon, revokedAt: null }, at);
   return { space, lost };
 }
 
@@ -109,7 +109,7 @@ export async function handleSyncRequest(
   if (typeof body !== "object" || body === null) {
     return { status: 400, body: { error: "Expected a JSON object." } };
   }
-  const { v, key, data, since, deviceId, cursor, forgetLegacy } = body as {
+  const { v, key, data, since, deviceId, cursor, forgetLegacy, revoke } = body as {
     v?: unknown;
     key?: unknown;
     data?: unknown;
@@ -117,6 +117,7 @@ export async function handleSyncRequest(
     deviceId?: unknown;
     cursor?: unknown;
     forgetLegacy?: unknown;
+    revoke?: unknown;
   };
   // Earlier builds sent the sync key itself and plaintext notes. Merging
   // those with sealed data would corrupt both, so they are turned away.
@@ -137,6 +138,24 @@ export async function handleSyncRequest(
     };
   }
 
+  const gone = (): SyncResult => ({
+    status: 410,
+    body: { error: "This sync key was replaced on another device.", revoked: true },
+  });
+
+  if (revoke === true) {
+    // Retires the space: whoever holds its key may do this, which is the point of rotating it.
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const found = await repo.get(spaceId);
+      const stored = found ?? emptySpace();
+      const retired = { ...emptySpace(), version: stored.version + 1, revokedAt: found?.revokedAt ?? now() };
+      if (await repo.put(spaceId, retired, found ? stored.version : null)) {
+        return { status: 200, body: { data: emptySealedData(), syncedAt: now(), cursor: retired.version, revoked: true } };
+      }
+    }
+    return { status: 503, body: { error: "The sync space is busy. Try again shortly." } };
+  }
+
   const incoming = parseSealedData(data);
   // Older clients send no `since`; they get no conflict copies.
   const base =
@@ -149,11 +168,13 @@ export async function handleSyncRequest(
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const found = await repo.get(spaceId);
       const stored = found ?? emptySpace();
+      if (stored.revokedAt !== null) return "revoked" as const;
       const { space, lost } = nextSpace(stored, incoming, base, device, now());
       if (await repo.put(spaceId, space, found ? stored.version : null)) return { space, lost };
     }
     return null;
   });
+  if (outcome === "revoked") return gone();
   if (!outcome) {
     return { status: 503, body: { error: "The sync space is busy. Try again shortly." } };
   }

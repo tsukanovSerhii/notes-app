@@ -22,6 +22,11 @@ export interface SyncRequest {
   cursor?: number | null;
   /** Id of a plaintext space left by an earlier build, to erase. */
   forgetLegacy?: string;
+  /**
+   * Retire this space for good (its key was replaced by a new one): its data
+   * is erased and every later request to it is answered with 410.
+   */
+  revoke?: boolean;
 }
 
 export interface SyncResponse {
@@ -31,6 +36,8 @@ export interface SyncResponse {
   conflicts?: string[];
   /** The space version this reply brings the device up to. */
   cursor?: number;
+  /** Set on the reply to a revoke request. */
+  revoked?: boolean;
 }
 
 export const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;

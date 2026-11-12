@@ -22,7 +22,8 @@ async function legacySpaceId(key: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export type SyncState = "off" | "idle" | "syncing" | "error" | "offline";
+/** `revoked`: the key was replaced on another device, so this one no longer syncs. */
+export type SyncState = "off" | "idle" | "syncing" | "error" | "offline" | "revoked";
 
 export interface SyncSnapshot {
   state: SyncState;
@@ -68,6 +69,14 @@ export interface SyncClient {
   enable(key?: string): Promise<boolean>;
   disable(): void;
   syncNow(): Promise<void>;
+  /**
+   * Replaces the sync key with a new one: the whole library is uploaded under
+   * the new key and the old space is retired, so every other device is cut off
+   * until it is given the new key. Resolves with the new key. Throws, changing
+   * nothing that matters, if the upload fails; if only retiring the old space
+   * fails the old key still works and the call can simply be repeated.
+   */
+  rotateKey(): Promise<string>;
   /** Called when local data changes. */
   scheduleSync(): void;
   /** Resolves when the attachment pass that is running (if any) has finished. */
@@ -218,6 +227,7 @@ export function createSyncClient({
   };
 
   const round = async (key: string) => {
+    if (snapshot.state === "revoked") return;
     if (!isOnline()) {
       set({ state: "offline" });
       return;
@@ -255,6 +265,13 @@ export function createSyncClient({
         const ms = (Number.isFinite(wait) && wait > 0 ? wait : 5) * 1000;
         retryIn(ms);
         set({ retryAt: rawNow() + ms });
+      }
+      if (res.status === 410) {
+        // Another device replaced the key: stop, and leave this device's notes alone.
+        if (timer) timers.clearTimeout(timer);
+        timer = null;
+        set({ state: "revoked", error: json?.error ?? null, retryAt: null });
+        return;
       }
       if (!res.ok || !json) {
         throw new Error(json?.error ?? `Sync failed (${res.status})`);
@@ -344,7 +361,7 @@ export function createSyncClient({
         timer = null;
       }
       const key = snapshot.key;
-      if (!key) return;
+      if (!key || snapshot.state === "revoked") return;
       if (inFlight) {
         again = true;
         return inFlight;
@@ -360,8 +377,66 @@ export function createSyncClient({
       return inFlight;
     },
 
+    async rotateKey() {
+      load();
+      const oldKey = snapshot.key;
+      if (!oldKey) throw new Error("Sync is off.");
+      // Bring this device up to date first, so nothing newer is left behind in the old space.
+      await client.syncNow();
+      if (snapshot.key !== oldKey || snapshot.state !== "idle") {
+        throw new Error("Sync has to be working to replace the key. Check the connection and try again.");
+      }
+
+      const rotation = (async () => {
+        await store.start();
+        const post = async (token: string, extra: Record<string, unknown>) => {
+          const res = await fetchFn(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ v: PROTOCOL_VERSION, key: token, ...extra }),
+          });
+          if (!res.ok) {
+            const body = (await res.json().catch(() => null)) as { error?: string } | null;
+            throw new Error(body?.error ?? `Request failed (${res.status})`);
+          }
+        };
+        const oldKeys = await keysFor(oldKey);
+        const newKey = generateSyncKey();
+        const newKeys = await deriveSyncKeys(newKey);
+
+        // 1. The whole library under the new key. If this fails nothing has changed.
+        await post(newKeys.spaceToken, {
+          data: await sealData(newKeys, store.getData()),
+          since: null,
+          cursor: null,
+          ...(deviceId && { deviceId }),
+        });
+        // 2. Retire the old space; from here every other device is cut off.
+        await post(oldKeys.spaceToken, { revoke: true });
+        // 3. Its files go too (best effort: the space accepts nothing more either way).
+        await attachments?.purge(oldKeys).catch(() => undefined);
+
+        keyStorage?.setItem(SYNC_KEY_STORAGE, newKey);
+        storageSet(SYNC_E2EE_STORAGE, newKey);
+        setBase(null);
+        cursor = null;
+        attachments?.reset();
+        set({ key: newKey, state: "idle", error: null, retryAt: null, lastSyncedAt: null, attachmentsPending: 0, attachmentsError: null });
+        return newKey;
+      })();
+      inFlight = rotation.then(
+        () => undefined,
+        () => undefined
+      ).finally(() => {
+        inFlight = null;
+      });
+      const newKey = await rotation;
+      void client.syncNow();
+      return newKey;
+    },
+
     scheduleSync() {
-      if (!snapshot.key) return;
+      if (!snapshot.key || snapshot.state === "revoked") return;
       retryIn(debounceMs);
     },
 

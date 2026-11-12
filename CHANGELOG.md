@@ -8,6 +8,12 @@ All notable changes to NoteVoid. The format follows
 
 ### Added
 
+- **Read-only share links** for one note (1 to 90 days, revocable), encrypted
+  on the device with the key in the link's fragment.
+- **Recovery code and passkey** (WebAuthn PRF) to get the sync key back on a
+  new device.
+- **Replace the sync key** to cut off a lost device: the library is re-encrypted,
+  the old space is retired and other devices must be given the new key.
 - **CodeMirror 6 editor** instead of a textarea: Markdown highlighting, slash
   commands (`/`), a proper undo history across toolbar actions, and optional
   **Vim keys** (loaded only when switched on).
