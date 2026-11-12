@@ -1,5 +1,7 @@
 # NoteVoid
 
+**Live demo: <https://notes-app-ivory-eta.vercel.app/>**
+
 A local-first Markdown notes app: live preview, wiki links, folders and
 tags, math and diagrams, version history, a command palette, light and dark
 themes, English and Ukrainian, and optional end-to-end encrypted sync between
@@ -459,9 +461,6 @@ Unit tests sit next to the code they test as `*.test.ts`.
 ## Possible next steps
 
 - Real accounts instead of sync keys
-- A hosted demo
-- Images stored with notes (they would need encrypting and syncing as
-  binary data, within the request size limit)
 - Field-level merge, so two devices editing different fields of a note
   don't overwrite each other
 
