@@ -21,6 +21,7 @@ import { useTheme } from "@/features/theme/ThemeController";
 import AppMenu from "@/features/workspace/AppMenu";
 import Header from "@/features/workspace/Header";
 import MobileDrawer from "@/features/workspace/MobileDrawer";
+import TagsDialog from "@/features/library/TagsDialog";
 import ShortcutsDialog from "@/features/editor/ShortcutsDialog";
 import NotePane from "@/features/workspace/NotePane";
 import TrashedNote from "@/features/workspace/TrashedNote";
@@ -61,6 +62,7 @@ export default function Workspace() {
   const [historyFor, setHistoryFor] = useState<Note | null>(null);
   const [graphOpen, setGraphOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const exportRef = useRef<ExportActions>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -110,6 +112,7 @@ export default function Workspace() {
     showHistory: () => setHistoryFor(activeNote),
     openGraph: () => setGraphOpen(true),
     openShortcuts: () => setShortcutsOpen(true),
+    manageTags: () => setTagsOpen(true),
     exportPdf: () => exportRef.current?.exportPdf(),
     exportMarkdown: () => exportRef.current?.exportMarkdown(),
     downloadBackup: actions.downloadBackup,
@@ -144,6 +147,7 @@ export default function Workspace() {
           }}
           onRenameFolder={store.renameFolder}
           onDeleteFolder={actions.deleteFolder}
+          onManageTags={() => setTagsOpen(true)}
           onMoveFolder={actions.moveFolder}
           onDropNote={actions.moveNote}
         />
@@ -233,6 +237,13 @@ export default function Workspace() {
           changeFilter(ALL_NOTES);
           openNote(id);
         }}
+      />
+      <TagsDialog
+        open={tagsOpen}
+        tags={library.tags}
+        onClose={() => setTagsOpen(false)}
+        onRename={actions.renameTag}
+        onDelete={actions.deleteTag}
       />
       <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Suspense fallback={null}>

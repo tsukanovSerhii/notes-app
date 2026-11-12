@@ -29,6 +29,7 @@ interface LibraryNavProps {
   onCreateFolder: (name: string, parentId: string | null) => void;
   onRenameFolder: (id: string, name: string) => void;
   onDeleteFolder: (id: string) => void;
+  onManageTags: () => void;
   /** A folder dropped on a folder, or on "All notes" (null) to move it to the top level. */
   onMoveFolder: (id: string, parentId: string | null) => void;
   /** A note dropped on a row: into a folder (or out of folders with null), or the trash. */
@@ -46,6 +47,7 @@ export default function LibraryNav({
   onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
+  onManageTags,
   onMoveFolder,
   onDropNote,
 }: LibraryNavProps) {
@@ -159,9 +161,18 @@ export default function LibraryNav({
 
       {tags.length > 0 && (
         <div>
-          <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-            {t.library.tags}
-          </p>
+          <div className="mb-1.5 flex items-center justify-between px-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{t.library.tags}</p>
+            <button
+              type="button"
+              onClick={onManageTags}
+              aria-label={t.library.manageTags}
+              title={t.library.manageTags}
+              className="rounded p-0.5 text-text-muted transition-colors hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
+            >
+              <Icon name="pencil" size={12} />
+            </button>
+          </div>
           <div className="flex flex-wrap gap-1 px-1" role="group" aria-label={t.library.filterByTag}>
             {tags.map(({ tag, count }) => {
               const active = filter.tag === tag;

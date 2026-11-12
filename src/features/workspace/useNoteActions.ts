@@ -9,6 +9,8 @@ import { backupFileName, createBackup } from "@/features/transfer/importExport";
 import { collectBackupAttachments } from "@/features/transfer/backupAttachments";
 import { attachmentStore } from "@/features/attachments/localAttachments";
 import { findNoteByTitle, renameLinkTarget } from "@/features/markdown/lib/wikiLinks";
+import { retag } from "@/features/library/lib/tagOps";
+import { normalizeTag } from "@/features/notes/model/schema";
 import { canMoveFolder, folderPath } from "@/features/notes/model/folders";
 import { downloadText } from "@/shared/lib/download";
 import { useI18n } from "@/shared/i18n";
@@ -85,6 +87,22 @@ export function useNoteActions({
     });
   };
 
+  /** Renames a tag in every note, the trash included; an existing target merges. */
+  const renameTag = (from: string, to: string) => {
+    const patches = retag(store.getData().notes, from, to);
+    for (const p of patches) store.update(p.id, { tags: p.tags });
+    const target = normalizeTag(to);
+    const merged = notes.some((n) => n.tags.includes(target));
+    const text = (merged ? t.toast.tagMerged : t.toast.tagRenamed)(from, target, count(patches.length, t.plural.notes));
+    showToast({ text });
+  };
+
+  const deleteTag = (tag: string) => {
+    const patches = retag(store.getData().notes, tag, null);
+    for (const p of patches) store.update(p.id, { tags: p.tags });
+    showToast({ text: t.toast.tagDeleted(tag, count(patches.length, t.plural.notes)) });
+  };
+
   const downloadBackup = async () => {
     const data = store.getData();
     const backup = createBackup(data, new Date(), await collectBackupAttachments(data.notes, attachmentStore));
@@ -136,6 +154,8 @@ export function useNoteActions({
     moveNote,
     deleteFolder,
     moveFolder,
+    renameTag,
+    deleteTag,
     downloadBackup,
     applyTemplate,
     renameLinks,
