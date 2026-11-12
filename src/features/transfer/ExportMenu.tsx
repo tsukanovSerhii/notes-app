@@ -2,6 +2,7 @@
 
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import Markdown from "@/features/markdown/Markdown";
+import { waitForAttachments } from "@/features/attachments/waitForAttachments";
 import Button from "@/shared/ui/Button";
 import Icon from "@/shared/ui/Icon";
 import { useDismiss } from "@/shared/hooks/useDismiss";
@@ -115,6 +116,7 @@ export default function ExportMenu({
         const element = printRef.current;
         if (!element) throw new Error("Nothing to export");
         const html2pdf = (await import("html2pdf.js")).default;
+        await waitForAttachments(element);
         const options: PdfOptions = {
           margin: [14, 14, 14, 14],
           filename: toFileName(pdfJob.title, "pdf"),

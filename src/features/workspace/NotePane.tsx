@@ -28,6 +28,7 @@ export default function NotePane({
   onOpen,
   onShowHistory,
   onTemplate,
+  onAttach,
   onRenamed,
 }: {
   note: Note;
@@ -44,6 +45,8 @@ export default function NotePane({
   onOpen: (id: string) => void;
   onShowHistory: () => void;
   onTemplate: (template: NoteTemplate) => void;
+  /** Stores files and returns the Markdown that shows them. */
+  onAttach: (files: File[]) => Promise<string>;
   /** The title was committed (field left) with a different value than it had on focus. */
   onRenamed: (note: Note, oldTitle: string) => void;
 }) {
@@ -99,6 +102,7 @@ export default function NotePane({
               saveStatus={saveStatus}
               onChange={(content) => store.update(note.id, { content })}
               onTemplate={onTemplate}
+              onAttach={onAttach}
             />
           </div>
           <Backlinks notes={linkedFrom} onOpen={onOpen} />

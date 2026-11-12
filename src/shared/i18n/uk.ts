@@ -113,6 +113,7 @@ export const uk: Messages = {
     inlineCode: "Код у рядку",
     codeBlock: "Блок коду",
     table: "Таблиця",
+    attach: "Вставити зображення або файл",
     templates: "Шаблони",
     help: "Довідка з Markdown",
     cheatsheet: "Шпаргалка Markdown",
@@ -146,8 +147,16 @@ export const uk: Messages = {
     orPress: "або натисніть",
   },
   drop: {
-    title: "Перетягніть Markdown-файли або резервну копію",
-    hint: ".md, .markdown, .txt або резервна копія NoteVoid .json",
+    title: "Перетягніть файли, щоб імпортувати або прикріпити",
+    hint: "Markdown і резервні копії NoteVoid імпортуються; зображення та інші файли додаються до відкритої нотатки",
+  },
+  attachments: {
+    tooLarge: (name, limit) => `«${name}» більший за ${limit} і не доданий`,
+    failed: (name) => `Не вдалося додати «${name}»`,
+    needNote: "Відкрийте нотатку, щоб прикріпити до неї файли.",
+    loading: "Завантаження зображення…",
+    unavailable: "Зображення ще недоступне на цьому пристрої",
+    fileUnavailable: "Файл ще недоступний на цьому пристрої",
   },
   toast: {
     movedToTrash: (title) => `«${title}» переміщено в кошик`,

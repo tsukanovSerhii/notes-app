@@ -114,6 +114,7 @@ export const en = {
     inlineCode: "Inline code",
     codeBlock: "Code block",
     table: "Table",
+    attach: "Insert image or file",
     templates: "Templates",
     help: "Markdown help",
     cheatsheet: "Markdown cheatsheet",
@@ -147,8 +148,16 @@ export const en = {
     orPress: "or press",
   },
   drop: {
-    title: "Drop Markdown files or a backup to import",
-    hint: ".md, .markdown, .txt or a NoteVoid .json backup",
+    title: "Drop files to import or attach",
+    hint: "Markdown and NoteVoid backups are imported; images and other files are added to the open note",
+  },
+  attachments: {
+    tooLarge: (name: string, limit: string) => `“${name}” is larger than ${limit} and was not added`,
+    failed: (name: string) => `Could not add “${name}”`,
+    needNote: "Open a note to attach files to it.",
+    loading: "Loading image…",
+    unavailable: "Image not available on this device yet",
+    fileUnavailable: "File not available on this device yet",
   },
   toast: {
     movedToTrash: (title: string) => `Moved “${title}” to the trash`,
