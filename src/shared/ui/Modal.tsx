@@ -40,7 +40,12 @@ export default function Modal({ open, title, onClose, children, wide = false, in
     <dialog
       ref={ref}
       aria-label={title}
-      onClose={onClose}
+      onClose={() => {
+        // The native `close` event is queued, so one caused by an earlier
+        // dialog.close() can arrive after the dialog was opened again. It
+        // must not close the new session.
+        if (!ref.current?.open) onClose();
+      }}
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}
