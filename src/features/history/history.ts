@@ -16,6 +16,8 @@ export interface HistoryStore {
   list(noteId: string): Promise<NoteVersion[]>;
   /** Keeps only the newest `keep` versions of a note. */
   prune(noteId: string, keep: number): Promise<void>;
+  /** The text of every saved version, e.g. to see which attachments they still show. */
+  contents(): Promise<string[]>;
 }
 
 export const HISTORY_INTERVAL_MS = 5 * 60 * 1000;
@@ -32,6 +34,9 @@ export function createMemoryHistory(): HistoryStore & { versions: NoteVersion[] 
     },
     async list(id) {
       return versions.filter((v) => v.noteId === id).sort(byNewest);
+    },
+    async contents() {
+      return versions.map((v) => v.content);
     },
     async prune(id, keep) {
       const drop = new Set(versions.filter((v) => v.noteId === id).sort(byNewest).slice(keep));
@@ -66,6 +71,11 @@ export function createIndexedDbHistory(db: () => Promise<IDBDatabase>): HistoryS
     },
     async list(id) {
       return (await forNote(id)).map(({ noteId, at, title, content }) => ({ noteId, at, title, content }));
+    },
+    async contents() {
+      const tx = (await db()).transaction(HISTORY_STORE, "readonly");
+      const rows = (await request(tx.objectStore(HISTORY_STORE).getAll())) as NoteVersion[];
+      return rows.map((v) => v.content);
     },
     async prune(id, keep) {
       const old = (await forNote(id)).slice(keep);

@@ -8,6 +8,10 @@ All notable changes to NoteVoid. The format follows
 
 ### Added
 
+- **Pictures and files in notes**: paste, drop or choose them (`![](attachment:<id>)`).
+  Stored on the device by content hash, shown in the preview and PDF, included
+  in backups, and synced end to end encrypted in chunks, with deduplication,
+  a per-space storage quota and pruning of unused files.
 - **Nested folders**, with drag and drop; a folder shows its subfolders' notes.
 - **Note graph** of the `[[links]]` between notes.
 - **Ranked search** with prefixes and typo tolerance, in a Web Worker.

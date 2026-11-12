@@ -1,5 +1,7 @@
 import { cloneElement, isValidElement, memo, useContext, useEffect, useState, type ReactNode } from "react";
-import ReactMarkdown, { type Components, type Options } from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform, type Components, type Options } from "react-markdown";
+import { AttachmentImage, AttachmentLink } from "@/features/attachments/AttachmentView";
+import { ATTACHMENT_SCHEME, attachmentIdFromUrl } from "@/features/attachments/attachments";
 import remarkGfm from "remark-gfm";
 import { HighlightedCode } from "@/features/markdown/CodeBlock";
 import { CopyButton } from "@/shared/ui/CopyButton";
@@ -83,6 +85,8 @@ function WikiLink({ title, children }: { title: string; children: ReactNode }) {
 }
 
 const link: Components["a"] = ({ href, title, children }) => {
+  const attachment = attachmentIdFromUrl(href);
+  if (attachment) return <AttachmentLink id={attachment}>{children}</AttachmentLink>;
   const wiki = titleFromHref(href);
   if (wiki !== null) return <WikiLink title={wiki}>{children}</WikiLink>;
   const external = !!href && /^https?:\/\//i.test(href);
@@ -133,8 +137,22 @@ function makePre(withToolbar: boolean): Components["pre"] {
   };
 }
 
-const screenComponents: Components = { a: link, code, pre: makePre(true), li: listItem };
-const printComponents: Components = { a: link, code, pre: makePre(false), li: listItem };
+/** Attachments are drawn from this device's files; other images are left to the browser. */
+function makeImage(eager: boolean): Components["img"] {
+  return function Image({ src, alt }) {
+    const id = attachmentIdFromUrl(typeof src === "string" ? src : undefined);
+    if (id) return <AttachmentImage id={id} alt={alt} eager={eager} />;
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={typeof src === "string" ? src : undefined} alt={alt ?? ""} loading={eager ? "eager" : "lazy"} />;
+  };
+}
+
+/** react-markdown drops unknown URL schemes; attachment links are ours. */
+const urlTransform: Options["urlTransform"] = (url) =>
+  url.startsWith(ATTACHMENT_SCHEME) ? url : defaultUrlTransform(url);
+
+const screenComponents: Components = { a: link, code, pre: makePre(true), li: listItem, img: makeImage(false) };
+const printComponents: Components = { a: link, code, pre: makePre(false), li: listItem, img: makeImage(true) };
 
 /** One Markdown pipeline for the live preview and the PDF export. */
 function Markdown({
@@ -150,6 +168,7 @@ function Markdown({
       remarkPlugins={math ? [...remarkPlugins!, math.remark] : remarkPlugins}
       rehypePlugins={math ? [math.rehype] : undefined}
       components={variant === "print" ? printComponents : screenComponents}
+      urlTransform={urlTransform}
     >
       {children}
     </ReactMarkdown>

@@ -68,5 +68,5 @@ test("a database from before the history store upgrades without losing notes", a
         };
       })
   );
-  expect(stores.sort()).toEqual(["history", "meta", "notes"]);
+  expect(stores.sort()).toEqual(["attachments", "history", "meta", "notes"]);
 });

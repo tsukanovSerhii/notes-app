@@ -34,6 +34,24 @@ for (const theme of ["dark", "light"] as const) {
       await expectAccessible(page, `preview, ${theme}`);
     });
 
+    test("pictures, files and a missing picture in a note", async ({ page }) => {
+      await gotoFresh(page);
+      await createNote(page);
+      await page.getByTestId("attach-input").setInputFiles([
+        { name: "dot.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==", "base64") },
+        { name: "notes.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
+      ]);
+      await editor(page).evaluate((el: HTMLTextAreaElement) => {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      });
+      await page.keyboard.type(`
+![a diagram that has not arrived](attachment:${"d".repeat(64)})`);
+      await expect(page.locator("#preview-content [data-attachment-missing]")).toBeVisible();
+      await expect(page.locator("#preview-content img[data-attachment]")).toBeVisible();
+      await expectAccessible(page, `note with attachments, ${theme}`);
+    });
+
     test("dialogs and menus", async ({ page }) => {
       await gotoFresh(page);
       await page.getByRole("button", { name: /^Sync settings/ }).click();

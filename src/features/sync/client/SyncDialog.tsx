@@ -125,11 +125,20 @@ function SyncStatusLine({ sync }: { sync: SyncSnapshot }) {
             ? t.sync.lastSynced(new Date(sync.lastSyncedAt).toLocaleTimeString(locale))
             : t.sync.waiting;
   return (
-    <p
-      role="status"
-      className={sync.state === "error" ? "text-xs text-red-400" : "text-xs text-text-muted"}
-    >
-      {text}
-    </p>
+    <>
+      <p
+        role="status"
+        className={sync.state === "error" ? "text-xs text-red-400" : "text-xs text-text-muted"}
+      >
+        {text}
+      </p>
+      {(sync.attachmentsError || sync.attachmentsPending > 0) && (
+        <p data-testid="attachments-status" className={sync.attachmentsError ? "text-xs text-red-400" : "text-xs text-text-muted"}>
+          {sync.attachmentsError
+            ? t.sync.attachmentsFailed(sync.attachmentsError)
+            : t.sync.attachmentsPending(sync.attachmentsPending)}
+        </p>
+      )}
+    </>
   );
 }

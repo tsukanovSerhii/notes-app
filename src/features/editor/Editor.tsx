@@ -20,6 +20,8 @@ interface EditorProps {
   saveStatus: SaveStatus;
   onChange: (value: string) => void;
   onTemplate: (template: NoteTemplate) => void;
+  /** Stores files and returns the Markdown that shows them ("" if none were added). */
+  onAttach: (files: File[]) => Promise<string>;
 }
 
 type Transform = (selection: TextSelection) => TextSelection | null;
@@ -29,6 +31,7 @@ export default function Editor({
   saveStatus,
   onChange,
   onTemplate,
+  onAttach,
 }: EditorProps) {
   const { t } = useI18n();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -54,6 +57,19 @@ export default function Editor({
   const prefix = (p: string, ordered?: boolean) =>
     run((s) => prefixLines(s, p, ordered));
   const insert = (text: string) => run((s) => insertBlock(s, text));
+
+  const attach = async (files: File[]) => {
+    const markdown = await onAttach(files);
+    if (markdown) insert(markdown);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    // Copied text may come with a picture of it; only files alone are attached.
+    const files = [...e.clipboardData.files];
+    if (files.length === 0 || e.clipboardData.getData("text/plain")) return;
+    e.preventDefault();
+    void attach(files);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -81,12 +97,14 @@ export default function Editor({
         onPrefix={prefix}
         onInsert={insert}
         onTemplate={onTemplate}
+        onAttach={(files) => void attach(files)}
       />
       <textarea
         ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         placeholder={t.note.placeholder}
         aria-label={t.note.content}
         spellCheck={false}

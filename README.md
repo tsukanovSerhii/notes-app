@@ -44,6 +44,10 @@ backed by Postgres. Encryption uses the built-in Web Crypto API.
   toolbar actions. Enter continues or ends lists.
 - Templates, a Markdown cheatsheet, and word count with reading time.
 
+- **Pictures and files**: paste, drop or choose them; they are stored on the
+  device, shown in the preview and the PDF, included in JSON backups, and
+  synced end to end encrypted (up to 10 MB each).
+
 **Organizing**
 - **Nested folders**: create folders inside folders, drag them to rearrange,
   and filter by a folder to see its subfolders' notes too. Deleting a folder
@@ -307,6 +311,9 @@ The sync API runs inside the Next.js server, so no separate service is needed.
 | `SYNC_DISABLED` | unset | Set to `true` to turn the endpoint off |
 | `SYNC_RATE_LIMIT_IP` | `120` | Sync requests per minute per client IP (`0` turns it off) |
 | `SYNC_RATE_LIMIT_SPACE` | `240` | Sync requests per minute per sync space (`0` turns it off) |
+| `SYNC_ATTACHMENT_QUOTA_MB` | `256` | Attachment storage per sync space; uploads past it are refused |
+| `ATTACHMENT_DATA_DIR` | `.data/attachments` | Without `DATABASE_URL`: where sealed attachment chunks are stored |
+| `SYNC_ATTACHMENT_RATE_LIMIT_IP` / `_SPACE` | `600` / `1200` | Attachment requests per minute per client IP / sync space |
 
 The per-IP limit reads `X-Forwarded-For`, so behind a reverse proxy make sure
 the proxy sets it. Limits are kept in memory, which suits a single server.

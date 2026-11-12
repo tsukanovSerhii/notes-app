@@ -2,9 +2,23 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { createSyncClient } from "@/features/sync/client/syncClient";
+import { createAttachmentSync } from "@/features/sync/client/attachmentSync";
+import { referencedIds } from "@/features/attachments/attachments";
+import { attachmentStore } from "@/features/attachments/localAttachments";
+import { noteHistory } from "@/features/history/noteHistory";
 import { appClock, deviceId, notesStore } from "@/features/notes/state/useNotes";
 
 const POLL_MS = 30_000;
+
+const attachmentSync = createAttachmentSync({
+  store: attachmentStore,
+  referenced: () => referencedIds(notesStore.getData().notes.map((n) => n.content)),
+  keepOnServer: async () =>
+    referencedIds([...notesStore.getData().notes.map((n) => n.content), ...(await noteHistory.contents())]),
+  fetch: (...args) => fetch(...args),
+  now: appClock.now,
+  storage: typeof window === "undefined" ? null : window.localStorage,
+});
 
 export const syncClient = createSyncClient({
   store: notesStore,
@@ -13,6 +27,7 @@ export const syncClient = createSyncClient({
   onServerTime: appClock.observe,
   now: appClock.now,
   deviceId,
+  attachments: attachmentSync,
 });
 
 export function useSync() {

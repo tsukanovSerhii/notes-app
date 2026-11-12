@@ -1,9 +1,11 @@
 import type { Note, NotesData } from "@/features/notes/model/types";
 import { parseData } from "@/features/notes/model/schema";
 import { todayLocalISO } from "@/shared/lib/text";
+import type { BackupAttachment } from "@/features/transfer/backupAttachments";
 
 export const BACKUP_APP = "notevoid";
-export const BACKUP_VERSION = 2;
+/** 3 added the optional `attachments` list. */
+export const BACKUP_VERSION = 3;
 /** Files larger than this are rejected instead of freezing the tab. */
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
@@ -13,15 +15,22 @@ export interface Backup {
   exportedAt: string;
   notes: NotesData["notes"];
   folders: NotesData["folders"];
+  /** Pictures and files the notes refer to; absent when there are none. */
+  attachments?: BackupAttachment[];
 }
 
-export function createBackup(data: NotesData, now: Date = new Date()): Backup {
+export function createBackup(
+  data: NotesData,
+  now: Date = new Date(),
+  attachments: BackupAttachment[] = []
+): Backup {
   return {
     app: BACKUP_APP,
     version: BACKUP_VERSION,
     exportedAt: now.toISOString(),
     notes: data.notes,
     folders: data.folders,
+    ...(attachments.length > 0 && { attachments }),
   };
 }
 
