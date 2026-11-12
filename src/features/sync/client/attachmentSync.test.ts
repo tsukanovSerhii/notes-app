@@ -150,7 +150,7 @@ test("a file the server does not have yet stays pending, and is fetched once it 
 
   // Asked again only after the retry delay.
   expect((await sync.run(keys)).pending).toBe(1);
-  t += 61_000;
+  t += 11_000;
   expect(await sync.run(keys)).toEqual({ pending: 0, error: null });
   expect(await store.get(a.id)).not.toBeNull();
 });

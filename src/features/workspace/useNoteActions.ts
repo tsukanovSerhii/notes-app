@@ -4,13 +4,17 @@ import type { Folder, Note } from "@/features/notes/model/types";
 import type { NotesStore } from "@/features/notes/state/store";
 import type { NoteVersion } from "@/features/history/history";
 import { historyRecorder } from "@/features/history/noteHistory";
-import type { NoteTemplate } from "@/features/editor/lib/templates";
-import { backupFileName, createBackup } from "@/features/transfer/importExport";
+import { templateName, type NoteTemplate } from "@/features/editor/lib/templates";
+import { TEMPLATES_FOLDER, templatesFolder } from "@/features/editor/lib/userTemplates";
+import { archiveFileName, backupFileName, createBackup } from "@/features/transfer/importExport";
 import { collectBackupAttachments } from "@/features/transfer/backupAttachments";
 import { attachmentStore } from "@/features/attachments/localAttachments";
 import { findNoteByTitle, renameLinkTarget } from "@/features/markdown/lib/wikiLinks";
+import { retag } from "@/features/library/lib/tagOps";
+import { normalizeTag } from "@/features/notes/model/schema";
 import { canMoveFolder, folderPath } from "@/features/notes/model/folders";
-import { downloadText } from "@/shared/lib/download";
+import { downloadBlob, downloadText } from "@/shared/lib/download";
+import { buildArchive } from "@/features/transfer/exportAll";
 import { useI18n } from "@/shared/i18n";
 import type { ShowToast } from "@/features/workspace/useToast";
 
@@ -85,6 +89,29 @@ export function useNoteActions({
     });
   };
 
+  /** Renames a tag in every note, the trash included; an existing target merges. */
+  const renameTag = (from: string, to: string) => {
+    const patches = retag(store.getData().notes, from, to);
+    for (const p of patches) store.update(p.id, { tags: p.tags });
+    const target = normalizeTag(to);
+    const merged = notes.some((n) => n.tags.includes(target));
+    const text = (merged ? t.toast.tagMerged : t.toast.tagRenamed)(from, target, count(patches.length, t.plural.notes));
+    showToast({ text });
+  };
+
+  const deleteTag = (tag: string) => {
+    const patches = retag(store.getData().notes, tag, null);
+    for (const p of patches) store.update(p.id, { tags: p.tags });
+    showToast({ text: t.toast.tagDeleted(tag, count(patches.length, t.plural.notes)) });
+  };
+
+  const exportZip = async () => {
+    const data = store.getData();
+    const { zip, notes: exported } = await buildArchive(data.notes, data.folders, attachmentStore);
+    downloadBlob(archiveFileName(), zip as BlobPart, "application/zip");
+    showToast({ text: t.toast.archiveDownloaded(count(exported, t.plural.notes)) });
+  };
+
   const downloadBackup = async () => {
     const data = store.getData();
     const backup = createBackup(data, new Date(), await collectBackupAttachments(data.notes, attachmentStore));
@@ -98,7 +125,25 @@ export function useNoteActions({
     const content = activeNote.content ? `${activeNote.content}\n\n${body}` : body;
     const untitled =
       !activeNote.title.trim() || activeNote.title === "Untitled" || activeNote.title === t.common.untitled;
-    store.update(activeNote.id, { content, title: untitled ? t.templates[template.id] : activeNote.title });
+    store.update(activeNote.id, { content, title: untitled ? templateName(template, t.templates) : activeNote.title });
+  };
+
+  /** Keeps the open note as a template: a note in the Templates folder, made if needed. */
+  const saveAsTemplate = () => {
+    if (!activeNote) return;
+    const folder = templatesFolder(folders) ?? store.createFolder(TEMPLATES_FOLDER);
+    if (!folder) return;
+    const title = activeNote.title.trim() || t.common.untitled;
+    const existing = notes.find((n) => n.folderId === folder.id && n.title.trim() === title);
+    if (existing) {
+      store.update(existing.id, { content: activeNote.content });
+      showToast({ text: t.toast.templateUpdated(title) });
+    } else {
+      store.create({ title, content: activeNote.content, folderId: folder.id });
+      // Creating a note opens it; the one being worked on stays open.
+      store.select(activeNote.id);
+      showToast({ text: t.toast.templateSaved(title) });
+    }
   };
 
   /**
@@ -136,8 +181,12 @@ export function useNoteActions({
     moveNote,
     deleteFolder,
     moveFolder,
+    renameTag,
+    deleteTag,
     downloadBackup,
+    exportZip,
     applyTemplate,
+    saveAsTemplate,
     renameLinks,
     restoreVersion,
   };

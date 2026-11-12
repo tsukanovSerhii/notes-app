@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { TEMPLATES, type NoteTemplate } from "@/features/editor/lib/templates";
+import { templateName, type NoteTemplate } from "@/features/editor/lib/templates";
 import MarkdownCheatsheet from "@/features/editor/MarkdownCheatsheet";
+import Outline from "@/features/editor/Outline";
+import type { Heading } from "@/features/editor/lib/outline";
 import Icon, { type IconName } from "@/shared/ui/Icon";
 import { useDismiss } from "@/shared/hooks/useDismiss";
 import { cn } from "@/shared/lib/cn";
@@ -12,8 +14,12 @@ export interface ToolbarProps {
   onWrap: (before: string, after: string, placeholder?: string) => void;
   onPrefix: (prefix: string, ordered?: boolean) => void;
   onInsert: (text: string) => void;
+  templates: NoteTemplate[];
   onTemplate: (template: NoteTemplate) => void;
+  onSaveTemplate: () => void;
   onAttach: (files: File[]) => void;
+  content: string;
+  onJump: (heading: Heading) => void;
 }
 
 const TABLE = `| Column A | Column B |
@@ -27,8 +33,12 @@ export default function Toolbar({
   onWrap,
   onPrefix,
   onInsert,
+  templates,
   onTemplate,
+  onSaveTemplate,
   onAttach,
+  content,
+  onJump,
 }: ToolbarProps) {
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -82,6 +92,8 @@ export default function Toolbar({
 
       <Divider />
 
+      <Outline content={content} onJump={onJump} />
+
       <div className="relative" ref={menuRef}>
         <button
           type="button"
@@ -105,7 +117,7 @@ export default function Toolbar({
             role="menu"
             className="absolute left-0 top-9 z-30 w-44 rounded-lg border border-border bg-bg-elevated p-1 shadow-xl"
           >
-            {TEMPLATES.map((tpl) => (
+            {templates.map((tpl) => (
               <button
                 key={tpl.id}
                 type="button"
@@ -116,9 +128,21 @@ export default function Toolbar({
                 }}
                 className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-primary transition-colors hover:bg-accent-glow hover:text-accent focus-visible:bg-accent-glow focus-visible:outline-none"
               >
-                {t.templates[tpl.id]}
+                {templateName(tpl, t.templates)}
               </button>
             ))}
+            <div role="separator" className="my-1 border-t border-border" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onSaveTemplate();
+                setMenuOpen(false);
+              }}
+              className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-muted transition-colors hover:bg-accent-glow hover:text-accent focus-visible:bg-accent-glow focus-visible:outline-none"
+            >
+              {t.editor.saveAsTemplate}
+            </button>
           </div>
         )}
       </div>

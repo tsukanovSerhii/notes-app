@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useCallback, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
 import type { Note } from "@/features/notes/model/types";
 import { useNotes } from "@/features/notes/state/useNotes";
 import Sidebar from "@/features/library/Sidebar";
@@ -21,6 +21,12 @@ import { useTheme } from "@/features/theme/ThemeController";
 import AppMenu from "@/features/workspace/AppMenu";
 import Header from "@/features/workspace/Header";
 import MobileDrawer from "@/features/workspace/MobileDrawer";
+import TagsDialog from "@/features/library/TagsDialog";
+import ShortcutsDialog from "@/features/editor/ShortcutsDialog";
+import { TEMPLATES } from "@/features/editor/lib/templates";
+import { userTemplates } from "@/features/editor/lib/userTemplates";
+import { DAILY_TAG, findDailyNote } from "@/features/workspace/dailyNote";
+import { todayLocalISO } from "@/shared/lib/text";
 import NotePane from "@/features/workspace/NotePane";
 import TrashedNote from "@/features/workspace/TrashedNote";
 import { EmptyState, WorkspaceSkeleton } from "@/features/workspace/EmptyState";
@@ -53,12 +59,16 @@ export default function Workspace() {
   useAttachmentCleanup(hydrated, () => store.getData().notes);
   useConflictToasts(sync.client, showToast);
 
+  const templates = useMemo(() => [...TEMPLATES, ...userTemplates(notes, folders)], [notes, folders]);
+
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [historyFor, setHistoryFor] = useState<Note | null>(null);
   const [graphOpen, setGraphOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const exportRef = useRef<ExportActions>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -78,6 +88,18 @@ export default function Workspace() {
     requestAnimationFrame(() => titleRef.current?.select());
   }, [store, activeFilter, viewMode, setSearchQuery, setFilter]);
 
+  /** Opens the note for today's date, making it the first time the day is used. */
+  const openToday = useCallback(() => {
+    const iso = todayLocalISO();
+    const existing = findDailyNote(store.getData().notes, iso);
+    if (existing) store.select(existing.id);
+    else store.create({ title: iso, content: `# ${iso}\n\n`, tags: [DAILY_TAG] });
+    setSearchQuery("");
+    setFilter(ALL_NOTES);
+    setDrawerOpen(false);
+    if (viewMode === "preview") setViewMode("split");
+  }, [store, viewMode, setSearchQuery, setFilter]);
+
   const openNote = useCallback(
     (id: string) => {
       store.select(id);
@@ -95,6 +117,8 @@ export default function Workspace() {
     newNote,
     openPalette: useCallback(() => setPaletteOpen(true), []),
     focusSearch,
+    openShortcuts: useCallback(() => setShortcutsOpen(true), []),
+    openToday,
     escape: useCallback(() => setDrawerOpen(false), []),
     escapeActive: drawerOpen,
   });
@@ -102,13 +126,17 @@ export default function Workspace() {
   const commands = useCommands({
     hasOpenNote: activeNote !== null && !activeTrashed,
     newNote,
+    openToday,
     focusSearch,
     cycleViewMode: () => setViewMode(nextViewMode(effectiveMode, isWide)),
     showHistory: () => setHistoryFor(activeNote),
     openGraph: () => setGraphOpen(true),
+    openShortcuts: () => setShortcutsOpen(true),
+    manageTags: () => setTagsOpen(true),
     exportPdf: () => exportRef.current?.exportPdf(),
     exportMarkdown: () => exportRef.current?.exportMarkdown(),
     downloadBackup: actions.downloadBackup,
+    exportZip: actions.exportZip,
     openSync: () => setSyncOpen(true),
     openTrash: () => changeFilter(TRASH),
     setTheme,
@@ -140,6 +168,8 @@ export default function Workspace() {
           }}
           onRenameFolder={store.renameFolder}
           onDeleteFolder={actions.deleteFolder}
+          onManageTags={() => setTagsOpen(true)}
+          onOpenToday={openToday}
           onMoveFolder={actions.moveFolder}
           onDropNote={actions.moveNote}
         />
@@ -167,8 +197,10 @@ export default function Workspace() {
           onImportFolder={importVault}
           onImportBackup={importBackup}
           onDownloadBackup={actions.downloadBackup}
+          onExportZip={actions.exportZip}
           onOpenSync={() => setSyncOpen(true)}
           onOpenGraph={() => setGraphOpen(true)}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
         />
         <ExportMenu
           title={activeNote?.title}
@@ -209,7 +241,9 @@ export default function Workspace() {
             titleRef={titleRef}
             onOpen={openNote}
             onShowHistory={() => setHistoryFor(activeNote)}
+            templates={templates}
             onTemplate={actions.applyTemplate}
+            onSaveTemplate={actions.saveAsTemplate}
             onAttach={attachFiles}
             onRenamed={actions.renameLinks}
           />
@@ -229,6 +263,14 @@ export default function Workspace() {
           openNote(id);
         }}
       />
+      <TagsDialog
+        open={tagsOpen}
+        tags={library.tags}
+        onClose={() => setTagsOpen(false)}
+        onRename={actions.renameTag}
+        onDelete={actions.deleteTag}
+      />
+      <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Suspense fallback={null}>
         {graphOpen && (
           <GraphDialog

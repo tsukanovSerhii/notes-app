@@ -8,26 +8,34 @@ import { setLocale, useI18n } from "@/shared/i18n";
 export function useCommands({
   hasOpenNote,
   newNote,
+  openToday,
   focusSearch,
   cycleViewMode,
   showHistory,
   openGraph,
+  openShortcuts,
+  manageTags,
   exportPdf,
   exportMarkdown,
   downloadBackup,
+  exportZip,
   openSync,
   openTrash,
   setTheme,
 }: {
   hasOpenNote: boolean;
   newNote: () => void;
+  openToday: () => void;
   focusSearch: () => void;
   cycleViewMode: () => void;
   showHistory: () => void;
   openGraph: () => void;
+  openShortcuts: () => void;
+  manageTags: () => void;
   exportPdf: () => void;
   exportMarkdown: () => void;
   downloadBackup: () => void;
+  exportZip: () => void;
   openSync: () => void;
   openTrash: () => void;
   setTheme: (theme: ThemeChoice) => void;
@@ -41,10 +49,14 @@ export function useCommands({
   ];
   return [
     { id: "new", label: t.palette.newNote, icon: "plus", run: newNote },
+    { id: "today", label: t.palette.today, icon: "calendar", run: openToday },
     { id: "search", label: t.palette.search, icon: "search", run: focusSearch },
     ...(hasOpenNote ? forNote : []),
     { id: "graph", label: t.palette.graph, icon: "link", run: openGraph },
+    { id: "tags", label: t.palette.manageTags, icon: "tag", run: manageTags },
+    { id: "shortcuts", label: t.palette.shortcuts, icon: "keyboard", run: openShortcuts },
     { id: "backup", label: t.palette.backup, icon: "database", run: downloadBackup },
+    { id: "zip", label: t.palette.exportZip, icon: "fileText", run: exportZip },
     { id: "sync", label: t.palette.sync, icon: "cloud", run: openSync },
     { id: "trash", label: t.palette.trash, icon: "trash", run: openTrash },
     { id: "light", label: t.palette.themeLight, icon: "eye", run: () => setTheme("light") },

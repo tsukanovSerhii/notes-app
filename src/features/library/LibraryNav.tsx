@@ -29,6 +29,8 @@ interface LibraryNavProps {
   onCreateFolder: (name: string, parentId: string | null) => void;
   onRenameFolder: (id: string, name: string) => void;
   onDeleteFolder: (id: string) => void;
+  onManageTags: () => void;
+  onOpenToday: () => void;
   /** A folder dropped on a folder, or on "All notes" (null) to move it to the top level. */
   onMoveFolder: (id: string, parentId: string | null) => void;
   /** A note dropped on a row: into a folder (or out of folders with null), or the trash. */
@@ -46,6 +48,8 @@ export default function LibraryNav({
   onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
+  onManageTags,
+  onOpenToday,
   onMoveFolder,
   onDropNote,
 }: LibraryNavProps) {
@@ -59,6 +63,7 @@ export default function LibraryNav({
   return (
     <nav aria-label={t.library.label} className="space-y-3 px-2 pb-3">
       <ul className="space-y-0.5">
+        <NavRow icon="calendar" label={t.sidebar.today} active={false} onClick={onOpenToday} />
         <NavRow
           icon="fileText"
           label={t.sidebar.allNotes}
@@ -159,9 +164,18 @@ export default function LibraryNav({
 
       {tags.length > 0 && (
         <div>
-          <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-            {t.library.tags}
-          </p>
+          <div className="mb-1.5 flex items-center justify-between px-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{t.library.tags}</p>
+            <button
+              type="button"
+              onClick={onManageTags}
+              aria-label={t.library.manageTags}
+              title={t.library.manageTags}
+              className="rounded p-0.5 text-text-muted transition-colors hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
+            >
+              <Icon name="pencil" size={12} />
+            </button>
+          </div>
           <div className="flex flex-wrap gap-1 px-1" role="group" aria-label={t.library.filterByTag}>
             {tags.map(({ tag, count }) => {
               const active = filter.tag === tag;
@@ -204,7 +218,7 @@ function NavRow({
 }: {
   icon: IconName;
   label: string;
-  count: number;
+  count?: number;
   active: boolean;
   onClick: () => void;
   actions?: React.ReactNode;
@@ -257,9 +271,11 @@ function NavRow({
       >
         <Icon name={icon} size={14} className="shrink-0" />
         <span className="min-w-0 flex-1 truncate">{label}</span>
-        <span className={cn("text-[11px] text-text-muted", actions && "group-focus-within:invisible group-hover:invisible")}>
-          {count}
-        </span>
+        {count !== undefined && (
+          <span className={cn("text-[11px] text-text-muted", actions && "group-focus-within:invisible group-hover:invisible")}>
+            {count}
+          </span>
+        )}
       </button>
       {actions && (
         <div className="absolute right-1 top-1/2 flex -translate-y-1/2 gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">

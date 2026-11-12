@@ -10,7 +10,8 @@ import {
   wrapSelection,
   type TextSelection,
 } from "@/features/editor/lib/markdownActions";
-import { applyNativeEdit, readSelection } from "@/features/editor/lib/textarea";
+import { applyNativeEdit, readSelection, revealOffset } from "@/features/editor/lib/textarea";
+import { scrollPreviewTo, type Heading } from "@/features/editor/lib/outline";
 import type { NoteTemplate } from "@/features/editor/lib/templates";
 import type { SaveStatus } from "@/features/notes/state/store";
 import { useI18n } from "@/shared/i18n";
@@ -19,7 +20,9 @@ interface EditorProps {
   value: string;
   saveStatus: SaveStatus;
   onChange: (value: string) => void;
+  templates: NoteTemplate[];
   onTemplate: (template: NoteTemplate) => void;
+  onSaveTemplate: () => void;
   /** Stores files and returns the Markdown that shows them ("" if none were added). */
   onAttach: (files: File[]) => Promise<string>;
 }
@@ -30,7 +33,9 @@ export default function Editor({
   value,
   saveStatus,
   onChange,
+  templates,
   onTemplate,
+  onSaveTemplate,
   onAttach,
 }: EditorProps) {
   const { t } = useI18n();
@@ -61,6 +66,11 @@ export default function Editor({
   const attach = async (files: File[]) => {
     const markdown = await onAttach(files);
     if (markdown) insert(markdown);
+  };
+
+  const jump = (heading: Heading) => {
+    if (textareaRef.current) revealOffset(textareaRef.current, heading.offset);
+    scrollPreviewTo(heading);
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -96,8 +106,12 @@ export default function Editor({
         onWrap={wrap}
         onPrefix={prefix}
         onInsert={insert}
+        templates={templates}
         onTemplate={onTemplate}
+        onSaveTemplate={onSaveTemplate}
         onAttach={(files) => void attach(files)}
+        content={value}
+        onJump={jump}
       />
       <textarea
         ref={textareaRef}

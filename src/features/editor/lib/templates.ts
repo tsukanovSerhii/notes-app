@@ -1,11 +1,21 @@
 import { todayLocalISO } from "@/shared/lib/text";
 
+export type BuiltinTemplateId = "meeting" | "todo" | "journal" | "snippet";
+
 export interface NoteTemplate {
-  id: "meeting" | "todo" | "journal" | "snippet";
+  /** A built-in id, or `note:<id>` for a template saved as a note. */
+  id: string;
   label: string;
   title: string;
+  /** Set for templates the user saved. */
+  custom?: true;
   /** Built on demand so dates are always current. */
   body: () => string;
+}
+
+/** What to show for a template: its own name, or the translated built-in one. */
+export function templateName(template: NoteTemplate, names: Record<BuiltinTemplateId, string>): string {
+  return template.custom ? template.label : (names[template.id as BuiltinTemplateId] ?? template.label);
 }
 
 export const TEMPLATES: NoteTemplate[] = [

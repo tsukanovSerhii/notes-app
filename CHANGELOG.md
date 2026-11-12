@@ -8,6 +8,12 @@ All notable changes to NoteVoid. The format follows
 
 ### Added
 
+- **Outline** of a note's headings, **keyboard shortcut list** on `?`, a **Today**
+  button for daily notes (Alt+D), and **tag management** (rename, merge,
+  delete in all notes).
+- **Export all notes as a ZIP** of Markdown files in folders, with pictures.
+- **Your own templates**: notes in a `Templates` folder, with `{{date}}` and
+  `{{time}}`.
 - **Pictures and files in notes**: paste, drop or choose them (`![](attachment:<id>)`).
   Stored on the device by content hash, shown in the preview and PDF, included
   in backups, and synced end to end encrypted in chunks, with deduplication,

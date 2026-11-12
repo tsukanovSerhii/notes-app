@@ -5,7 +5,7 @@ import type { SyncKeys } from "@/features/sync/client/crypto";
 export const ATTACHMENT_PRUNE_STORAGE = "notevoid-attachment-prune";
 const PRUNE_EVERY_MS = 24 * 60 * 60 * 1000;
 /** A file the server did not have is asked for again after this long. */
-const RETRY_MISSING_MS = 60_000;
+const RETRY_MISSING_MS = 10_000;
 const BATCH = 100;
 const PARALLEL_DOWNLOADS = 3;
 

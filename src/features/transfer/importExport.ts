@@ -38,6 +38,10 @@ export function backupFileName(now: Date = new Date()): string {
   return `notevoid-backup-${todayLocalISO(now)}.json`;
 }
 
+export function archiveFileName(now: Date = new Date()): string {
+  return `notevoid-notes-${todayLocalISO(now)}.zip`;
+}
+
 export class ImportError extends Error {}
 
 /** Validates a backup file. Throws ImportError with a user-facing message. */

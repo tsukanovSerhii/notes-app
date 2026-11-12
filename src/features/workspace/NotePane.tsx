@@ -27,7 +27,9 @@ export default function NotePane({
   titleRef,
   onOpen,
   onShowHistory,
+  templates,
   onTemplate,
+  onSaveTemplate,
   onAttach,
   onRenamed,
 }: {
@@ -44,7 +46,9 @@ export default function NotePane({
   titleRef: Ref<HTMLInputElement>;
   onOpen: (id: string) => void;
   onShowHistory: () => void;
+  templates: NoteTemplate[];
   onTemplate: (template: NoteTemplate) => void;
+  onSaveTemplate: () => void;
   /** Stores files and returns the Markdown that shows them. */
   onAttach: (files: File[]) => Promise<string>;
   /** The title was committed (field left) with a different value than it had on focus. */
@@ -101,7 +105,9 @@ export default function NotePane({
               value={note.content}
               saveStatus={saveStatus}
               onChange={(content) => store.update(note.id, { content })}
+              templates={templates}
               onTemplate={onTemplate}
+              onSaveTemplate={onSaveTemplate}
               onAttach={onAttach}
             />
           </div>

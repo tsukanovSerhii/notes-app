@@ -42,7 +42,11 @@ backed by Postgres. Encryption uses the built-in Web Crypto API.
   their language and have a Copy button.
 - Formatting toolbar and shortcuts. Native **Ctrl + Z** keeps working after
   toolbar actions. Enter continues or ends lists.
-- Templates, a Markdown cheatsheet, and word count with reading time.
+- Templates (built in, or any note saved into a `Templates` folder; `{{date}}`
+  and `{{time}}` are filled in), a Markdown cheatsheet, and word count with
+  reading time.
+- **Outline** of the headings with jump-to, a **Today** note (Alt + D) and a
+  list of every shortcut on `?`.
 
 - **Pictures and files**: paste, drop or choose them; they are stored on the
   device, shown in the preview and the PDF, included in JSON backups, and
@@ -53,7 +57,9 @@ backed by Postgres. Encryption uses the built-in Web Crypto API.
   and filter by a folder to see its subfolders' notes too. Deleting a folder
   keeps what is in it, one level up.
 - **Tags**: chip input with suggestions; filter by tag; search also matches
-  tags.
+  tags; rename, merge or delete a tag in all notes at once.
+- **Export everything** as a ZIP of Markdown files in folders (with pictures
+  under `attachments/`), besides the JSON backup.
 - Pinning, and **ranked full-text search** (a MiniSearch index in a Web
   Worker: every word must match, prefixes and small typos are forgiven, titles
   weigh most) that highlights matches and shows the text around them.

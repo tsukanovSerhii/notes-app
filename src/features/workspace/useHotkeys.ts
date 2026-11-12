@@ -14,12 +14,16 @@ export function useHotkeys({
   newNote,
   openPalette,
   focusSearch,
+  openShortcuts,
+  openToday,
   escape,
   escapeActive,
 }: {
   newNote: () => void;
   openPalette: () => void;
   focusSearch: () => void;
+  openShortcuts: () => void;
+  openToday: () => void;
   /** Escape; only called while `escapeActive`. */
   escape: () => void;
   escapeActive: boolean;
@@ -30,6 +34,9 @@ export function useHotkeys({
       if (e.altKey && !mod && e.code === "KeyN") {
         e.preventDefault();
         newNote();
+      } else if (e.altKey && !mod && e.code === "KeyD") {
+        e.preventDefault();
+        openToday();
       } else if (
         mod &&
         ((e.shiftKey && e.code === "KeyP") || (!e.shiftKey && e.code === "KeyK" && !isEditableTarget(e.target)))
@@ -40,11 +47,14 @@ export function useHotkeys({
       } else if (e.key === "/" && !isEditableTarget(e.target)) {
         e.preventDefault();
         focusSearch();
+      } else if (e.key === "?" && !mod && !e.altKey && !isEditableTarget(e.target)) {
+        e.preventDefault();
+        openShortcuts();
       } else if (e.key === "Escape" && escapeActive) {
         escape();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [newNote, openPalette, focusSearch, escape, escapeActive]);
+  }, [newNote, openPalette, focusSearch, openShortcuts, openToday, escape, escapeActive]);
 }

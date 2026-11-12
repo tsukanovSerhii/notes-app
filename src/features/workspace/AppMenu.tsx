@@ -12,8 +12,10 @@ interface AppMenuProps {
   onImportFolder: (files: File[]) => void;
   onImportBackup: (file: File) => void;
   onDownloadBackup: () => void;
+  onExportZip: () => void;
   onOpenSync: () => void;
   onOpenGraph: () => void;
+  onOpenShortcuts: () => void;
 }
 
 export default function AppMenu({
@@ -21,8 +23,10 @@ export default function AppMenu({
   onImportFolder,
   onImportBackup,
   onDownloadBackup,
+  onExportZip,
   onOpenSync,
   onOpenGraph,
+  onOpenShortcuts,
 }: AppMenuProps) {
   const { t, locale } = useI18n();
   const [theme, setTheme] = useTheme();
@@ -60,8 +64,10 @@ export default function AppMenu({
           <MenuItem icon="folder" label={t.menu.importFolder} onSelect={() => folderInput.current?.click()} close={close} />
           <MenuItem icon="database" label={t.menu.restoreBackup} onSelect={() => backupInput.current?.click()} close={close} />
           <MenuItem icon="download" label={t.menu.downloadBackup} onSelect={onDownloadBackup} close={close} />
+          <MenuItem icon="fileText" label={t.menu.exportZip} onSelect={onExportZip} close={close} />
           <div className="my-1 h-px bg-border" />
           <MenuItem icon="link" label={t.menu.graph} onSelect={onOpenGraph} close={close} />
+          <MenuItem icon="keyboard" label={t.menu.shortcuts} onSelect={onOpenShortcuts} close={close} />
           <MenuItem icon="cloud" label={t.menu.syncSettings} onSelect={onOpenSync} close={close} />
           <div className="my-1 border-t border-border" role="separator" />
           <div role="group" aria-label={t.menu.theme} className="flex gap-1 px-1.5 py-1">
