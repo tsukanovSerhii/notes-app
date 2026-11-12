@@ -15,12 +15,14 @@ import {
 } from "@/features/notes/persistence/persistence";
 
 export const DB_NAME = "notevoid";
-/** 2 added the local note history store. */
-export const DB_VERSION = 2;
+/** 2 added the local note history store, 3 the attachment files. */
+export const DB_VERSION = 3;
 const NOTES = "notes";
 const META = "meta";
 /** Earlier versions of notes, written by the history feature. */
 export const HISTORY_STORE = "history";
+/** Files that notes point at with attachment: links. */
+export const ATTACHMENT_STORE = "attachments";
 const META_KEY = "state";
 /** Synchronous write-ahead journal for changes made while the page unloads. */
 export const JOURNAL_KEY = "notevoid-journal";
@@ -50,6 +52,7 @@ export function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
     if (!db.objectStoreNames.contains(HISTORY_STORE)) {
       db.createObjectStore(HISTORY_STORE, { keyPath: "key", autoIncrement: true }).createIndex("noteId", "noteId");
     }
+    if (!db.objectStoreNames.contains(ATTACHMENT_STORE)) db.createObjectStore(ATTACHMENT_STORE, { keyPath: "id" });
   };
   return request(req).then((db) => {
     // Let other tabs (or a "delete database" in dev tools) upgrade or delete.
