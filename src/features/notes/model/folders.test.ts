@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { canMoveFolder, folderPath, folderRows, folderWithDescendants } from "@/features/notes/model/folders";
+import { canMoveFolder, folderNoteCounts, folderPath, folderRows, folderWithDescendants } from "@/features/notes/model/folders";
 import { folder } from "@/features/notes/testing";
 
 const tree = [
@@ -48,4 +48,41 @@ test("canMoveFolder refuses moves into itself or its own subtree", () => {
   expect(canMoveFolder(tree, "work", "api")).toBe(false);
   expect(canMoveFolder(tree, "work", "work")).toBe(false);
   expect(canMoveFolder(tree, "web", "missing")).toBe(false);
+});
+
+test("folderNoteCounts counts subfolders in their parents, in one pass", () => {
+  const folders = [
+    folder("a", { name: "A" }),
+    folder("b", { name: "B", parentId: "a" }),
+    folder("c", { name: "C", parentId: "b" }),
+    folder("d", { name: "D" }),
+  ];
+  const notes = [
+    { folderId: "c" },
+    { folderId: "c" },
+    { folderId: "b" },
+    { folderId: "a" },
+    { folderId: "d" },
+    { folderId: null },
+    { folderId: "gone" },
+  ];
+  expect([...folderNoteCounts(folders, notes)]).toEqual([
+    ["a", 4],
+    ["b", 3],
+    ["c", 2],
+    ["d", 1],
+  ]);
+});
+
+test("folderNoteCounts is not fooled by a cycle or a missing parent", () => {
+  const folders = [
+    folder("x", { name: "X", parentId: "y" }),
+    folder("y", { name: "Y", parentId: "x" }),
+    folder("z", { name: "Z", parentId: "gone" }),
+  ];
+  const counts = folderNoteCounts(folders, [{ folderId: "x" }, { folderId: "z" }]);
+  // Both ends of a cycle are shown as top-level folders, each with its own notes.
+  expect(counts.get("x")).toBe(1);
+  expect(counts.get("y")).toBe(0);
+  expect(counts.get("z")).toBe(1);
 });

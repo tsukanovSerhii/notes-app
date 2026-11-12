@@ -73,6 +73,28 @@ export function folderWithDescendants(folders: readonly Folder[], id: string): S
   return out;
 }
 
+/**
+ * How many notes are in each folder, subfolders included. One pass over the
+ * notes and one walk up the tree per folder, instead of a scan of every note
+ * for every folder.
+ */
+export function folderNoteCounts(
+  folders: readonly Folder[],
+  notes: readonly { folderId: string | null }[]
+): Map<string, number> {
+  const direct = new Map<string, number>();
+  for (const n of notes) if (n.folderId) direct.set(n.folderId, (direct.get(n.folderId) ?? 0) + 1);
+  const parents = effectiveParents(folders);
+  const counts = new Map<string, number>(folders.map((f) => [f.id, 0]));
+  for (const [id, own] of direct) {
+    // A note in a folder that is gone belongs to no row.
+    for (let at: string | null | undefined = id; at && counts.has(at); at = parents.get(at)) {
+      counts.set(at, counts.get(at)! + own);
+    }
+  }
+  return counts;
+}
+
 /** "Work / Projects / Web": where a folder sits, for pickers. */
 export function folderPath(folders: readonly Folder[], id: string): string {
   const parents = effectiveParents(folders);

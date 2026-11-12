@@ -21,6 +21,7 @@ import { useTheme } from "@/features/theme/ThemeController";
 import AppMenu from "@/features/workspace/AppMenu";
 import Header from "@/features/workspace/Header";
 import MobileDrawer from "@/features/workspace/MobileDrawer";
+import { useStableCallback } from "@/shared/hooks/useStableCallback";
 import ShareDialog from "@/features/sharing/client/ShareDialog";
 import TagsDialog from "@/features/library/TagsDialog";
 import ShortcutsDialog from "@/features/editor/ShortcutsDialog";
@@ -102,6 +103,10 @@ export default function Workspace() {
     if (viewMode === "preview") setViewMode("split");
   }, [store, viewMode, setSearchQuery, setFilter]);
 
+  // The note list is memoized per row; these keep its handlers' identity fixed while the actions are rebuilt on every edit.
+  const removeNote = useStableCallback((id: string) => actions.remove(id));
+  const restoreNote = useStableCallback((id: string) => actions.restore(id));
+
   const openNote = useCallback(
     (id: string) => {
       store.select(id);
@@ -179,9 +184,9 @@ export default function Workspace() {
       }
       onSearchChange={setSearchQuery}
       onSelect={openNote}
-      onDelete={actions.remove}
+      onDelete={removeNote}
       onTogglePin={store.togglePin}
-      onRestore={actions.restore}
+      onRestore={restoreNote}
       onCreate={newNote}
       sortMode={activeFilter.trash ? undefined : library.sortMode}
       onSortChange={library.setSortMode}

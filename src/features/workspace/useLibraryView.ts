@@ -6,7 +6,7 @@ import { collectTags, filterNotes, sortNotes, type SortMode } from "@/features/n
 import type { NotesStore } from "@/features/notes/state/store";
 import type { LibraryFilter } from "@/features/library/LibraryNav";
 import { useNoteSearch } from "@/features/library/search/useNoteSearch";
-import { folderWithDescendants } from "@/features/notes/model/folders";
+import { folderNoteCounts, folderWithDescendants } from "@/features/notes/model/folders";
 import { usePreference } from "@/shared/hooks/usePreference";
 import { useI18n } from "@/shared/i18n";
 
@@ -67,14 +67,7 @@ export function useLibraryView({
   }, [notes, trash, searchQuery, activeFilter, folderIds, sortMode, ranked]);
   const tags = useMemo(() => collectTags(notes), [notes]);
   // Counts include subfolders, matching what selecting the folder shows.
-  const folderCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const f of folders) {
-      const inside = folderWithDescendants(folders, f.id);
-      counts.set(f.id, notes.reduce((sum, n) => sum + (n.folderId && inside.has(n.folderId) ? 1 : 0), 0));
-    }
-    return counts;
-  }, [folders, notes]);
+  const folderCounts = useMemo(() => folderNoteCounts(folders, notes), [folders, notes]);
 
   const currentFolder = folders.find((f) => f.id === activeFilter.folderId);
   const searching = searchQuery.trim() !== "";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, type Ref } from "react";
+import { useDeferredValue, useMemo, useRef, type Ref } from "react";
 import type { Folder, Note } from "@/features/notes/model/types";
 import type { NotesStore, SaveStatus } from "@/features/notes/state/store";
 import Editor from "@/features/editor/Editor";
@@ -58,7 +58,12 @@ export default function NotePane({
 }) {
   const { t } = useI18n();
   const titleOnFocus = useRef(note.title);
-  const linkedFrom = useMemo(() => backlinks(notes, note), [notes, note]);
+  // Backlinks can trail a keystroke behind; typing comes first.
+  const lazyNotes = useDeferredValue(notes);
+  const linkedFrom = useMemo(
+    () => backlinks(lazyNotes, { id: note.id, title: note.title }),
+    [lazyNotes, note.id, note.title]
+  );
 
   // [[Title]] links in the preview open that note, or create it.
   const wikiTarget = useMemo<WikiLinkTarget>(

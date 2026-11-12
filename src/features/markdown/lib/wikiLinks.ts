@@ -32,15 +32,28 @@ export function wikiTargets(markdown: string): string[] {
   return [...out];
 }
 
+/**
+ * What each note links to, lower-cased, remembered per note object. An edit
+ * creates a new object for the edited note only, so typing in one note does
+ * not re-read the text of every other note.
+ */
+const linkCache = new WeakMap<object, string[]>();
+
+function linksOf(note: Note): string[] {
+  let links = linkCache.get(note);
+  if (!links) {
+    // Most notes have no links at all; skip the code-stripping regexes for them.
+    links = note.content.includes("[[") ? wikiTargets(note.content).map((t) => t.trim().toLowerCase()) : [];
+    linkCache.set(note, links);
+  }
+  return links;
+}
+
 /** Live notes, other than `target`, that link to it. */
-export function backlinks(notes: readonly Note[], target: Note): Note[] {
-  if (!target.title.trim()) return [];
-  return notes.filter(
-    (n) =>
-      n.id !== target.id &&
-      n.trashedAt === null &&
-      wikiTargets(n.content).some((t) => sameTitle(t, target.title))
-  );
+export function backlinks(notes: readonly Note[], target: Pick<Note, "id" | "title">): Note[] {
+  const title = target.title.trim().toLowerCase();
+  if (!title) return [];
+  return notes.filter((n) => n.id !== target.id && n.trashedAt === null && linksOf(n).includes(title));
 }
 
 /**
