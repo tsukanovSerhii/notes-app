@@ -30,6 +30,7 @@ export const uk: Messages = {
     importMarkdown: "Імпортувати Markdown-файли…",
     importFolder: "Імпортувати теку нотаток…",
     graph: "Граф нотаток",
+    shortcuts: "Гарячі клавіші",
     restoreBackup: "Відновити з резервної копії…",
     downloadBackup: "Завантажити резервну копію (.json)",
     syncSettings: "Налаштування синхронізації…",
@@ -233,6 +234,7 @@ export const uk: Messages = {
     language: "Switch language to English",
     history: "Історія нотатки",
     graph: "Відкрити граф нотаток",
+    shortcuts: "Показати гарячі клавіші",
   },
   graph: {
     title: "Граф нотаток",
@@ -277,5 +279,6 @@ export const uk: Messages = {
     searchNotes: "Пошук нотаток",
     palette: "Палітра команд",
     continueList: "Продовжити список",
+    showShortcuts: "Показати гарячі клавіші",
   },
 };

@@ -14,12 +14,14 @@ export function useHotkeys({
   newNote,
   openPalette,
   focusSearch,
+  openShortcuts,
   escape,
   escapeActive,
 }: {
   newNote: () => void;
   openPalette: () => void;
   focusSearch: () => void;
+  openShortcuts: () => void;
   /** Escape; only called while `escapeActive`. */
   escape: () => void;
   escapeActive: boolean;
@@ -40,11 +42,14 @@ export function useHotkeys({
       } else if (e.key === "/" && !isEditableTarget(e.target)) {
         e.preventDefault();
         focusSearch();
+      } else if (e.key === "?" && !mod && !e.altKey && !isEditableTarget(e.target)) {
+        e.preventDefault();
+        openShortcuts();
       } else if (e.key === "Escape" && escapeActive) {
         escape();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [newNote, openPalette, focusSearch, escape, escapeActive]);
+  }, [newNote, openPalette, focusSearch, openShortcuts, escape, escapeActive]);
 }

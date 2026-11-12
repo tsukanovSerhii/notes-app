@@ -12,6 +12,7 @@ export function useCommands({
   cycleViewMode,
   showHistory,
   openGraph,
+  openShortcuts,
   exportPdf,
   exportMarkdown,
   downloadBackup,
@@ -25,6 +26,7 @@ export function useCommands({
   cycleViewMode: () => void;
   showHistory: () => void;
   openGraph: () => void;
+  openShortcuts: () => void;
   exportPdf: () => void;
   exportMarkdown: () => void;
   downloadBackup: () => void;
@@ -44,6 +46,7 @@ export function useCommands({
     { id: "search", label: t.palette.search, icon: "search", run: focusSearch },
     ...(hasOpenNote ? forNote : []),
     { id: "graph", label: t.palette.graph, icon: "link", run: openGraph },
+    { id: "shortcuts", label: t.palette.shortcuts, icon: "keyboard", run: openShortcuts },
     { id: "backup", label: t.palette.backup, icon: "database", run: downloadBackup },
     { id: "sync", label: t.palette.sync, icon: "cloud", run: openSync },
     { id: "trash", label: t.palette.trash, icon: "trash", run: openTrash },

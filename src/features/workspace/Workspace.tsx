@@ -21,6 +21,7 @@ import { useTheme } from "@/features/theme/ThemeController";
 import AppMenu from "@/features/workspace/AppMenu";
 import Header from "@/features/workspace/Header";
 import MobileDrawer from "@/features/workspace/MobileDrawer";
+import ShortcutsDialog from "@/features/editor/ShortcutsDialog";
 import NotePane from "@/features/workspace/NotePane";
 import TrashedNote from "@/features/workspace/TrashedNote";
 import { EmptyState, WorkspaceSkeleton } from "@/features/workspace/EmptyState";
@@ -59,6 +60,7 @@ export default function Workspace() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [historyFor, setHistoryFor] = useState<Note | null>(null);
   const [graphOpen, setGraphOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const exportRef = useRef<ExportActions>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -95,6 +97,7 @@ export default function Workspace() {
     newNote,
     openPalette: useCallback(() => setPaletteOpen(true), []),
     focusSearch,
+    openShortcuts: useCallback(() => setShortcutsOpen(true), []),
     escape: useCallback(() => setDrawerOpen(false), []),
     escapeActive: drawerOpen,
   });
@@ -106,6 +109,7 @@ export default function Workspace() {
     cycleViewMode: () => setViewMode(nextViewMode(effectiveMode, isWide)),
     showHistory: () => setHistoryFor(activeNote),
     openGraph: () => setGraphOpen(true),
+    openShortcuts: () => setShortcutsOpen(true),
     exportPdf: () => exportRef.current?.exportPdf(),
     exportMarkdown: () => exportRef.current?.exportMarkdown(),
     downloadBackup: actions.downloadBackup,
@@ -169,6 +173,7 @@ export default function Workspace() {
           onDownloadBackup={actions.downloadBackup}
           onOpenSync={() => setSyncOpen(true)}
           onOpenGraph={() => setGraphOpen(true)}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
         />
         <ExportMenu
           title={activeNote?.title}
@@ -229,6 +234,7 @@ export default function Workspace() {
           openNote(id);
         }}
       />
+      <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Suspense fallback={null}>
         {graphOpen && (
           <GraphDialog

@@ -26,7 +26,8 @@ const SYNTAX: { syntax: string; result: CheatKey }[] = [
   { syntax: "---", result: "divider" },
 ];
 
-const SHORTCUTS: { keys: string; action: CheatKey }[] = [
+/** Also listed in the shortcuts dialog (`?`). */
+export const SHORTCUTS: { keys: string; action: CheatKey }[] = [
   { keys: "Alt + N", action: "newNote" },
   { keys: "/", action: "searchNotes" },
   { keys: "Ctrl + Shift + P", action: "palette" },
@@ -34,6 +35,7 @@ const SHORTCUTS: { keys: string; action: CheatKey }[] = [
   { keys: "Ctrl + I", action: "italic" },
   { keys: "Ctrl + K", action: "link" },
   { keys: "Enter", action: "continueList" },
+  { keys: "?", action: "showShortcuts" },
 ];
 
 export default function MarkdownCheatsheet() {

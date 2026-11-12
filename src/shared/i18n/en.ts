@@ -31,6 +31,7 @@ export const en = {
     importMarkdown: "Import Markdown files…",
     importFolder: "Import a notes folder…",
     graph: "Note graph",
+    shortcuts: "Keyboard shortcuts",
     restoreBackup: "Restore from backup…",
     downloadBackup: "Download backup (.json)",
     syncSettings: "Sync settings…",
@@ -234,6 +235,7 @@ export const en = {
     language: "Switch language to Українська",
     history: "Show note history",
     graph: "Open the note graph",
+    shortcuts: "Show keyboard shortcuts",
   },
   graph: {
     title: "Note graph",
@@ -278,6 +280,7 @@ export const en = {
     searchNotes: "Search notes",
     palette: "Command palette",
     continueList: "Continue list",
+    showShortcuts: "Show keyboard shortcuts",
   },
 };
 
