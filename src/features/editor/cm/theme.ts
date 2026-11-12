@@ -15,6 +15,8 @@ export const editorTheme = EditorView.theme({
     fontFamily: "var(--font-mono), ui-monospace, monospace",
     lineHeight: "1.8",
     overflow: "auto",
+    // Room for the scrollbar from the start: it appearing later would re-wrap every line.
+    scrollbarGutter: "stable",
   },
   ".cm-content": { padding: "1rem 1.5rem", caretColor: "var(--accent)" },
   ".cm-line": { padding: "0" },

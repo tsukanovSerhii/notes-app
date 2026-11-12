@@ -18,7 +18,7 @@ module.exports = {
     },
     assert: {
       // Margins sit well below the scores measured locally (all categories
-      // 100, LCP 0.6 s, 221 KiB of scripts), since CI machines are slower.
+      // 99-100, LCP 1.0 s, 365 KiB of scripts), since CI machines are slower.
       assertions: {
         "categories:performance": ["error", { minScore: 0.9, aggregationMethod: "median-run" }],
         "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
@@ -27,9 +27,10 @@ module.exports = {
         "largest-contentful-paint": ["error", { maxNumericValue: 2500, aggregationMethod: "median" }],
         "cumulative-layout-shift": ["error", { maxNumericValue: 0.1, aggregationMethod: "median" }],
         "total-blocking-time": ["error", { maxNumericValue: 300, aggregationMethod: "median" }],
-        // JavaScript budget, in bytes transferred. KaTeX and Mermaid load on
-        // demand, so they do not count against the first load.
-        "resource-summary:script:size": ["error", { maxNumericValue: 330 * 1024 }],
+        // JavaScript budget, in bytes transferred. KaTeX, Mermaid and the Vim
+        // keys load on demand, so they do not count against the first load.
+        // CodeMirror (the editor) is about 130 KiB of the total.
+        "resource-summary:script:size": ["error", { maxNumericValue: 400 * 1024 }],
       },
     },
     upload: { target: "filesystem", outputDir: ".lighthouseci" },

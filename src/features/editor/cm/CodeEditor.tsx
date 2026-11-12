@@ -132,7 +132,27 @@ export default function CodeEditor(props: CodeEditorProps) {
       }),
     });
     view.current = editor;
+    // The editor is drawn in the monospace font. Until it has loaded the text
+    // is laid out in a fallback, and swapping fonts would shift every line, so
+    // it stays hidden (hidden things do not count as layout shifts) until then.
+    const dom = host.current;
+    dom.style.visibility = "hidden";
+    const show = () => {
+      dom.style.visibility = "";
+      editor.requestMeasure();
+    };
+    // Two frames: the editor mounts its styles and measures itself after the first.
+    const showSoon = () => requestAnimationFrame(() => requestAnimationFrame(show));
+    const family = getComputedStyle(editor.scrollDOM).fontFamily;
+    const timeout = setTimeout(show, 1500);
+    void Promise.resolve(document.fonts?.load(`14px ${family}`))
+      .catch(() => undefined)
+      .then(() => {
+        clearTimeout(timeout);
+        showSoon();
+      });
     return () => {
+      clearTimeout(timeout);
       editor.destroy();
       view.current = null;
     };

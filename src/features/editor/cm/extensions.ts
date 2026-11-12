@@ -1,10 +1,21 @@
 import { autocompletion, completionKeymap, type CompletionContext } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { Language, LanguageSupport, defineLanguageFacet } from "@codemirror/language";
+import { GFM, parser } from "@lezer/markdown";
 import { Annotation, Compartment, Prec, type Extension } from "@codemirror/state";
 import { Decoration, EditorView, MatchDecorator, ViewPlugin, keymap, placeholder, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { matchSlash, slashContext, type SlashId } from "@/features/editor/cm/slashCommands";
 import { editorTheme, markdownHighlight } from "@/features/editor/cm/theme";
+
+/**
+ * Markdown with GitHub's tables, task lists and strikethrough. Built from the
+ * parser directly: the ready-made @codemirror/lang-markdown also pulls in
+ * HTML, CSS and JavaScript parsers (for code blocks and tags) that this editor
+ * does not use, and they are most of its weight.
+ */
+const markdownSyntax = new LanguageSupport(
+  new Language(defineLanguageFacet({}), parser.configure([GFM]), [], "markdown")
+);
 
 /** Marks a change that came from outside (another device, a restored version), not from typing. */
 export const External = Annotation.define<boolean>();
@@ -76,7 +87,7 @@ export function baseExtensions(o: BaseOptions): Extension[] {
 
   return [
     history(),
-    markdown({ base: markdownLanguage }),
+    markdownSyntax,
     markdownHighlight,
     editorTheme,
     wikiLinks,
